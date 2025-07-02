@@ -82,6 +82,76 @@ class DataCollector:
         conn.close()
         logger.info("Database setup completed")
     
+    def insert_merged_data(self, data):
+        """Insert merged data that may contain HMI data plus additional columns"""
+        if not isinstance(data, list):
+            logger.error(f"Expected list data, got {type(data)}")
+            return False
+            
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Determine data type based on length
+            if len(data) == 18:
+                # Pure HMI data - 18 values
+                cursor.execute('''
+                    INSERT INTO merged_data (
+                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
+                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                        ti504_ai, ti505_ai, ti523_ai, data_source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', data + ['hmi'])
+                logger.info(f"Inserted HMI data: {data[:3]}...")
+                
+            elif len(data) == 21:
+                # HMI data (18) + R2 value (1) + CH1, CH2, CH3 (3) = 21 values
+                hmi_data = data[:18]
+                r2_value = data[18]
+                ch1, ch2, ch3 = data[19:22]
+                
+                cursor.execute('''
+                    INSERT INTO merged_data (
+                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
+                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                        ti504_ai, ti505_ai, ti523_ai, r2_value, ch1, ch2, ch3, data_source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', hmi_data + [r2_value, ch1, ch2, ch3, 'merged'])
+                logger.info(f"Inserted merged data with HMI + R2 + CH: {data[:3]}...")
+                
+            elif len(data) == 24:
+                # Extended merged data - handle based on your specific format
+                # Assuming: HMI (18) + R2 (1) + CH1, CH2, CH3 (3) + additional (2) = 24 values
+                hmi_data = data[:18]
+                r2_value = data[18]
+                ch1, ch2, ch3 = data[19:22]
+                additional = data[22:24]  # Any additional columns
+                
+                cursor.execute('''
+                    INSERT INTO merged_data (
+                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
+                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                        ti504_ai, ti505_ai, ti523_ai, r2_value, ch1, ch2, ch3, data_source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', hmi_data + [r2_value, ch1, ch2, ch3, 'merged_extended'])
+                logger.info(f"Inserted extended merged data: {data[:3]}...")
+                
+            else:
+                logger.error(f"Unexpected data length: {len(data)}. Expected 18, 21, or 24 values")
+                return False
+            
+            conn.commit()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error inserting merged data: {e}")
+            return False
+        finally:
+            conn.close()
+
     def insert_hmi_data(self, data):
         """Insert HMI data into the database"""
         if len(data) != 18:  # Expected 18 values from HMI_TCP_Server
@@ -109,7 +179,7 @@ class DataCollector:
             return False
         finally:
             conn.close()
-    
+
     def process_csv_file(self, filename, data_type):
         """Process a CSV file and insert new data into database"""
         filepath = os.path.join(self.csv_dir, filename)
@@ -243,7 +313,7 @@ def receive_data():
     try:
         data = request.get_json()
         if data and isinstance(data, list):
-            success = collector.insert_hmi_data(data)
+            success = collector.insert_merged_data(data)
             if success:
                 return jsonify({"status": "success", "message": "Data received and stored"}), 200
             else:
