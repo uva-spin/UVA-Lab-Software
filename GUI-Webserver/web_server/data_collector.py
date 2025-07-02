@@ -57,7 +57,6 @@ class DataCollector:
                 ti505_ai FLOAT,
                 ti523_ai FLOAT,
                 
-
                 
                 -- R Values columns
                 r2_value FLOAT,
@@ -208,6 +207,19 @@ class DataCollector:
 app = Flask(__name__)
 collector = DataCollector()
 
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint for basic connectivity test"""
+    return jsonify({
+        "status": "running",
+        "endpoints": {
+            "data": "/data (POST)",
+            "receive_hmi_data": "/receive_hmi_data (POST)",
+            "health": "/health (GET)"
+        },
+        "timestamp": datetime.now().isoformat()
+    }), 200
+
 @app.route('/receive_hmi_data', methods=['POST'])
 def receive_hmi_data():
     """Endpoint to receive HMI data from HMI_TCP_Server.py"""
@@ -223,6 +235,23 @@ def receive_hmi_data():
             return jsonify({"status": "error", "message": "Invalid data format"}), 400
     except Exception as e:
         logger.error(f"Error receiving HMI data: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/data', methods=['POST'])
+def receive_data():
+    """Endpoint to receive data from data acquisition devices"""
+    try:
+        data = request.get_json()
+        if data and isinstance(data, list):
+            success = collector.insert_hmi_data(data)
+            if success:
+                return jsonify({"status": "success", "message": "Data received and stored"}), 200
+            else:
+                return jsonify({"status": "error", "message": "Failed to store data"}), 500
+        else:
+            return jsonify({"status": "error", "message": "Invalid data format"}), 400
+    except Exception as e:
+        logger.error(f"Error receiving data: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/health', methods=['GET'])
