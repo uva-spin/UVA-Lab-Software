@@ -9,7 +9,7 @@ This system collects data from multiple sources and merges them into a single SQ
 ## System Architecture
 
 ```
-HMI_TCP_Server.py → Data Collector (Port 5001) → SQLite Database
+HMI_TCP_Server.py → Data Collector (Port 5000) → SQLite Database
 CSV Files (Test_data.csv, r_values.csv, hmi_data.csv) → CSV Monitor → SQLite Database
 ```
 
@@ -31,7 +31,7 @@ python start_data_collector.py
 This will:
 - Create the `instance/` directory if it doesn't exist
 - Initialize the SQLite database with the merged schema
-- Start the Flask server on port 5001
+- Start the Flask server on port 5000
 - Begin monitoring CSV files for changes
 
 ### 3. Start the HMI TCP Server
@@ -45,7 +45,7 @@ python HMI_TCP_Sserver.py
 
 This will:
 - Read data from the Modbus TCP server
-- Send data to the local data collector (port 5001)
+- Send data to the local data collector (port 5000)
 - Fall back to the external server if local collector is unavailable
 - Continue writing to CSV files as before
 
@@ -71,7 +71,7 @@ The merged database contains a single table `merged_data` with columns for all d
 
 ## API Endpoints
 
-### Data Collector (Port 5001)
+### Data Collector (Port 5000)
 
 - `POST /receive_hmi_data` - Receive HMI data from TCP server
 - `GET /health` - Health check endpoint
@@ -141,7 +141,7 @@ To add or modify monitored files, edit the `csv_files` dictionary in `data_colle
 ### Check if Data Collector is Running
 
 ```bash
-curl http://localhost:5001/health
+curl http://localhost:5000/health
 ```
 
 ### Check Database Connection
@@ -160,7 +160,7 @@ The data collector logs all activities. Check the console output for:
 
 ### Common Issues
 
-1. **Port 5001 already in use**: Change the port in `data_collector.py`
+1. **Port 5000 already in use**: Change the port in `data_collector.py`
 2. **CSV files not found**: Ensure files exist in `static/csv/` directory
 3. **Database permission errors**: Check write permissions for `instance/` directory
 4. **HMI data not being received**: Check if HMI_TCP_Server.py is running and can connect to the Modbus server
@@ -169,7 +169,7 @@ The data collector logs all activities. Check the console output for:
 
 1. **HMI Data Flow**:
    - HMI_TCP_Server.py reads from Modbus TCP
-   - Sends data to local data collector (port 5001)
+   - Sends data to local data collector (port 5000)
    - Data collector inserts into SQLite database
    - Also writes to hmi_data.csv (original functionality)
 

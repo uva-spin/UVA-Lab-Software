@@ -50,7 +50,7 @@ def test_hmi_data_endpoint():
 def test_database_connection():
     """Test if the database exists and is accessible"""
     try:
-        conn = sqlite3.connect("instance/flaskr.sqlite")
+        conn = sqlite3.connect("../instance/flaskr.sqlite")
         cursor = conn.cursor()
         
         # Check if merged_data table exists

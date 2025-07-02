@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class DataCollector:
-    def __init__(self, db_path="instance/flaskr.sqlite", csv_dir="static/csv"):
+    def __init__(self, db_path="../instance/flaskr.sqlite", csv_dir="../static/csv"):
         self.db_path = db_path
         self.csv_dir = csv_dir
         self.csv_files = {
@@ -222,4 +222,4 @@ if __name__ == '__main__':
     collector.start_csv_monitoring(interval=30)
     
     # Start Flask app
-    app.run(host='0.0.0.0', port=5001, debug=False) 
+    app.run(host='0.0.0.0', port=5000, debug=False) 

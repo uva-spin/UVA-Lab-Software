@@ -11,13 +11,13 @@ from pathlib import Path
 
 def ensure_instance_directory():
     """Ensure the instance directory exists"""
-    instance_dir = Path("instance")
+    instance_dir = Path("../instance")
     instance_dir.mkdir(exist_ok=True)
     print(f"Instance directory ready: {instance_dir.absolute()}")
 
 def initialize_database():
     """Initialize the database with the schema"""
-    db_path = "instance/flaskr.sqlite"
+    db_path = "../instance/flaskr.sqlite"
     
     # Import the data collector to set up the database
     from data_collector import DataCollector
@@ -44,13 +44,13 @@ def main():
     from data_collector import app
     
     print("Data collector ready!")
-    print("HMI data endpoint: http://localhost:5001/receive_hmi_data")
-    print("Health check endpoint: http://localhost:5001/health")
+    print("HMI data endpoint: http://localhost:5000/receive_hmi_data")
+    print("Health check endpoint: http://localhost:5000/health")
     print("CSV monitoring interval: 30 seconds")
     print("\nStarting Flask server...")
     
     # Start the Flask app
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=False)
 
 if __name__ == '__main__':
     main() 

@@ -10,7 +10,7 @@ import argparse
 
 def connect_to_db():
     """Connect to the database"""
-    return sqlite3.connect("instance/flaskr.sqlite")
+    return sqlite3.connect("../instance/flaskr.sqlite")
 
 def get_recent_data(limit=100, hours=None):
     """Get recent data from the database"""
