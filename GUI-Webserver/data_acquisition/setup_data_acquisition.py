@@ -91,7 +91,7 @@ def test_network_connectivity(server_url):
     try:
         import requests
         response = requests.get(server_url.replace('/data', '/health'), timeout=5)
-        if response.status_code == 200:
+        if response.status_code == 200 or response.status_code == 201:
             print("✓ Successfully connected to remote server")
             return True
         else:

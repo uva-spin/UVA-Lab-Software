@@ -116,7 +116,7 @@ def send_to_remote_server(data):
         headers = {'Content-Type': 'application/json'}
         response = requests.post(REMOTE_SERVER_URL, data=json.dumps(data), headers=headers, timeout=10)
         
-        if response.status_code == 200:
+        if response.status_code == 200 or response.status_code == 201:
             logger.info("Data sent to remote server successfully")
             return True
         else:

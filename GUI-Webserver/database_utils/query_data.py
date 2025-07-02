@@ -95,7 +95,7 @@ def main():
     parser = argparse.ArgumentParser(description='Query merged data from the database')
     parser.add_argument('--limit', type=int, default=100, help='Number of records to retrieve')
     parser.add_argument('--hours', type=int, help='Get data from last N hours')
-    parser.add_argument('--source', choices=['hmi', 'test_data', 'r_values'], help='Filter by data source')
+    parser.add_argument('--source', choices=['hmi', 'r_values', 'channel_data'], help='Filter by data source')
     parser.add_argument('--summary', action='store_true', help='Show data summary')
     parser.add_argument('--export', help='Export to CSV file')
     parser.add_argument('--export-hours', type=int, help='Export data from last N hours')

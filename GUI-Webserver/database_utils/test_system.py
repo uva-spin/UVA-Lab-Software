@@ -37,7 +37,7 @@ def test_hmi_data_endpoint():
             timeout=5
         )
         
-        if response.status_code == 200:
+        if response.status_code == 200 or response.status_code == 201:
             print("✓ HMI data endpoint is working")
             return True
         else:

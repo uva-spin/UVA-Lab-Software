@@ -80,7 +80,7 @@ def send_to_data_collector(data):
         headers = {'Content-Type': 'application/json'}
         response = requests.post(url, data=json.dumps(data), headers=headers, timeout=5)
         
-        if response.status_code == 200:
+        if response.status_code == 200 or response.status_code == 201:
             print(f"Data sent to local collector: {response.json()}")
             return True
         else:

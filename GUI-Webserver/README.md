@@ -139,16 +139,26 @@ The web server runs on port 5000 by default. Modify `web_server/data_collector.p
 - Database location
 - CSV monitoring intervals
 
+## Data Sources
+
+The system collects data from multiple sources:
+
+1. **HMI Data**: Real-time Modbus data (18 values)
+2. **R Values**: CSV file with R2 Value data
+3. **Channel Data**: CSV file (teledyne_temp.csv) with CH1, CH2, CH3 values
+
 ## Data Flow
 
 ### Local Setup:
 ```
 Modbus Devices → HMI_TCP_Server.py → Data Collector → SQLite Database → HTML Display
+CSV Files (r_values.csv, teledyne_temp.csv) → CSV Monitor → SQLite Database
 ```
 
 ### Distributed Setup:
 ```
 Modbus Devices → standalone_data_acquisition.py → Network → Data Collector → SQLite Database → HTML Display
+CSV Files → CSV Monitor → SQLite Database
 ```
 
 ## Monitoring and Maintenance
