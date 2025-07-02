@@ -113,13 +113,6 @@
                 return;
             }
 
-            // Optional: set a time window (e.g., last 1 hour)
-            const now = new Date();
-            const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-
-            const startTime = oneHourAgo.toISOString().slice(0, 19).replace('T', ' ');
-            const endTime = now.toISOString().slice(0, 19).replace('T', ' ');
-
             const { headers, data } = await fetchDataFromDB(selectedKeys);
 
             updatePlot(data, selectedKeys);
@@ -231,7 +224,7 @@
         })
 
         // populate parameters
-        const titles = ['Lab QT', 'QT LiqQ', 'QT LiqB', 'QT Purifier', 'QT System', 'Cryo Pressure', 'Cryo Purity', 'Cryo Temperature'];
+        const titles = ['Lab QT', 'QT LiqQ', 'QT LiqB', 'QT Purifier', 'QT System', 'Cryo Pressure', 'Cryo Purity', 'Cryo Temperature', 'Database Data'];
         const checkboxData = [
             ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out', 'lit501_ai', 'pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai', 'purity_downstream', 'purity_upstream', 'ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai'],
             ['PT501', 'PT502', 'PT503', 'PD', 'LI501', 'PT', 'TID', 'TI502', 'TI504', 'TI506', 'TI508', 'TI510', 'FC501Q', 'FC501I', 'FCQ', 'FCI', 'LakeShoreCurves_TIDAOHM'],
@@ -240,7 +233,8 @@
             ['Manifolds PT8', 'Manifolds Magnet Dewar Level', 'Manifolds TCD_Smooth', 'Manifolds TX1', 'Manifolds FMR', 'Manifolds Magnet Dewar Pressure', 'Manifolds PC1', 'ODH EV-105-N', 'ODH TE-104N', 'ODH TE-107N', 'ODH TE-108N', 'ODH LL-106-N', 'ODH TE-109N', 'HR3 Enabled', 'ODH PT-106-N', 'ODH PT-110-N'],
             ['IVC T1F', 'IVC T2F', 'IVC T1T', 'IVC T2T', 'IVC', 'IVC T1', 'IVC T2', 'Fridge/1000', 'Fridge/100', 'He3 Probe', 'Return Manifold', 'Main Return #1', 'Roots-Pump Top', 'Roots-Pump Middle', 'Separator Return', 'Magnet Return', 'Main Return #2', 'n/c', 'Outside gHe Tank', 'HR3 Inlet', 'PTMR3'],
             ['He Purity'],
-            ['Fridge/1000', 'Fridge/100', 'Fridge/He3', 'Tank T', 'Tank B', 'Coil T', 'Coil B', 'Coil T1', 'Coil T2', 'Coil T3', 'Coil T4', 'Coil B1', 'Coil B2', 'Coil B3', 'Coil B4', 'IVC Side Bottom', 'IVC Side Top', 'Fridge Top', 'LHe FL Stinger', 'LHe FL #1', 'LHe FL #2', 'Cooldown Line TX3', 'Cooldown Line TX2', 'Annealling A', 'Annealing B', 'Microwave A', 'Microwave B', 'He Riser', 'IVC Top', 'Heat Tape on IVC', 'Heat Tape on Turret', 'Baffle Top', 'Baffle Bottom', 'Separator Top', 'Separator Bottom', 'Heat-Ex Top', 'Heat-Ex Bottom', 'Ann-Plate Bar', 'Ann-Plate Top', 'Insert 1', 'Insert 2', 'Insert 3', 'Insert 4', 'Insert 5', 'Insert 6', 'Insert 7', 'Insert 8', 'Cernox 7', 'Cernox 8', 'Outside gHe Tank B', 'Outside gHe Tank R', 'Outside gHe Tank T', 'Outside gHe Tank L', 'Outside gHe Tank', 'LJT4']
+            ['Fridge/1000', 'Fridge/100', 'Fridge/He3', 'Tank T', 'Tank B', 'Coil T', 'Coil B', 'Coil T1', 'Coil T2', 'Coil T3', 'Coil T4', 'Coil B1', 'Coil B2', 'Coil B3', 'Coil B4', 'IVC Side Bottom', 'IVC Side Top', 'Fridge Top', 'LHe FL Stinger', 'LHe FL #1', 'LHe FL #2', 'Cooldown Line TX3', 'Cooldown Line TX2', 'Annealling A', 'Annealing B', 'Microwave A', 'Microwave B', 'He Riser', 'IVC Top', 'Heat Tape on IVC', 'Heat Tape on Turret', 'Baffle Top', 'Baffle Bottom', 'Separator Top', 'Separator Bottom', 'Heat-Ex Top', 'Heat-Ex Bottom', 'Ann-Plate Bar', 'Ann-Plate Top', 'Insert 1', 'Insert 2', 'Insert 3', 'Insert 4', 'Insert 5', 'Insert 6', 'Insert 7', 'Insert 8', 'Cernox 7', 'Cernox 8', 'Outside gHe Tank B', 'Outside gHe Tank R', 'Outside gHe Tank T', 'Outside gHe Tank L', 'Outside gHe Tank', 'LJT4'],
+            ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out', 'lit501_ai', 'pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai', 'purity_downstream', 'purity_upstream', 'ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai', 'r2_value', 'ch1', 'ch2', 'ch3']
         ];
 
         const grid = document.getElementById('grid');

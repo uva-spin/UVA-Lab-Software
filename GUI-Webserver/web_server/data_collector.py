@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import logging
 
 # Configure logging
@@ -274,21 +274,84 @@ class DataCollector:
         logger.info(f"Started CSV monitoring with {interval}s interval")
 
 # Create Flask app for receiving HMI data
-app = Flask(__name__)
+app = Flask(__name__, 
+            template_folder='../templates',
+            static_folder='../static')
 collector = DataCollector()
 
 @app.route('/', methods=['GET'])
 def root():
-    """Root endpoint for basic connectivity test"""
-    return jsonify({
-        "status": "running",
-        "endpoints": {
-            "data": "/data (POST)",
-            "receive_hmi_data": "/receive_hmi_data (POST)",
-            "health": "/health (GET)"
-        },
-        "timestamp": datetime.now().isoformat()
-    }), 200
+    """Serve the main plotting interface"""
+    return render_template('index.html')
+
+@app.route('/query_db', methods=['GET'])
+def query_db():
+    """Query database for plotting data"""
+    try:
+        # Get parameters from request
+        keys = request.args.get('keys', '').split(',')
+        start_time = request.args.get('start_time', '')
+        end_time = request.args.get('end_time', '')
+        
+        # Filter out empty keys
+        keys = [key.strip() for key in keys if key.strip()]
+        
+        if not keys:
+            return jsonify({"error": "No keys provided"}), 400
+        
+        conn = sqlite3.connect(collector.db_path)
+        cursor = conn.cursor()
+        
+        # First, get the actual columns that exist in the database
+        cursor.execute("PRAGMA table_info(merged_data)")
+        table_info = cursor.fetchall()
+        available_columns = [col[1] for col in table_info]
+        
+        # Filter keys to only include columns that actually exist
+        valid_keys = [key for key in keys if key in available_columns]
+        invalid_keys = [key for key in keys if key not in available_columns]
+        
+        if invalid_keys:
+            logger.warning(f"Requested columns not found in database: {invalid_keys}")
+        
+        if not valid_keys:
+            return jsonify({"error": "No valid columns provided", "invalid_keys": invalid_keys}), 400
+        
+        # Build the query dynamically based on requested columns
+        columns = ['timestamp'] + valid_keys
+        column_list = ', '.join(columns)
+        
+        # Build WHERE clause for time range if provided
+        where_clause = ""
+        params = []
+        if start_time and end_time:
+            where_clause = "WHERE timestamp BETWEEN ? AND ?"
+            params = [start_time, end_time]
+        
+        query = f"SELECT {column_list} FROM merged_data {where_clause} ORDER BY timestamp DESC LIMIT 1000"
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        # Convert to list of dictionaries
+        data = []
+        for row in rows:
+            row_dict = {}
+            for i, column in enumerate(columns):
+                row_dict[column] = row[i]
+            data.append(row_dict)
+        
+        conn.close()
+        
+        return jsonify({
+            "columns": valid_keys,
+            "data": data,
+            "invalid_keys": invalid_keys
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error querying database: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/receive_hmi_data', methods=['POST'])
 def receive_hmi_data():
