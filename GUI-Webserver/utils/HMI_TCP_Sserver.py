@@ -73,8 +73,36 @@ def append_to_csv(data):
             writer.writerow(labels)  # Write header if file doesn't exist
         writer.writerow(data)
 
+def send_to_data_collector(data):
+    """Send data to the local data collector"""
+    try:
+        url = "http://172.29.36.50/data"
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(url, data=json.dumps(data), headers=headers, timeout=5)
+        
+        if response.status_code == 200:
+            print(f"Data sent to local collector: {response.json()}")
+            return True
+        else:
+            print(f"Failed to send to local collector: {response.status_code}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending to local collector: {e}")
+        return False
+
+def send_to_external_server(data):
+    """Send data to the external Flask server (fallback)"""
+    try:
+        url = "http://172.29.36.50/data"
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(url, data=json.dumps(data), headers=headers, timeout=5)
+        print(f"Data sent to external server: {response}")
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending to external server: {e}")
+        return False
+
 if __name__ == '__main__':
-    url = "http://172.29.36.50/data"
     sleep = 5
 
     while True:
@@ -82,15 +110,18 @@ if __name__ == '__main__':
             # Read Modbus data
             float_data = read_modbus_data()
 
-            # send data to Flask server
-            headers = {'Content-Type': 'application/json'}
-            x = requests.post(url, data=json.dumps(float_data), headers=headers)
-            print(x)
+            # Try to send to local data collector first
+            local_success = send_to_data_collector(float_data)
+            
+            # If local collector fails, try external server as fallback
+            if not local_success:
+                print("Local collector unavailable, trying external server...")
+                send_to_external_server(float_data)
 
-            # Append data to CSV
-            #append_to_csv(float_data)
+            # Append data to CSV (keeping original functionality)
+            append_to_csv(float_data)
 
-            # Wait for 60 seconds before repeating
+            # Wait before repeating
             time.sleep(sleep)
         except Exception as e:
             print(f"An error occurred: {e}")
