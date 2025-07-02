@@ -15,7 +15,7 @@ PLC_IP = "192.168.0.1"
 UNIT_ID = 2
 INT_PORT = 503
 FLOAT_PORT = 502
-NUM_REG_TO_READ = 49
+NUM_REG_TO_READ = 36  # Changed from 49 to 36 to get exactly 18 float values
 
 # Teledyne flow data settings
 TELEDYNE_CSV_PATH = "../static/csv/teledyne_flow.csv"  # Path to teledyne flow CSV file

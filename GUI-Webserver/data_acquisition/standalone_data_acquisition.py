@@ -194,7 +194,14 @@ def read_modbus_data():
         rounded_float_values = [round(value, 2) for value in float_values]
         logger.info(f"Read {len(rounded_float_values)} float values from Modbus")
         
-        return rounded_float_values
+        # Ensure we have exactly 18 values for HMI data
+        if len(rounded_float_values) >= 18:
+            hmi_data = rounded_float_values[:18]
+            logger.info(f"Using first 18 values for HMI data: {hmi_data[:3]}...")
+            return hmi_data
+        else:
+            logger.error(f"Not enough float values: got {len(rounded_float_values)}, need 18")
+            return None
         
     except Exception as e:
         logger.error(f"Error reading Modbus data: {e}")
