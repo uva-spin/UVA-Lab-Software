@@ -12,3 +12,13 @@
 2025-07-02 17:06:54,763 - INFO - Teledyne CSV path: ../static/csv/teledyne_flow.csv
 2025-07-02 17:06:54,763 - INFO - Data directory ready: data_logs
 2025-07-02 17:06:54,764 - INFO - Started teledyne data monitoring for ../static/csv/teledyne_flow.csv
+2025-07-02 17:07:24,766 - WARNING - Failed to read integer registers
+2025-07-02 17:07:54,769 - ERROR - Failed to read float registers
+2025-07-02 17:07:54,769 - WARNING - Failed to read Modbus data (attempt 1)
+2025-07-02 17:08:29,776 - WARNING - Failed to read integer registers
+2025-07-02 17:08:59,778 - ERROR - Failed to read float registers
+2025-07-02 17:08:59,778 - WARNING - Failed to read Modbus data (attempt 2)
+2025-07-02 17:09:34,785 - WARNING - Failed to read integer registers
+2025-07-02 17:10:04,787 - ERROR - Failed to read float registers
+2025-07-02 17:10:04,788 - WARNING - Failed to read Modbus data (attempt 3)
+2025-07-02 17:10:39,795 - WARNING - Failed to read integer registers
