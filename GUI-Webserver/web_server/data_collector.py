@@ -143,6 +143,64 @@ class DataCollector:
         finally:
             conn.close()
 
+    def insert_combined_data(self, combined_data):
+        """Insert combined data with Modbus and teledyne data"""
+        if not isinstance(combined_data, dict):
+            logger.error(f"Expected dict data, got {type(combined_data)}")
+            return False
+            
+        if 'modbus_data' not in combined_data:
+            logger.error("Missing modbus_data in combined data")
+            return False
+            
+        modbus_data = combined_data['modbus_data']
+        teledyne_data = combined_data.get('teledyne_data')
+        
+        if not isinstance(modbus_data, list) or len(modbus_data) != 18:
+            logger.error(f"Invalid modbus_data: expected list of 18 values, got {modbus_data}")
+            return False
+            
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Insert modbus data with teledyne data if available
+            if teledyne_data and isinstance(teledyne_data, dict):
+                # Extract teledyne values
+                teledyne_flow_1 = teledyne_data.get('flow_1', None)
+                teledyne_flow_2 = teledyne_data.get('flow_2', None)
+                teledyne_flow_3 = teledyne_data.get('flow_3', None)
+                
+                cursor.execute('''
+                    INSERT INTO merged_data (
+                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
+                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                        ti504_ai, ti505_ai, ti523_ai, ch1, ch2, ch3, data_source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', modbus_data + [teledyne_flow_1, teledyne_flow_2, teledyne_flow_3, 'combined'])
+                logger.info(f"Inserted combined data with teledyne: {modbus_data[:3]}...")
+            else:
+                # Insert modbus data only
+                cursor.execute('''
+                    INSERT INTO merged_data (
+                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
+                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                        ti504_ai, ti505_ai, ti523_ai, data_source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', modbus_data + ['modbus_only'])
+                logger.info(f"Inserted modbus data only: {modbus_data[:3]}...")
+            
+            conn.commit()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error inserting combined data: {e}")
+            return False
+        finally:
+            conn.close()
+
     def insert_hmi_data(self, data):
         """Insert HMI data into the database"""
         if len(data) != 18:  # Expected 18 values from HMI_TCP_Server
@@ -273,14 +331,26 @@ def receive_data():
     """Endpoint to receive data from data acquisition devices"""
     try:
         data = request.get_json()
-        if data and isinstance(data, list):
+        if not data:
+            return jsonify({"status": "error", "message": "No data received"}), 400
+            
+        # Handle combined data format (new format with modbus_data and teledyne_data)
+        if isinstance(data, dict) and 'modbus_data' in data:
+            success = collector.insert_combined_data(data)
+            if success:
+                return jsonify({"status": "success", "message": "Combined data received and stored"}), 200
+            else:
+                return jsonify({"status": "error", "message": "Failed to store combined data"}), 500
+                
+        # Handle list format (old format)
+        elif isinstance(data, list):
             success = collector.insert_merged_data(data)
             if success:
                 return jsonify({"status": "success", "message": "Data received and stored"}), 200
             else:
                 return jsonify({"status": "error", "message": "Failed to store data"}), 500
         else:
-            return jsonify({"status": "error", "message": "Invalid data format"}), 400
+            return jsonify({"status": "error", "message": "Invalid data format - expected dict with modbus_data or list"}), 400
     except Exception as e:
         logger.error(f"Error receiving data: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
