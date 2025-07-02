@@ -17,6 +17,10 @@ INT_PORT = 503
 FLOAT_PORT = 502
 NUM_REG_TO_READ = 49
 
+# Teledyne flow data settings
+TELEDYNE_CSV_PATH = "../static/csv/teledyne_flow.csv"  # Path to teledyne flow CSV file
+TELEDYNE_CHECK_INTERVAL = 1  # Check for new teledyne data every second
+
 # Logging settings
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log" 
