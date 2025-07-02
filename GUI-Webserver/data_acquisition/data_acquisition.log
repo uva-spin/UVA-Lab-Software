@@ -1,1 +1,8 @@
 2025-07-02 16:39:12,706 - INFO - Started teledyne data monitoring for test_teledyne_flow.csv
+2025-07-02 16:49:39,733 - INFO - Starting Data Acquisition System
+2025-07-02 16:49:39,733 - INFO - Remote server URL: http://172.29.36.50:5000/data
+2025-07-02 16:49:39,733 - INFO - Sleep interval: 5 seconds
+2025-07-02 16:49:39,733 - INFO - Teledyne CSV path: ../static/csv/teledyne_flow.csv
+2025-07-02 16:49:39,733 - INFO - Data directory ready: data_logs
+2025-07-02 16:49:39,734 - INFO - Started teledyne data monitoring for ../static/csv/teledyne_flow.csv
+2025-07-02 16:50:09,736 - WARNING - Failed to read integer registers
