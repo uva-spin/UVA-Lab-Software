@@ -76,7 +76,7 @@ def append_to_csv(data):
 def send_to_data_collector(data):
     """Send data to the local data collector"""
     try:
-        url = "http://172.29.36.50/data"
+        url = "http://172.29.36.50:5000/receive_hmi_data"
         headers = {'Content-Type': 'application/json'}
         response = requests.post(url, data=json.dumps(data), headers=headers, timeout=5)
         
@@ -93,7 +93,7 @@ def send_to_data_collector(data):
 def send_to_external_server(data):
     """Send data to the external Flask server (fallback)"""
     try:
-        url = "http://172.29.36.50/data"
+        url = "http://172.29.36.50:5000/receive_hmi_data"
         headers = {'Content-Type': 'application/json'}
         response = requests.post(url, data=json.dumps(data), headers=headers, timeout=5)
         print(f"Data sent to external server: {response}")

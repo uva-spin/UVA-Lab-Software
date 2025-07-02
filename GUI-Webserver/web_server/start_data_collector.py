@@ -1,56 +1,68 @@
 #!/usr/bin/env python3
 """
-Startup script for the data collection system.
-This script initializes the database and starts the data collector.
+Start script for the data collector
 """
 
 import os
 import sys
-import sqlite3
-from pathlib import Path
+import subprocess
+import time
+import signal
+import logging
 
-def ensure_instance_directory():
-    """Ensure the instance directory exists"""
-    instance_dir = Path("../instance")
-    instance_dir.mkdir(exist_ok=True)
-    print(f"Instance directory ready: {instance_dir.absolute()}")
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def initialize_database():
-    """Initialize the database with the schema"""
-    db_path = "../instance/flaskr.sqlite"
-    
-    # Import the data collector to set up the database
-    from data_collector import DataCollector
-    
-    collector = DataCollector(db_path=db_path)
-    print(f"Database initialized: {db_path}")
-    
-    return collector
+def check_dependencies():
+    """Check if required dependencies are installed"""
+    try:
+        import flask
+        import sqlite3
+        import requests
+        logger.info("✓ All required dependencies are available")
+        return True
+    except ImportError as e:
+        logger.error(f"✗ Missing dependency: {e}")
+        logger.error("Please install required packages: pip install flask requests")
+        return False
 
-def main():
-    """Main startup function"""
-    print("Starting Data Collection System...")
-    
-    # Ensure instance directory exists
-    ensure_instance_directory()
-    
-    # Initialize database
-    collector = initialize_database()
-    
-    # Start CSV monitoring
-    collector.start_csv_monitoring(interval=30)
-    
-    # Import and start the Flask app
-    from data_collector import app
-    
-    print("Data collector ready!")
-    print("HMI data endpoint: http://localhost:5000/receive_hmi_data")
-    print("Health check endpoint: http://localhost:5000/health")
-    print("CSV monitoring interval: 30 seconds")
-    print("\nStarting Flask server...")
-    
-    # Start the Flask app
-    app.run(host='0.0.0.0', port=5000, debug=False)
+def check_database_directory():
+    """Ensure the database directory exists"""
+    db_dir = "../instance"
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir)
+        logger.info(f"Created database directory: {db_dir}")
+    else:
+        logger.info(f"Database directory exists: {db_dir}")
 
-if __name__ == '__main__':
-    main() 
+def start_data_collector():
+    """Start the data collector Flask application"""
+    if not check_dependencies():
+        return False
+    
+    check_database_directory()
+    
+    logger.info("Starting Data Collector...")
+    logger.info("The data collector will receive data via HTTP endpoints:")
+    logger.info("  - POST /receive_hmi_data - for HMI data (18 values)")
+    logger.info("  - POST /data - for merged data (18+ values)")
+    logger.info("  - GET /query_db - for querying stored data")
+    logger.info("  - GET /health - for health checks")
+    logger.info("")
+    logger.info("Press Ctrl+C to stop the data collector")
+    
+    try:
+        # Import and run the data collector
+        from data_collector import app
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    except KeyboardInterrupt:
+        logger.info("Data collector stopped by user")
+    except Exception as e:
+        logger.error(f"Error starting data collector: {e}")
+        return False
+    
+    return True
+
+if __name__ == "__main__":
+    start_data_collector() 

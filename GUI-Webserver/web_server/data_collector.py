@@ -1,5 +1,4 @@
 import sqlite3
-import csv
 import json
 import time
 import threading
@@ -15,15 +14,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class DataCollector:
-    def __init__(self, db_path="../instance/flaskr.sqlite", csv_dir="../static/csv"):
+    def __init__(self, db_path="../instance/flaskr.sqlite"):
         self.db_path = db_path
-        self.csv_dir = csv_dir
-        self.csv_files = {
-            'r_values': 'r_values.csv',
-            'hmi_data': 'hmi_data.csv', # HMI data
-            'channel_data': 'teledyne_temp.csv'  # CSV file with CH1, CH2, CH3 data
-        }
-        self.last_modified = {}
         self.setup_database()
         
     def setup_database(self):
@@ -56,7 +48,6 @@ class DataCollector:
                 ti504_ai FLOAT,
                 ti505_ai FLOAT,
                 ti523_ai FLOAT,
-                
                 
                 -- R Values columns
                 r2_value FLOAT,
@@ -180,99 +171,6 @@ class DataCollector:
         finally:
             conn.close()
 
-    def process_csv_file(self, filename, data_type):
-        """Process a CSV file and insert new data into database"""
-        filepath = os.path.join(self.csv_dir, filename)
-        
-        if not os.path.exists(filepath):
-            logger.warning(f"CSV file not found: {filepath}")
-            return
-            
-        # Check if file has been modified
-        current_mtime = os.path.getmtime(filepath)
-        if filename in self.last_modified and current_mtime <= self.last_modified[filename]:
-            return  # No changes
-            
-        self.last_modified[filename] = current_mtime
-        
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            with open(filepath, 'r', newline='') as csvfile:
-                if data_type == 'channel_data':
-                    # For teledyne_temp.csv, use regular reader since no headers
-                    reader = csv.reader(csvfile)
-                    
-                    for row in reader:
-                        # Handle CSV with no headers: Timestamp, CH1, CH2, CH3
-                        if len(row) >= 4:  # Ensure we have at least 4 columns
-                            timestamp = row[0]  # First column is timestamp
-                            ch1 = row[1]        # Second column is CH1
-                            ch2 = row[2]        # Third column is CH2
-                            ch3 = row[3]        # Fourth column is CH3
-                            
-                            if timestamp and ch1 and ch2 and ch3:
-                                cursor.execute('''
-                                    SELECT id FROM merged_data 
-                                    WHERE timestamp = ? AND data_source = 'channel_data'
-                                ''', (timestamp,))
-                                
-                                if not cursor.fetchone():
-                                    cursor.execute('''
-                                        INSERT INTO merged_data (timestamp, ch1, ch2, ch3, data_source)
-                                        VALUES (?, ?, ?, ?, ?)
-                                    ''', (timestamp, float(ch1), float(ch2), float(ch3), 'channel_data'))
-                else:
-                    # For other CSV files, use DictReader since they have headers
-                    reader = csv.DictReader(csvfile)
-                    
-                    for row in reader:
-                        # Check if this record already exists
-                        if data_type == 'r_values':
-                            timestamp = row.get('Timestamp')
-                            r2_value = row.get('R2 Value')
-                            
-                            if timestamp and r2_value:
-                                cursor.execute('''
-                                    SELECT id FROM merged_data 
-                                    WHERE timestamp = ? AND data_source = 'r_values'
-                                ''', (timestamp,))
-                                
-                                if not cursor.fetchone():
-                                    cursor.execute('''
-                                        INSERT INTO merged_data (timestamp, r2_value, data_source)
-                                        VALUES (?, ?, ?)
-                                    ''', (timestamp, float(r2_value), 'r_values'))
-
-            conn.commit()
-            logger.info(f"Processed {data_type} CSV file: {filename}")
-            
-        except Exception as e:
-            logger.error(f"Error processing CSV file {filename}: {e}")
-        finally:
-            conn.close()
-    
-    def monitor_csv_files(self):
-        """Monitor all CSV files for changes"""
-        for data_type, filename in self.csv_files.items():
-            self.process_csv_file(filename, data_type)
-    
-    def start_csv_monitoring(self, interval=30):
-        """Start a background thread to monitor CSV files"""
-        def monitor_loop():
-            while True:
-                try:
-                    self.monitor_csv_files()
-                    time.sleep(interval)
-                except Exception as e:
-                    logger.error(f"Error in CSV monitoring loop: {e}")
-                    time.sleep(interval)
-        
-        monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
-        monitor_thread.start()
-        logger.info(f"Started CSV monitoring with {interval}s interval")
-
 # Create Flask app for receiving HMI data
 app = Flask(__name__, 
             template_folder='../templates',
@@ -393,8 +291,5 @@ def health_check():
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()}), 200
 
 if __name__ == '__main__':
-    # Start CSV monitoring
-    collector.start_csv_monitoring(interval=30)
-    
     # Start Flask app
     app.run(host='0.0.0.0', port=5000, debug=False) 

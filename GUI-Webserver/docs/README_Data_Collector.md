@@ -1,194 +1,173 @@
-# Data Collection System
+# Data Collector System
 
-This system collects data from multiple sources and merges them into a single SQLite3 database:
+## Overview
 
-1. **HMI Data**: Real-time data from Modbus TCP server
-2. **CSV Files**: Multiple CSV files being updated simultaneously
-3. **Merged Database**: All data combined into a single SQLite3 database
+The Data Collector is a Flask-based web server that receives data from multiple sources via HTTP endpoints and stores it in a SQLite database. It serves as the central data collection point for the lab monitoring system.
 
-## System Architecture
+## Architecture
 
 ```
-HMI_TCP_Server.py → Data Collector (Port 5000) → SQLite Database
-CSV Files (Test_data.csv, r_values.csv, hmi_data.csv) → CSV Monitor → SQLite Database
+Data Acquisition Machine (Modbus) → HTTP POST → Data Collector Machine → SQLite Database
+HMI TCP Server (Modbus) → HTTP POST → Data Collector Machine → SQLite Database
+```
+
+## Key Changes Made
+
+### 1. Removed CSV File Monitoring
+- **Problem**: The data collector was trying to monitor local CSV files that were being generated on different machines
+- **Solution**: Removed CSV monitoring functionality and focused on HTTP data reception
+
+### 2. Fixed Endpoint URLs
+- **Problem**: HMI TCP server was sending to incorrect endpoints
+- **Solution**: Updated URLs to match the data collector's expected endpoints
+
+### 3. Simplified Data Flow
+- Data acquisition devices send data directly via HTTP POST
+- No more file-based data transfer between machines
+- Real-time data collection and storage
+
+## Data Flow
+
+### 1. HMI Data (18 values)
+```
+HMI_TCP_Server.py → POST /receive_hmi_data → Data Collector → Database
+```
+
+### 2. Merged Data (18+ values)
+```
+standalone_data_acquisition.py → POST /data → Data Collector → Database
+```
+
+### 3. Data Query
+```
+Web Interface → GET /query_db → Data Collector → Database → JSON Response
 ```
 
 ## Setup Instructions
 
-### 1. Install Dependencies
+### On Data Collector Machine
 
-```bash
-cd GUI-Webserver
-pip install -r requirements.txt
-```
+1. **Install Dependencies**:
+   ```bash
+   cd GUI-Webserver/web_server
+   pip install -r requirements.txt
+   ```
 
-### 2. Start the Data Collector
+2. **Start Data Collector**:
+   ```bash
+   python start_data_collector.py
+   ```
 
-```bash
-python start_data_collector.py
-```
+3. **Verify Operation**:
+   ```bash
+   python test_data_collector.py
+   ```
 
-This will:
-- Create the `instance/` directory if it doesn't exist
-- Initialize the SQLite database with the merged schema
-- Start the Flask server on port 5000
-- Begin monitoring CSV files for changes
+### On Data Acquisition Machine
 
-### 3. Start the HMI TCP Server
+1. **Configure Data Acquisition**:
+   ```bash
+   cd GUI-Webserver/data_acquisition
+   # Edit config.py to set correct REMOTE_SERVER_URL
+   ```
 
-In a separate terminal:
+2. **Start Data Acquisition**:
+   ```bash
+   python standalone_data_acquisition.py
+   ```
 
-```bash
-cd GUI-Webserver/utils
-python HMI_TCP_Sserver.py
-```
+### On HMI Machine
 
-This will:
-- Read data from the Modbus TCP server
-- Send data to the local data collector (port 5000)
-- Fall back to the external server if local collector is unavailable
-- Continue writing to CSV files as before
+1. **Configure HMI TCP Server**:
+   ```bash
+   cd GUI-Webserver/utils
+   # Edit HMI_TCP_Sserver.py to set correct URL
+   ```
+
+2. **Start HMI Server**:
+   ```bash
+   python HMI_TCP_Sserver.py
+   ```
+
+## Endpoints
+
+### POST /receive_hmi_data
+- **Purpose**: Receive HMI data (18 values)
+- **Data Format**: JSON array of 18 float values
+- **Example**:
+  ```json
+  [10.5, 20.3, 15.7, 25.1, 30.2, 40.1, 50.8, 60.3, 70.9, 80.4, 90.2, 100.1, 110.5, 120.8, 130.3, 140.7, 150.2, 160.9]
+  ```
+
+### POST /data
+- **Purpose**: Receive merged data (18+ values)
+- **Data Format**: JSON array of float values
+- **Supported Lengths**: 18, 21, or 24 values
+
+### GET /query_db
+- **Purpose**: Query stored data for plotting
+- **Parameters**:
+  - `keys`: Comma-separated column names
+  - `start_time`: Start timestamp (optional)
+  - `end_time`: End timestamp (optional)
+
+### GET /health
+- **Purpose**: Health check endpoint
+- **Returns**: Status and timestamp
 
 ## Database Schema
 
-The merged database contains a single table `merged_data` with columns for all data sources:
+The `merged_data` table stores all data with the following columns:
 
-### HMI Data Columns
-- `fc501_ai`, `fc501_out`, `fc502_ai`, `fc502_out`
-- `lit501_ai`, `pt501_ai`, `pt502_ai`, `pt503_ai`, `pt504_ai`
-- `purity_downstream`, `purity_upstream`
-- `ait501_ai`, `ti501_ai`, `ti502_ai`, `ti503_ai`, `ti504_ai`, `ti505_ai`, `ti523_ai`
-
-### CSV Data Columns
-- `r2_test` (from Test_data.csv)
-- `r2_value` (from r_values.csv)
-
-### Metadata Columns
-- `id` (auto-increment primary key)
-- `timestamp` (when the data was recorded)
-- `data_source` (hmi, test_data, or r_values)
-- `created_at` (when the record was inserted)
-
-## API Endpoints
-
-### Data Collector (Port 5000)
-
-- `POST /receive_hmi_data` - Receive HMI data from TCP server
-- `GET /health` - Health check endpoint
-
-## Monitoring and Querying Data
-
-### View Data Summary
-
-```bash
-python query_data.py --summary
-```
-
-### View Recent Data
-
-```bash
-python query_data.py --limit 50
-```
-
-### View Data from Last 24 Hours
-
-```bash
-python query_data.py --hours 24
-```
-
-### Filter by Data Source
-
-```bash
-python query_data.py --source hmi --limit 20
-python query_data.py --source test_data --limit 20
-python query_data.py --source r_values --limit 20
-```
-
-### Export Data to CSV
-
-```bash
-python query_data.py --export my_data.csv --limit 1000
-python query_data.py --export last_24h.csv --export-hours 24
-```
-
-## Configuration
-
-### CSV Monitoring Interval
-
-The CSV files are checked every 30 seconds by default. To change this:
-
-1. Edit `data_collector.py`
-2. Modify the `interval` parameter in `start_csv_monitoring(interval=30)`
-
-### Database Location
-
-The database is stored in `instance/flaskr.sqlite` by default. To change this:
-
-1. Edit `data_collector.py`
-2. Modify the `db_path` parameter in the `DataCollector` constructor
-
-### CSV File Locations
-
-The system monitors these CSV files in the `static/csv/` directory:
-- `Test_data.csv`
-- `r_values.csv`
-- `hmi_data.csv`
-
-To add or modify monitored files, edit the `csv_files` dictionary in `data_collector.py`.
+- **HMI Data**: fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream, purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai
+- **Additional Data**: r2_value, ch1, ch2, ch3
+- **Metadata**: timestamp, data_source, created_at
 
 ## Troubleshooting
 
-### Check if Data Collector is Running
-
-```bash
-curl http://localhost:5000/health
-```
-
-### Check Database Connection
-
-```bash
-python query_data.py --summary
-```
-
-### View Logs
-
-The data collector logs all activities. Check the console output for:
-- Database initialization messages
-- CSV file processing messages
-- HMI data insertion messages
-- Error messages
-
 ### Common Issues
 
-1. **Port 5000 already in use**: Change the port in `data_collector.py`
-2. **CSV files not found**: Ensure files exist in `static/csv/` directory
-3. **Database permission errors**: Check write permissions for `instance/` directory
-4. **HMI data not being received**: Check if HMI_TCP_Server.py is running and can connect to the Modbus server
+1. **Connection Refused**:
+   - Check if data collector is running on correct port (5000)
+   - Verify firewall settings
+   - Check network connectivity between machines
 
-## Data Flow
+2. **Data Not Being Stored**:
+   - Check data collector logs for errors
+   - Verify data format matches expected schema
+   - Check database permissions
 
-1. **HMI Data Flow**:
-   - HMI_TCP_Server.py reads from Modbus TCP
-   - Sends data to local data collector (port 5000)
-   - Data collector inserts into SQLite database
-   - Also writes to hmi_data.csv (original functionality)
+3. **Endpoint Not Found (404)**:
+   - Verify correct URL endpoints
+   - Check if Flask app is running
+   - Ensure proper HTTP method (POST vs GET)
 
-2. **CSV Data Flow**:
-   - CSV monitor checks files every 30 seconds
-   - Detects new data by file modification time
-   - Inserts new records into SQLite database
-   - Prevents duplicate entries
+### Testing
 
-3. **Database Merging**:
-   - All data sources write to the same `merged_data` table
-   - Each record is tagged with its `data_source`
-   - Timestamps are preserved from original data
-   - Index on timestamp for fast queries
+Use the test script to verify all endpoints:
+```bash
+python test_data_collector.py
+```
 
-## Performance Considerations
+### Logs
 
-- The system uses file modification times to detect CSV changes
-- Database queries are indexed on timestamp for performance
-- CSV monitoring runs in a background thread
-- HMI data is processed immediately when received
-- Duplicate prevention uses timestamp + data_source combination 
+Check the console output for detailed logging information. The data collector logs all incoming requests and database operations.
+
+## Configuration
+
+### Data Collector Configuration
+- **Port**: 5000 (default)
+- **Host**: 0.0.0.0 (accepts connections from any IP)
+- **Database**: ../instance/flaskr.sqlite
+
+### Network Configuration
+- **Data Collector IP**: 172.29.36.50:5000
+- **Data Acquisition IP**: Configure in config.py
+- **HMI Server IP**: Configure in HMI_TCP_Sserver.py
+
+## Security Notes
+
+- The data collector accepts connections from any IP (0.0.0.0)
+- Consider implementing authentication for production use
+- Database file should have appropriate permissions
+- Consider using HTTPS for sensitive data transmission 
