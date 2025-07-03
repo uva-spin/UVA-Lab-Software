@@ -1,7 +1,7 @@
 # Configuration file for data acquisition system
 
 # Remote Flask server configuration
-REMOTE_SERVER_URL = "http://172.29.36.50:5000/data"  # Change this to your Flask server's IP and port
+REMOTE_SERVER_URL = "http://128.143.231.224:5000/data"  # Flask server's IP and port
 
 # Local data storage
 LOCAL_CSV_DIR = "data_logs"  # Directory to store local CSV backups
