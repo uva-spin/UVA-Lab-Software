@@ -35,7 +35,7 @@ try:
     from config import *
 except ImportError:
     # Default configuration if config.py doesn't exist
-    REMOTE_SERVER_URL = "http://172.29.36.50:5000/data"
+    REMOTE_SERVER_URL = "http://128.143.231.224:5000/data"
     LOCAL_CSV_DIR = "data_logs"
     SLEEP_INTERVAL = 5
     MAX_CONSECUTIVE_FAILURES = 10

@@ -39,12 +39,12 @@ def configure_remote_server():
     print("\n=== Remote Server Configuration ===")
     print("Enter the IP address and port of your Flask server:")
     
-    current_url = "http://172.29.36.50:5000/data"
+    current_url = "http://128.143.231.224:5000/data"
     print(f"Current URL: {current_url}")
     
     new_ip = input("Enter IP address (or press Enter to keep current): ").strip()
     if not new_ip:
-        new_ip = "172.29.36.50"
+        new_ip = "128.143.231.224"
     
     new_port = input("Enter port (or press Enter to keep current): ").strip()
     if not new_port:
