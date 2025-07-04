@@ -43,23 +43,32 @@ def start_data_collector():
     
     check_database_directory()
     
-    logger.info("Starting Data Collector...")
-    logger.info("The data collector will receive data via HTTP endpoints:")
-    logger.info("  - POST /receive_hmi_data - for HMI data (18 values)")
-    logger.info("  - POST /data - for merged data (18+ values)")
-    logger.info("  - GET /query_db - for querying stored data")
-    logger.info("  - GET /health - for health checks")
+    logger.info("🚀 Starting Data Collector...")
+    logger.info("=" * 60)
+    logger.info("📡 The data collector will receive data via HTTP endpoints:")
+    logger.info("  • POST /receive_hmi_data - for HMI data (18 values)")
+    logger.info("  • POST /data - for merged data (18+ values)")
+    logger.info("  • GET /query_db - for querying stored data")
+    logger.info("  • GET /health - for health checks")
+    logger.info("  • POST /shutdown - for graceful server shutdown")
     logger.info("")
-    logger.info("Press Ctrl+C to stop the data collector")
+    logger.info("🌐 Web Interface: http://localhost:5000")
+    logger.info("")
+    logger.info("🛑 Shutdown Options:")
+    logger.info("  • Press Ctrl+C in this terminal")
+    logger.info("  • Use the shutdown button in the web interface")
+    logger.info("  • Send POST request to /shutdown endpoint")
+    logger.info("")
+    logger.info("=" * 60)
     
     try:
         # Import and run the data collector
         from data_collector import app
         app.run(host='0.0.0.0', port=5000, debug=False)
     except KeyboardInterrupt:
-        logger.info("Data collector stopped by user")
+        logger.info("🛑 Data collector stopped by user (Ctrl+C)")
     except Exception as e:
-        logger.error(f"Error starting data collector: {e}")
+        logger.error(f"❌ Error starting data collector: {e}")
         return False
     
     return True

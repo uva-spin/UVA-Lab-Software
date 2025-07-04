@@ -3,6 +3,8 @@ import json
 import time
 import threading
 import os
+import signal
+import sys
 from datetime import datetime
 from pathlib import Path
 import requests
@@ -12,6 +14,20 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Global variable to track shutdown state
+shutdown_requested = False
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully"""
+    global shutdown_requested
+    logger.info(f"Received signal {signum}. Initiating graceful shutdown...")
+    shutdown_requested = True
+    sys.exit(0)
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 class DataCollector:
     def __init__(self, db_path="../instance/flaskr.sqlite"):
@@ -360,6 +376,30 @@ def health_check():
     """Health check endpoint"""
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()}), 200
 
+@app.route('/shutdown', methods=['POST'])
+def shutdown_server():
+    """Endpoint to gracefully shutdown the server"""
+    global shutdown_requested
+    logger.info("Shutdown requested via HTTP endpoint")
+    shutdown_requested = True
+    
+    # Start shutdown in a separate thread to allow response
+    def delayed_shutdown():
+        time.sleep(1)  # Give time for response to be sent
+        os._exit(0)
+    
+    threading.Thread(target=delayed_shutdown, daemon=True).start()
+    return jsonify({"status": "shutdown_initiated", "message": "Server shutting down gracefully"}), 200
+
 if __name__ == '__main__':
     # Start Flask app
-    app.run(host='0.0.0.0', port=5000, debug=False) 
+    logger.info("Starting Data Collector Server...")
+    logger.info("Press Ctrl+C or send POST to /shutdown to stop the server")
+    try:
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received. Shutting down gracefully...")
+    except Exception as e:
+        logger.error(f"Error running server: {e}")
+    finally:
+        logger.info("Data Collector Server stopped.") 
