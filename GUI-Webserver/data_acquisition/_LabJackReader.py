@@ -123,6 +123,9 @@ class LabJackReader:
                     logger.info(f"LabJackReader: Stream stopped")
                     d.close()
                     logger.info(f"LabJackReader: Device closed")
+            except Exception as e:
+                logger.error(f"LabJackReader: Error in monitor loop: {e}")
+                time.sleep(self.check_interval)
 
     def _to_csv(self, data):
         """Write data to CSV file"""
