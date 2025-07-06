@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Standalone Data Acquisition Script
-This script runs on the machine connected to Modbus devices and sends data to a remote Flask server.
-Also reads from teledyne_flow.csv in real-time.
+This script runs on the machine connected to Modbus devices and pipelines data directly to the database.
+Also reads from teledyne_flow.csv and labjack_pressure.csv in real-time.
 """
 
 from pyModbusTCP.client import ModbusClient
@@ -10,7 +10,6 @@ from pyModbusTCP import utils
 import struct
 import time
 import csv
-import requests
 import json
 import logging
 from datetime import datetime
@@ -18,6 +17,7 @@ import os
 import threading
 from collections import deque
 import queue
+import sqlite3
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
 
@@ -37,7 +37,7 @@ try:
     from config import *
 except ImportError:
     # Default configuration if config.py doesn't exist
-    REMOTE_SERVER_URL = "http://128.143.231.224:5000/data"
+    DATABASE_PATH = "../instance/flaskr.sqlite"
     LOCAL_CSV_DIR = "data_logs"
     SLEEP_INTERVAL = 5
     MAX_CONSECUTIVE_FAILURES = 10
@@ -52,6 +52,7 @@ except ImportError:
     TELEDYNE_CHECK_INTERVAL = 1  # Check for new data every second
     LABJACK_CSV_PATH = "../static/csv/labjack_pressure.csv"
     LABJACK_CHECK_INTERVAL = 1  # Check for new data every second
+
 # Define the labels for the float values
 labels = [
     "FC501.AI.Value",
@@ -96,6 +97,41 @@ def ensure_data_directory():
     """Ensure the data directory exists"""
     os.makedirs(LOCAL_CSV_DIR, exist_ok=True)
     logger.info(f"Data directory ready: {LOCAL_CSV_DIR}")
+
+def ensure_database_directory():
+    """Ensure the database directory exists"""
+    db_dir = os.path.dirname(DATABASE_PATH)
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir)
+        logger.info(f"Database directory created: {db_dir}")
+
+def setup_database():
+    """Initialize the database with the schema-defined tables"""
+    ensure_database_directory()
+    
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        # Use the schema.sql file to create tables
+        schema_path = "../database_utils/schema.sql"
+        with open(schema_path, 'r') as f:
+            schema_sql = f.read()
+            cursor.executescript(schema_sql)
+        
+        conn.commit()
+        logger.info("Database setup completed using schema.sql")
+    except sqlite3.OperationalError as e:
+        if "already exists" in str(e):
+            logger.info("Tables already exist, skipping creation")
+        else:
+            logger.error(f"Database setup error: {e}")
+            raise
+    except Exception as e:
+        logger.error(f"Unexpected error during database setup: {e}")
+        raise
+    finally:
+        conn.close()
 
 def read_modbus_data():
     """Read data from Modbus TCP server"""
@@ -162,53 +198,109 @@ def read_labjack_data():
         
     return labjack_reader.get_latest_data()
 
-def combine_data(modbus_data, teledyne_data, labjack_data):
-    """Combine Modbus and teledyne data into a single data structure"""
-    combined_data = {
-        'timestamp': datetime.now().isoformat(),
-        'modbus_data': modbus_data,
-        'teledyne_data': teledyne_data,
-        'labjack_data': labjack_data
-    }
-    
-    # Create a flat list for CSV storage
-    csv_data = modbus_data.copy()
-    
-    if teledyne_data:
-        csv_data.extend([
-            teledyne_data['Timestamp'],
-            teledyne_data['flow_1'],
-            teledyne_data['flow_2'],
-            teledyne_data['flow_3']
-        ])
-
-        if labjack_data:
-            csv_data.extend([
-                labjack_data['Timestamp'],
-                labjack_data['Pressure_1']
-            ])
-    else:
-        # Add empty values if no teledyne data
-        csv_data.extend(['', '', '', ''])
-        
-    return combined_data, csv_data
-
-def send_to_remote_server(data):
-    """Send data to the remote Flask server"""
-    try:
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(REMOTE_SERVER_URL, data=json.dumps(data), headers=headers, timeout=10)
-        
-        if response.status_code == 200 or response.status_code == 201:
-            logger.info("Data sent to remote server successfully")
-            return True
-        else:
-            logger.warning(f"Remote server returned status {response.status_code}")
-            return False
-            
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to send data to remote server: {e}")
+def insert_hmi_data(data):
+    """Insert HMI data into the hmi table"""
+    if len(data) != 18:
+        logger.error(f"Expected 18 HMI values, got {len(data)}")
         return False
+        
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO hmi (
+                fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
+                purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                ti504_ai, ti505_ai, ti523_ai
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', data)
+        
+        conn.commit()
+        logger.info(f"Inserted HMI data: {data[:3]}...")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting HMI data: {e}")
+        return False
+    finally:
+        conn.close()
+
+def insert_teledyne_data(flow_data):
+    """Insert Teledyne data into the flow_rates table"""
+    if len(flow_data) != 3:
+        logger.error(f"Expected 3 flow values, got {len(flow_data)}")
+        return False
+        
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO flow_rates (flow_1, flow_2, flow_3) VALUES (?, ?, ?)
+        ''', flow_data)
+        
+        conn.commit()
+        logger.info(f"Inserted Teledyne data: {flow_data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting Teledyne data: {e}")
+        return False
+    finally:
+        conn.close()
+
+def insert_labjack_data(pressure_data):
+    """Insert LabJack data into the pressures table"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO pressures (pressure_1) VALUES (?)
+        ''', (pressure_data,))
+        
+        conn.commit()
+        logger.info(f"Inserted LabJack data: {pressure_data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting LabJack data: {e}")
+        return False
+    finally:
+        conn.close()
+
+def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
+    """Pipeline data directly to the database"""
+    success = True
+    
+    # Insert HMI/Modbus data
+    if modbus_data is not None:
+        if not insert_hmi_data(modbus_data):
+            success = False
+            logger.error("Failed to insert HMI data")
+    
+    # Insert Teledyne data
+    if teledyne_data is not None:
+        flow_1 = teledyne_data.get('flow_1')
+        flow_2 = teledyne_data.get('flow_2')
+        flow_3 = teledyne_data.get('flow_3')
+        if all(v is not None for v in [flow_1, flow_2, flow_3]):
+            if not insert_teledyne_data([flow_1, flow_2, flow_3]):
+                success = False
+                logger.error("Failed to insert Teledyne data")
+        else:
+            logger.warning("Missing required teledyne flow values")
+    
+    # Insert LabJack data
+    if labjack_data is not None:
+        pressure_1 = labjack_data.get('Pressure_1')
+        if pressure_1 is not None:
+            if not insert_labjack_data(pressure_1):
+                success = False
+                logger.error("Failed to insert LabJack data")
+        else:
+            logger.warning("Missing LabJack pressure value")
+    
+    return success
 
 def save_to_local_csv(data, csv_data):
     """Save data to local CSV file as backup"""
@@ -224,7 +316,7 @@ def save_to_local_csv(data, csv_data):
             
             if not file_exists:
                 # Write headers
-                header_row = ['timestamp'] + labels + teledyne_labels
+                header_row = ['timestamp'] + labels + teledyne_labels + Pressure_labels
                 writer.writerow(header_row)
             
             # Write data row
@@ -240,20 +332,29 @@ def save_to_local_csv(data, csv_data):
 
 def main():
     """Main data acquisition loop"""
-    global teledyne_reader
+    global teledyne_reader, labjack_reader
     
-    logger.info("Starting Data Acquisition System")
-    logger.info(f"Remote server URL: {REMOTE_SERVER_URL}")
+    logger.info("Starting Data Acquisition System with Direct Database Pipeline")
+    logger.info(f"Database path: {DATABASE_PATH}")
     logger.info(f"Sleep interval: {SLEEP_INTERVAL} seconds")
     logger.info(f"Teledyne CSV path: {TELEDYNE_CSV_PATH}")
+    logger.info(f"LabJack CSV path: {LABJACK_CSV_PATH}")
     
     # Ensure data directory exists
     ensure_data_directory()
+    
+    # Setup database
+    try:
+        setup_database()
+    except Exception as e:
+        logger.error(f"Failed to setup database: {e}")
+        return
     
     # Start teledyne data reader
     try:
         teledyne_reader = TeledyneDataReader(TELEDYNE_CSV_PATH, TELEDYNE_CHECK_INTERVAL)
         teledyne_reader.start()
+        logger.info("Teledyne data reader started")
     except Exception as e:
         logger.error(f"Error starting teledyne data reader: {e}")
     
@@ -261,6 +362,7 @@ def main():
     try:
         labjack_reader = LabJackReader(LABJACK_CSV_PATH, LABJACK_CHECK_INTERVAL)
         labjack_reader.start()
+        logger.info("LabJack data reader started")
     except Exception as e:
         logger.error(f"Error starting labjack data reader: {e}")
     
@@ -293,17 +395,46 @@ def main():
                 # Read labjack data
                 labjack_data = read_labjack_data()
                 
-                # Combine data
-                combined_data, csv_data = combine_data(modbus_data, teledyne_data, labjack_data)
+                # Pipeline data directly to database
+                db_success = pipeline_to_database(modbus_data, teledyne_data, labjack_data)
                 
-                # Send to remote server
-                server_success = send_to_remote_server(combined_data)
+                if not db_success:
+                    logger.warning("Some data failed to insert into database")
+                
+                # Create combined data for CSV backup
+                combined_data = {
+                    'timestamp': datetime.now().isoformat(),
+                    'modbus_data': modbus_data,
+                    'teledyne_data': teledyne_data,
+                    'labjack_data': labjack_data
+                }
+                
+                # Create CSV data for backup
+                csv_data = modbus_data.copy()
+                
+                if teledyne_data:
+                    csv_data.extend([
+                        teledyne_data.get('Timestamp', ''),
+                        teledyne_data.get('flow_1', ''),
+                        teledyne_data.get('flow_2', ''),
+                        teledyne_data.get('flow_3', '')
+                    ])
+                else:
+                    csv_data.extend(['', '', '', ''])
+                
+                if labjack_data:
+                    csv_data.extend([
+                        labjack_data.get('Timestamp', ''),
+                        labjack_data.get('Pressure_1', '')
+                    ])
+                else:
+                    csv_data.extend(['', ''])
                 
                 # Always save locally as backup
                 csv_success = save_to_local_csv(combined_data, csv_data)
                 
-                if not server_success:
-                    logger.warning("Remote server unavailable, data saved locally only")
+                if not csv_success:
+                    logger.warning("Failed to save CSV backup")
                 
                 # Wait before next reading
                 time.sleep(SLEEP_INTERVAL)
@@ -323,7 +454,7 @@ def main():
 
         if labjack_reader:
             labjack_reader.stop()
-            logger.info("Labjack data reader stopped")
+            logger.info("LabJack data reader stopped")
 
 if __name__ == '__main__':
     main() 
