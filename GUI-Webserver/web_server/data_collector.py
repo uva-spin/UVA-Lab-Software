@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import sqlite3
 import json
 import time
@@ -5,7 +6,7 @@ import threading
 import os
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import requests
 from flask import Flask, request, jsonify, render_template
@@ -35,191 +36,172 @@ class DataCollector:
         self.setup_database()
         
     def setup_database(self):
-        """Initialize the database with the updated schema"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Create the main data table with all columns
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS merged_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                
-                -- HMI Data columns
-                fc501_ai FLOAT,
-                fc501_out FLOAT,
-                fc502_ai FLOAT,
-                fc502_out FLOAT,
-                lit501_ai FLOAT,
-                pt501_ai FLOAT,
-                pt502_ai FLOAT,
-                pt503_ai FLOAT,
-                pt504_ai FLOAT,
-                purity_downstream FLOAT,
-                purity_upstream FLOAT,
-                ait501_ai FLOAT,
-                ti501_ai FLOAT,
-                ti502_ai FLOAT,
-                ti503_ai FLOAT,
-                ti504_ai FLOAT,
-                ti505_ai FLOAT,
-                ti523_ai FLOAT,
-                
-                -- R Values columns
-                r2_value FLOAT,
-                
-                -- Channel Data columns (CH1, CH2, CH3)
-                ch1 FLOAT,
-                ch2 FLOAT,
-                ch3 FLOAT,
-                
-                -- Metadata
-                data_source TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Create index on timestamp for faster queries
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_timestamp 
-            ON merged_data(timestamp)
-        ''')
-        
-        conn.commit()
-        conn.close()
-        logger.info("Database setup completed")
-    
-    def insert_merged_data(self, data):
-        """Insert merged data that may contain HMI data plus additional columns"""
-        if not isinstance(data, list):
-            logger.error(f"Expected list data, got {type(data)}")
-            return False
-            
+        """Initialize the database with the schema-defined tables"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         try:
-            # Determine data type based on length
-            if len(data) == 18:
-                # Pure HMI data - 18 values
-                cursor.execute('''
-                    INSERT INTO merged_data (
-                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
-                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                        ti504_ai, ti505_ai, ti523_ai, data_source
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', data + ['hmi'])
-                logger.info(f"Inserted HMI data: {data[:3]}...")
-                
-            elif len(data) == 21:
-                # HMI data (18) + R2 value (1) + CH1, CH2, CH3 (3) = 21 values
-                hmi_data = data[:18]
-                r2_value = data[18]
-                ch1, ch2, ch3 = data[19:22]
-                
-                cursor.execute('''
-                    INSERT INTO merged_data (
-                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
-                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                        ti504_ai, ti505_ai, ti523_ai, r2_value, ch1, ch2, ch3, data_source
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', hmi_data + [r2_value, ch1, ch2, ch3, 'merged'])
-                logger.info(f"Inserted merged data with HMI + R2 + CH: {data[:3]}...")
-                
-            elif len(data) == 24:
-                # Extended merged data - handle based on your specific format
-                # Assuming: HMI (18) + R2 (1) + CH1, CH2, CH3 (3) + additional (2) = 24 values
-                hmi_data = data[:18]
-                r2_value = data[18]
-                ch1, ch2, ch3 = data[19:22]
-                additional = data[22:24]  # Any additional columns
-                
-                cursor.execute('''
-                    INSERT INTO merged_data (
-                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
-                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                        ti504_ai, ti505_ai, ti523_ai, r2_value, ch1, ch2, ch3, data_source
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', hmi_data + [r2_value, ch1, ch2, ch3, 'merged_extended'])
-                logger.info(f"Inserted extended merged data: {data[:3]}...")
-                
-            else:
-                logger.error(f"Unexpected data length: {len(data)}. Expected 18, 21, or 24 values")
-                return False
+            # Use the schema.sql file instead of hardcoded table creation
+            schema_path = "../database_utils/schema.sql"
+            with open(schema_path, 'r') as f:
+                schema_sql = f.read()
+                cursor.executescript(schema_sql)
             
             conn.commit()
-            return True
-            
+            logger.info("Database setup completed using schema.sql")
+        except sqlite3.OperationalError as e:
+            if "already exists" in str(e):
+                logger.info("Tables already exist, skipping creation")
+            else:
+                logger.error(f"Database setup error: {e}")
+                raise
         except Exception as e:
-            logger.error(f"Error inserting merged data: {e}")
-            return False
+            logger.error(f"Unexpected error during database setup: {e}")
+            raise
         finally:
             conn.close()
 
-    def insert_combined_data(self, combined_data):
-        """Insert combined data with Modbus and teledyne data"""
-        if not isinstance(combined_data, dict):
-            logger.error(f"Expected dict data, got {type(combined_data)}")
-            return False
-            
-        if 'modbus_data' not in combined_data:
-            logger.error("Missing modbus_data in combined data")
-            return False
-            
-        modbus_data = combined_data['modbus_data']
-        teledyne_data = combined_data.get('teledyne_data')
-        
-        if not isinstance(modbus_data, list) or len(modbus_data) != 18:
-            logger.error(f"Invalid modbus_data: expected list of 18 values, got {modbus_data}")
-            return False
-            
+    def get_latest_data_from_all_tables(self):
+        """Get the latest data from all tables and combine them"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         try:
-            # Insert modbus data with teledyne data if available
-            if teledyne_data and isinstance(teledyne_data, dict):
-                # Extract teledyne values
-                teledyne_flow_1 = teledyne_data.get('flow_1', None)
-                teledyne_flow_2 = teledyne_data.get('flow_2', None)
-                teledyne_flow_3 = teledyne_data.get('flow_3', None)
-                
-                cursor.execute('''
-                    INSERT INTO merged_data (
-                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
-                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                        ti504_ai, ti505_ai, ti523_ai, ch1, ch2, ch3, data_source
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', modbus_data + [teledyne_flow_1, teledyne_flow_2, teledyne_flow_3, 'combined'])
-                logger.info(f"Inserted combined data with teledyne: {modbus_data[:3]}...")
-            else:
-                # Insert modbus data only
-                cursor.execute('''
-                    INSERT INTO merged_data (
-                        fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
-                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                        ti504_ai, ti505_ai, ti523_ai, data_source
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', modbus_data + ['modbus_only'])
-                logger.info(f"Inserted modbus data only: {modbus_data[:3]}...")
+            combined_data = {}
             
-            conn.commit()
-            return True
+            # Get latest HMI data
+            cursor.execute("""
+                SELECT fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                       pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
+                       purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                       ti504_ai, ti505_ai, ti523_ai, created
+                FROM hmi 
+                ORDER BY created DESC 
+                LIMIT 1
+            """)
+            hmi_data = cursor.fetchone()
+            if hmi_data:
+                combined_data.update({
+                    'fc501_ai': hmi_data[0], 'fc501_out': hmi_data[1],
+                    'fc502_ai': hmi_data[2], 'fc502_out': hmi_data[3],
+                    'lit501_ai': hmi_data[4], 'pt501_ai': hmi_data[5],
+                    'pt502_ai': hmi_data[6], 'pt503_ai': hmi_data[7],
+                    'pt504_ai': hmi_data[8], 'purity_downstream': hmi_data[9],
+                    'purity_upstream': hmi_data[10], 'ait501_ai': hmi_data[11],
+                    'ti501_ai': hmi_data[12], 'ti502_ai': hmi_data[13],
+                    'ti503_ai': hmi_data[14], 'ti504_ai': hmi_data[15],
+                    'ti505_ai': hmi_data[16], 'ti523_ai': hmi_data[17],
+                    'hmi_timestamp': hmi_data[18]
+                })
+            
+            # Get latest LabJack data
+            cursor.execute("""
+                SELECT pressure_1, created
+                FROM labjack 
+                ORDER BY created DESC 
+                LIMIT 1
+            """)
+            labjack_data = cursor.fetchone()
+            if labjack_data:
+                combined_data.update({
+                    'pressure_1': labjack_data[0],
+                    'labjack_timestamp': labjack_data[1]
+                })
+            
+            # Get latest Teledyne data
+            cursor.execute("""
+                SELECT flow_1, flow_2, flow_3, created
+                FROM teledyne 
+                ORDER BY created DESC 
+                LIMIT 1
+            """)
+            teledyne_data = cursor.fetchone()
+            if teledyne_data:
+                combined_data.update({
+                    'flow_1': teledyne_data[0],
+                    'flow_2': teledyne_data[1],
+                    'flow_3': teledyne_data[2],
+                    'teledyne_timestamp': teledyne_data[3]
+                })
+            
+            return combined_data
             
         except Exception as e:
-            logger.error(f"Error inserting combined data: {e}")
-            return False
+            logger.error(f"Error getting latest data from all tables: {e}")
+            return {}
+        finally:
+            conn.close()
+
+    def get_data_by_time_range(self, start_time=None, end_time=None, table_name=None):
+        """Get data from specific table(s) within a time range"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            if table_name:
+                # Query specific table
+                tables = [table_name]
+            else:
+                # Query all tables, excluding system tables
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                all_tables = [row[0] for row in cursor.fetchall()]
+                
+                # Filter out system tables
+                system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
+                tables = [table for table in all_tables if table not in system_tables]
+            
+            all_data = {}
+            
+            for table in tables:
+                # First, get the table schema to understand the structure
+                cursor.execute(f"PRAGMA table_info({table})")
+                table_info = cursor.fetchall()
+                columns = [col[1] for col in table_info]
+                
+                # Check if 'created' column exists
+                has_created_column = 'created' in columns
+                
+                where_clause = ""
+                params = []
+                order_clause = ""
+                
+                if has_created_column:
+                    if start_time and end_time:
+                        where_clause = "WHERE created BETWEEN ? AND ?"
+                        params = [start_time, end_time]
+                    order_clause = "ORDER BY created ASC"
+                else:
+                    # If no created column, just get all data
+                    order_clause = "ORDER BY id ASC"
+                
+                query = f"SELECT * FROM {table} {where_clause} {order_clause}"
+                logger.debug(f"Executing query: {query} with params: {params}")
+                
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
+                
+                # Convert to list of dictionaries
+                table_data = []
+                for row in rows:
+                    row_dict = {}
+                    for i, column in enumerate(columns):
+                        row_dict[column] = row[i]
+                    table_data.append(row_dict)
+                
+                all_data[table] = table_data
+                logger.debug(f"Retrieved {len(table_data)} records from {table} table")
+            
+            return all_data
+            
+        except Exception as e:
+            logger.error(f"Error getting data by time range: {e}")
+            return {}
         finally:
             conn.close()
 
     def insert_hmi_data(self, data):
-        """Insert HMI data into the database"""
-        if len(data) != 18:  # Expected 18 values from HMI_TCP_Server
+        """Insert HMI data into the hmi table as per schema"""
+        if len(data) != 18:
             logger.error(f"Expected 18 HMI values, got {len(data)}")
             return False
             
@@ -228,20 +210,145 @@ class DataCollector:
         
         try:
             cursor.execute('''
-                INSERT INTO merged_data (
+                INSERT INTO hmi (
                     fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
                     pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
                     purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                    ti504_ai, ti505_ai, ti523_ai, data_source
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', data + ['hmi'])
+                    ti504_ai, ti505_ai, ti523_ai
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', data)
             
             conn.commit()
-            logger.info(f"Inserted HMI data: {data[:3]}...")  # Log first 3 values
+            logger.info(f"Inserted HMI data: {data[:3]}...")
             return True
         except Exception as e:
             logger.error(f"Error inserting HMI data: {e}")
             return False
+        finally:
+            conn.close()
+
+    def insert_labjack_data(self, pressure_data):
+        """Insert LabJack data into the labjack table as per schema"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT INTO labjack (pressure_1) VALUES (?)
+            ''', (pressure_data,))
+            
+            conn.commit()
+            logger.info(f"Inserted LabJack data: {pressure_data}")
+            return True
+        except Exception as e:
+            logger.error(f"Error inserting LabJack data: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def insert_teledyne_data(self, flow_data):
+        """Insert Teledyne data into the teledyne table as per schema"""
+        if len(flow_data) != 3:
+            logger.error(f"Expected 3 flow values, got {len(flow_data)}")
+            return False
+            
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT INTO teledyne (flow_1, flow_2, flow_3) VALUES (?, ?, ?)
+            ''', flow_data)
+            
+            conn.commit()
+            logger.info(f"Inserted Teledyne data: {flow_data}")
+            return True
+        except Exception as e:
+            logger.error(f"Error inserting Teledyne data: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def insert_combined_data(self, combined_data):
+        """Insert combined data into appropriate tables based on data type"""
+        if not isinstance(combined_data, dict):
+            logger.error(f"Expected dict data, got {type(combined_data)}")
+            return False
+            
+        success = True
+        
+        # Handle HMI/Modbus data
+        if 'modbus_data' in combined_data:
+            modbus_data = combined_data['modbus_data']
+            if isinstance(modbus_data, list) and len(modbus_data) == 18:
+                success &= self.insert_hmi_data(modbus_data)
+            else:
+                logger.error(f"Invalid modbus_data: expected list of 18 values, got {modbus_data}")
+                success = False
+        
+        # Handle Teledyne data
+        if 'teledyne_data' in combined_data:
+            teledyne_data = combined_data['teledyne_data']
+            if isinstance(teledyne_data, dict):
+                flow_1 = teledyne_data.get('flow_1')
+                flow_2 = teledyne_data.get('flow_2')
+                flow_3 = teledyne_data.get('flow_3')
+                if all(v is not None for v in [flow_1, flow_2, flow_3]):
+                    success &= self.insert_teledyne_data([flow_1, flow_2, flow_3])
+                else:
+                    logger.error("Missing required teledyne flow values")
+                    success = False
+            else:
+                logger.error(f"Invalid teledyne_data format: expected dict, got {type(teledyne_data)}")
+                success = False
+        
+        # Handle LabJack data
+        if 'labjack_data' in combined_data:
+            labjack_data = combined_data['labjack_data']
+            if isinstance(labjack_data, (int, float)):
+                success &= self.insert_labjack_data(labjack_data)
+            else:
+                logger.error(f"Invalid labjack_data format: expected number, got {type(labjack_data)}")
+                success = False
+        
+        return success
+
+    def get_available_columns_by_table(self):
+        """Get all available columns organized by table"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Get all tables, excluding system tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            all_tables = [row[0] for row in cursor.fetchall()]
+            
+            # Filter out system tables
+            system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
+            tables = [table for table in all_tables if table not in system_tables]
+            
+            columns_by_table = {}
+            
+            for table_name in tables:
+                # Get table schema
+                cursor.execute(f"PRAGMA table_info({table_name})")
+                table_info = cursor.fetchall()
+                
+                # Extract column names, excluding metadata columns
+                available_columns = []
+                for col in table_info:
+                    col_name = col[1]
+                    # Exclude metadata columns
+                    if col_name not in ['id', 'created']:
+                        available_columns.append(col_name)
+                
+                columns_by_table[table_name] = available_columns
+            
+            return columns_by_table
+            
+        except Exception as e:
+            logger.error(f"Error getting available columns by table: {e}")
+            return {}
         finally:
             conn.close()
 
@@ -258,12 +365,13 @@ def root():
 
 @app.route('/query_db', methods=['GET'])
 def query_db():
-    """Query database for plotting data"""
+    """Query database for plotting data from respective tables"""
     try:
         # Get parameters from request
         keys = request.args.get('keys', '').split(',')
         start_time = request.args.get('start_time', '')
         end_time = request.args.get('end_time', '')
+        table_name = request.args.get('table', None)  # None means all tables
         
         # Filter out empty keys
         keys = [key.strip() for key in keys if key.strip()]
@@ -271,54 +379,81 @@ def query_db():
         if not keys:
             return jsonify({"error": "No keys provided"}), 400
         
-        conn = sqlite3.connect(collector.db_path)
-        cursor = conn.cursor()
+        # Get available columns by table
+        columns_by_table = collector.get_available_columns_by_table()
         
-        # First, get the actual columns that exist in the database
-        cursor.execute("PRAGMA table_info(merged_data)")
-        table_info = cursor.fetchall()
-        available_columns = [col[1] for col in table_info]
+        # Check which tables contain the requested keys
+        valid_keys_by_table = {}
+        invalid_keys = []
         
-        # Filter keys to only include columns that actually exist
-        valid_keys = [key for key in keys if key in available_columns]
-        invalid_keys = [key for key in keys if key not in available_columns]
+        for key in keys:
+            key_found = False
+            for table, table_columns in columns_by_table.items():
+                if key in table_columns:
+                    if table not in valid_keys_by_table:
+                        valid_keys_by_table[table] = []
+                    valid_keys_by_table[table].append(key)
+                    key_found = True
+                    break
+            
+            if not key_found:
+                invalid_keys.append(key)
         
         if invalid_keys:
-            logger.warning(f"Requested columns not found in database: {invalid_keys}")
+            logger.warning(f"Requested columns not found in any table: {invalid_keys}")
         
-        if not valid_keys:
+        if not valid_keys_by_table:
             return jsonify({"error": "No valid columns provided", "invalid_keys": invalid_keys}), 400
         
-        # Build the query dynamically based on requested columns
-        columns = ['timestamp'] + valid_keys
-        column_list = ', '.join(columns)
+        # Get data from tables that contain the requested keys
+        data_by_table = collector.get_data_by_time_range(
+            start_time=start_time, 
+            end_time=end_time, 
+            table_name=table_name
+        )
         
-        # Build WHERE clause for time range if provided
-        where_clause = ""
-        params = []
-        if start_time and end_time:
-            where_clause = "WHERE timestamp BETWEEN ? AND ?"
-            params = [start_time, end_time]
+        # Filter data to only include tables that have the requested keys
+        filtered_data_by_table = {}
+        for table, table_data in data_by_table.items():
+            if table in valid_keys_by_table:
+                filtered_data_by_table[table] = table_data
         
-        query = f"SELECT {column_list} FROM merged_data {where_clause} ORDER BY timestamp DESC LIMIT 1000"
+        # Combine data from all relevant tables
+        combined_data = []
+        available_keys = set()
         
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
+        for table, table_data in filtered_data_by_table.items():
+            for record in table_data:
+                # Add table prefix to timestamp to avoid conflicts
+                if 'created' in record:
+                    record[f'{table}_timestamp'] = record.pop('created')
+                
+                # Track available keys
+                available_keys.update(record.keys())
+                combined_data.append(record)
         
-        # Convert to list of dictionaries
-        data = []
-        for row in rows:
-            row_dict = {}
-            for i, column in enumerate(columns):
-                row_dict[column] = row[i]
-            data.append(row_dict)
+        # Get all valid keys that were actually found in the data
+        all_valid_keys = []
+        for table_keys in valid_keys_by_table.values():
+            all_valid_keys.extend(table_keys)
         
-        conn.close()
+        # Filter records to only include requested keys that are available
+        final_valid_keys = [key for key in all_valid_keys if key in available_keys]
+        filtered_data = []
+        for record in combined_data:
+            filtered_record = {}
+            for key in final_valid_keys:
+                if key in record:
+                    filtered_record[key] = record[key]
+            if filtered_record:  # Only add if we have some data
+                filtered_data.append(filtered_record)
         
         return jsonify({
-            "columns": valid_keys,
-            "data": data,
-            "invalid_keys": invalid_keys
+            "tables_queried": list(filtered_data_by_table.keys()),
+            "columns": final_valid_keys,
+            "data": filtered_data,
+            "invalid_keys": invalid_keys,
+            "columns_by_table": valid_keys_by_table
         }), 200
         
     except Exception as e:
@@ -333,40 +468,66 @@ def receive_hmi_data():
         if data and isinstance(data, list):
             success = collector.insert_hmi_data(data)
             if success:
-                return jsonify({"status": "success", "message": "Data received and stored"}), 200
+                return jsonify({"status": "success", "message": "HMI data received and stored"}), 200
             else:
-                return jsonify({"status": "error", "message": "Failed to store data"}), 500
+                return jsonify({"status": "error", "message": "Failed to store HMI data"}), 500
         else:
             return jsonify({"status": "error", "message": "Invalid data format"}), 400
     except Exception as e:
         logger.error(f"Error receiving HMI data: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/receive_labjack_data', methods=['POST'])
+def receive_labjack_data():
+    """Endpoint to receive LabJack data"""
+    try:
+        data = request.get_json()
+        if data and isinstance(data, (int, float)):
+            success = collector.insert_labjack_data(data)
+            if success:
+                return jsonify({"status": "success", "message": "LabJack data received and stored"}), 200
+            else:
+                return jsonify({"status": "error", "message": "Failed to store LabJack data"}), 500
+        else:
+            return jsonify({"status": "error", "message": "Invalid data format - expected number"}), 400
+    except Exception as e:
+        logger.error(f"Error receiving LabJack data: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/receive_teledyne_data', methods=['POST'])
+def receive_teledyne_data():
+    """Endpoint to receive Teledyne data"""
+    try:
+        data = request.get_json()
+        if data and isinstance(data, list) and len(data) == 3:
+            success = collector.insert_teledyne_data(data)
+            if success:
+                return jsonify({"status": "success", "message": "Teledyne data received and stored"}), 200
+            else:
+                return jsonify({"status": "error", "message": "Failed to store Teledyne data"}), 500
+        else:
+            return jsonify({"status": "error", "message": "Invalid data format - expected list of 3 values"}), 400
+    except Exception as e:
+        logger.error(f"Error receiving Teledyne data: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/data', methods=['POST'])
 def receive_data():
-    """Endpoint to receive data from data acquisition devices"""
+    """Endpoint to receive combined data from data acquisition devices"""
     try:
         data = request.get_json()
         if not data:
             return jsonify({"status": "error", "message": "No data received"}), 400
             
-        # Handle combined data format (new format with modbus_data and teledyne_data)
-        if isinstance(data, dict) and 'modbus_data' in data:
+        # Handle combined data format
+        if isinstance(data, dict):
             success = collector.insert_combined_data(data)
             if success:
                 return jsonify({"status": "success", "message": "Combined data received and stored"}), 200
             else:
                 return jsonify({"status": "error", "message": "Failed to store combined data"}), 500
-                
-        # Handle list format (old format)
-        elif isinstance(data, list):
-            success = collector.insert_merged_data(data)
-            if success:
-                return jsonify({"status": "success", "message": "Data received and stored"}), 200
-            else:
-                return jsonify({"status": "error", "message": "Failed to store data"}), 500
         else:
-            return jsonify({"status": "error", "message": "Invalid data format - expected dict with modbus_data or list"}), 400
+            return jsonify({"status": "error", "message": "Invalid data format - expected dict"}), 400
     except Exception as e:
         logger.error(f"Error receiving data: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -391,6 +552,207 @@ def shutdown_server():
     threading.Thread(target=delayed_shutdown, daemon=True).start()
     return jsonify({"status": "shutdown_initiated", "message": "Server shutting down gracefully"}), 200
 
+@app.route('/latest_data', methods=['GET'])
+def get_latest_data():
+    """Get the latest data from all tables combined"""
+    try:
+        latest_data = collector.get_latest_data_from_all_tables()
+        
+        if not latest_data:
+            return jsonify({"error": "No data found in any table"}), 404
+        
+        return jsonify({
+            "status": "success",
+            "data": latest_data,
+            "timestamp": datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting latest data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/recent_data', methods=['GET'])
+def get_recent_data():
+    """Get recent data from the database based on timestamp"""
+    try:
+        # Get parameters from request
+        keys = request.args.get('keys', '').split(',')
+        hours_back = int(request.args.get('hours', 1))  # Default to 1 hour
+        table_name = request.args.get('table', None)  # None means all tables
+        
+        # Filter out empty keys
+        keys = [key.strip() for key in keys if key.strip()]
+        
+        if not keys:
+            return jsonify({"error": "No keys provided"}), 400
+        
+        # Calculate time range
+        end_time = datetime.now()
+        start_time = end_time - timedelta(hours=hours_back)
+        
+        # Get available columns by table
+        columns_by_table = collector.get_available_columns_by_table()
+        
+        # Check which tables contain the requested keys
+        valid_keys_by_table = {}
+        invalid_keys = []
+        
+        for key in keys:
+            key_found = False
+            for table, table_columns in columns_by_table.items():
+                if key in table_columns:
+                    if table not in valid_keys_by_table:
+                        valid_keys_by_table[table] = []
+                    valid_keys_by_table[table].append(key)
+                    key_found = True
+                    break
+            
+            if not key_found:
+                invalid_keys.append(key)
+        
+        if invalid_keys:
+            logger.warning(f"Requested columns not found in any table: {invalid_keys}")
+        
+        if not valid_keys_by_table:
+            return jsonify({"error": "No valid columns provided", "invalid_keys": invalid_keys}), 400
+        
+        # Get data from tables that contain the requested keys
+        data_by_table = collector.get_data_by_time_range(
+            start_time=start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            end_time=end_time.strftime('%Y-%m-%d %H:%M:%S'),
+            table_name=table_name
+        )
+        
+        # Filter data to only include tables that have the requested keys
+        filtered_data_by_table = {}
+        for table, table_data in data_by_table.items():
+            if table in valid_keys_by_table:
+                filtered_data_by_table[table] = table_data
+        
+        # Combine data from all relevant tables
+        combined_data = []
+        available_keys = set()
+        
+        for table, table_data in filtered_data_by_table.items():
+            for record in table_data:
+                # Add table prefix to timestamp to avoid conflicts
+                if 'created' in record:
+                    record[f'{table}_timestamp'] = record.pop('created')
+                
+                # Track available keys
+                available_keys.update(record.keys())
+                combined_data.append(record)
+        
+        # Get all valid keys that were actually found in the data
+        all_valid_keys = []
+        for table_keys in valid_keys_by_table.values():
+            all_valid_keys.extend(table_keys)
+        
+        # Filter records to only include requested keys that are available
+        final_valid_keys = [key for key in all_valid_keys if key in available_keys]
+        filtered_data = []
+        for record in combined_data:
+            filtered_record = {}
+            for key in final_valid_keys:
+                if key in record:
+                    filtered_record[key] = record[key]
+            if filtered_record:  # Only add if we have some data
+                filtered_data.append(filtered_record)
+        
+        return jsonify({
+            "tables_queried": list(filtered_data_by_table.keys()),
+            "columns": final_valid_keys,
+            "data": filtered_data,
+            "invalid_keys": invalid_keys,
+            "time_range": {
+                "start": start_time.isoformat(),
+                "end": end_time.isoformat(),
+                "hours_back": hours_back
+            },
+            "columns_by_table": valid_keys_by_table
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting recent data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/available_columns', methods=['GET'])
+def get_available_columns():
+    """Get list of available columns from all tables"""
+    try:
+        columns_by_table = collector.get_available_columns_by_table()
+        
+        # Flatten all columns from all tables into a single list
+        all_columns = []
+        for table_columns in columns_by_table.values():
+            all_columns.extend(table_columns)
+        
+        # Remove duplicates while preserving order
+        unique_columns = []
+        for col in all_columns:
+            if col not in unique_columns:
+                unique_columns.append(col)
+        
+        logger.info(f"Available columns: {unique_columns}")
+        logger.info(f"Columns by table: {columns_by_table}")
+        
+        return jsonify({
+            "columns": unique_columns,  # This is what the HTML expects
+            "tables": columns_by_table,
+            "total_columns": len(unique_columns),
+            "table_count": len(columns_by_table)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting available columns: {e}")
+        return jsonify({"error": str(e), "columns": []}), 500
+
+@app.route('/db_status', methods=['GET'])
+def get_db_status():
+    """Check database status and available tables"""
+    try:
+        conn = sqlite3.connect(collector.db_path)
+        cursor = conn.cursor()
+        
+        # Get all tables, excluding system tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        all_tables = [row[0] for row in cursor.fetchall()]
+        
+        # Filter out system tables
+        system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
+        tables = [table for table in all_tables if table not in system_tables]
+        
+        table_info = {}
+        total_records = 0
+        
+        for table_name in tables:
+            # Get table schema
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            table_schema = cursor.fetchall()
+            
+            # Get total record count
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            record_count = cursor.fetchone()[0]
+            total_records += record_count
+            
+            table_info[table_name] = {
+                "columns": [col[1] for col in table_schema],
+                "record_count": record_count
+            }
+        
+        conn.close()
+        
+        return jsonify({
+            "status": "ok",
+            "tables": table_info,
+            "total_records": total_records,
+            "has_data": total_records > 0
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error checking database status: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     # Start Flask app
     logger.info("Starting Data Collector Server...")
@@ -403,3 +765,5 @@ if __name__ == '__main__':
         logger.error(f"Error running server: {e}")
     finally:
         logger.info("Data Collector Server stopped.") 
+        logger.error(f"Error starting server: {e}")
+        sys.exit(1) 

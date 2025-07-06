@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Check database status and recent data
+Check database status and recent data using schema-defined tables
 """
 
 import sqlite3
@@ -19,55 +19,62 @@ def check_database():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Get table info
-        cursor.execute("PRAGMA table_info(merged_data)")
-        columns = cursor.fetchall()
-        print(f"✓ Database found with {len(columns)} columns")
+        # Get all tables, excluding system tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        all_tables = [row[0] for row in cursor.fetchall()]
         
-        # Get total record count
-        cursor.execute("SELECT COUNT(*) FROM merged_data")
-        total_records = cursor.fetchone()[0]
-        print(f"✓ Total records: {total_records}")
+        # Filter out system tables
+        system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
+        tables = [table for table in all_tables if table not in system_tables]
         
-        # Get records by data source
-        cursor.execute("""
-            SELECT data_source, COUNT(*) as count 
-            FROM merged_data 
-            GROUP BY data_source
-        """)
-        source_counts = cursor.fetchall()
+        print(f"✓ Database found with {len(tables)} user tables: {', '.join(tables)}")
         
-        print("\nRecords by data source:")
-        for source, count in source_counts:
-            print(f"  - {source}: {count} records")
+        total_records = 0
         
-        # Get recent data (last 10 records)
-        cursor.execute("""
-            SELECT timestamp, data_source, fc501_ai, fc502_ai, ti501_ai, ti502_ai
-            FROM merged_data 
-            ORDER BY timestamp DESC 
-            LIMIT 10
-        """)
-        recent_data = cursor.fetchall()
+        for table_name in tables:
+            # Get table info
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            columns = cursor.fetchall()
+            print(f"\n Table '{table_name}' ({len(columns)} columns):")
+            
+            # Get total record count
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            table_records = cursor.fetchone()[0]
+            total_records += table_records
+            print(f"  ✓ Total records: {table_records}")
+            
+            # Show column names
+            column_names = [col[1] for col in columns]
+            print(f"  ✓ Columns: {', '.join(column_names)}")
+            
+            # Get recent data (last 5 records)
+            if table_records > 0:
+                cursor.execute(f"""
+                    SELECT * FROM {table_name} 
+                    ORDER BY created DESC 
+                    LIMIT 5
+                """)
+                recent_data = cursor.fetchall()
+                
+                print(f"   Recent data (last 5 records):")
+                for i, record in enumerate(recent_data, 1):
+                    print(f"    {i}. {record}")
         
-        print(f"\nRecent data (last 10 records):")
-        print("-" * 80)
-        print(f"{'Timestamp':<20} {'Source':<15} {'FC501_AI':<10} {'FC502_AI':<10} {'TI501_AI':<10} {'TI502_AI':<10}")
-        print("-" * 80)
-        
-        for record in recent_data:
-            timestamp, source, fc501, fc502, ti501, ti502 = record
-            print(f"{timestamp:<20} {source:<15} {fc501:<10.2f} {fc502:<10.2f} {ti501:<10.2f} {ti502:<10.2f}")
+        print(f"\n📈 Total records across all user tables: {total_records}")
         
         # Check for data in last hour
         one_hour_ago = datetime.now() - timedelta(hours=1)
-        cursor.execute("""
-            SELECT COUNT(*) FROM merged_data 
-            WHERE timestamp > ?
-        """, (one_hour_ago.strftime('%Y-%m-%d %H:%M:%S'),))
+        recent_count = 0
         
-        recent_count = cursor.fetchone()[0]
-        print(f"\n✓ Records in last hour: {recent_count}")
+        for table_name in tables:
+            cursor.execute(f"""
+                SELECT COUNT(*) FROM {table_name} 
+                WHERE created > ?
+            """, (one_hour_ago.strftime('%Y-%m-%d %H:%M:%S'),))
+            table_recent = cursor.fetchone()[0]
+            recent_count += table_recent
+        
+        print(f"\n⏰ Records in last hour: {recent_count}")
         
         if recent_count == 0:
             print("⚠️  No recent data - check if data sources are sending data")

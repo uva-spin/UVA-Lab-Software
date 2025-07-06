@@ -25,6 +25,7 @@
         let timerInterval = null;
         let selectedKeys = [];
         let isDarkMode = false;
+        let availableColumns = [];
 
         // Theme management
         function toggleTheme() {
@@ -63,8 +64,6 @@
                 </div>
             `;
         }
-        
-
 
         // Function to update the plot
         function updatePlot(data, selectedColumns) {
@@ -126,23 +125,30 @@
         }
 
         async function fetchDataFromDB(selectedKeys) {
-            const now = new Date();
-            const totalMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
-            const start = new Date(now.getTime() - totalMs);
-
-            const startTimeStr = start.toISOString().slice(0, 19).replace('T', ' ');
-            const endTimeStr = now.toISOString().slice(0, 19).replace('T', ' ');
+            // Calculate total hours from the form inputs
+            const totalHours = hours + (minutes / 60) + (seconds / 3600);
+            
+            console.log('Fetching data for the last', totalHours, 'hours');
+            console.log('Selected keys:', selectedKeys);
 
             const params = new URLSearchParams();
             params.append('keys', selectedKeys.join(','));
-            params.append('start_time', startTimeStr);
-            params.append('end_time', endTimeStr);
+            params.append('hours', totalHours.toString());
             
             try {
-                const response = await fetch(`/query_db?${params.toString()}`);
-                if (!response.ok) throw new Error('Failed to fetch data from server');
+                const response = await fetch(`/recent_data?${params.toString()}`);
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error:', errorText);
+                    throw new Error('Failed to fetch data from server');
+                }
 
                 const result = await response.json();
+                console.log('Received data:', result);
+                console.log('Time range:', result.time_range);
+                
                 return {
                     headers: result.columns,
                     data: result.data
@@ -150,6 +156,26 @@
             } catch (err) {
                 console.error('Error fetching from server:', err);
                 return { headers: [], data: [] };
+            }
+        }
+
+        async function fetchAvailableColumns() {
+            try {
+                const response = await fetch('/available_columns');
+                if (!response.ok) throw new Error('Failed to fetch available columns');
+                
+                const result = await response.json();
+                console.log('Available columns response:', result);
+                
+                if (result.columns && result.columns.length > 0) {
+                    return result.columns;
+                } else {
+                    console.warn('No columns available in database');
+                    return [];
+                }
+            } catch (err) {
+                console.error('Error fetching available columns:', err);
+                return [];
             }
         }
 
@@ -174,8 +200,8 @@
             `;
 
             try {
-            const { headers, data } = await fetchDataFromDB(selectedKeys);
-            updatePlot(data, selectedKeys);
+                const { headers, data } = await fetchDataFromDB(selectedKeys);
+                updatePlot(data, selectedKeys);
             } catch (error) {
                 console.error('Error updating data:', error);
                 chartContainer.innerHTML = `
@@ -280,11 +306,164 @@
             Utils.showToast('Data refreshed!', 'success');
         }
 
+        // Function to create data selection grid from available columns
+        function createDataSelectionGrid(columns) {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = ''; // Clear existing content
+
+            if (columns.length === 0) {
+                grid.innerHTML = `
+                    <div class="error-container">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>No data columns available. Please check if the database is properly configured and contains data.</p>
+                        <button onclick="checkDatabaseStatus()" class="btn btn-primary">
+                            <i class="fas fa-database"></i> Check Database Status
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group columns by type for better organization
+            const columnGroups = {
+                'Flow Controllers': columns.filter(col => col.includes('fc')),
+                'Pressure Transmitters': columns.filter(col => col.includes('pt')),
+                'Temperature Indicators': columns.filter(col => col.includes('ti')),
+                'Level Indicators': columns.filter(col => col.includes('lit')),
+                'Purity Sensors': columns.filter(col => col.includes('purity')),
+                'Analyzers': columns.filter(col => col.includes('ait')),
+                'R Values': columns.filter(col => col.includes('r2')),
+                'Channel Data': columns.filter(col => col.startsWith('ch')),
+                'Other': columns.filter(col => 
+                    !col.includes('fc') && !col.includes('pt') && !col.includes('ti') && 
+                    !col.includes('lit') && !col.includes('purity') && !col.includes('ait') && 
+                    !col.includes('r2') && !col.startsWith('ch')
+                )
+            };
+
+            // Create sections for each group
+            Object.entries(columnGroups).forEach(([groupName, groupColumns]) => {
+                if (groupColumns.length === 0) return;
+
+                const section = document.createElement('div');
+                section.className = 'data-section';
+
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'section-title';
+                titleDiv.innerHTML = `<i class="fas fa-layer-group"></i> ${groupName}`;
+                section.appendChild(titleDiv);
+
+                const checkboxContainer = document.createElement('div');
+                checkboxContainer.className = 'checkbox-container';
+
+                groupColumns.forEach(columnName => {
+                    const group = document.createElement('div');
+                    group.className = 'checkbox-group';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    const id = `${groupName}-${columnName}`.toLowerCase().replace(/\s+/g, '-');
+                    checkbox.id = id;
+                    checkbox.dataset.key = columnName;
+
+                    const label = document.createElement('label');
+                    label.htmlFor = id;
+                    label.textContent = columnName;
+
+                    group.appendChild(checkbox);
+                    group.appendChild(label);
+                    checkboxContainer.appendChild(group);
+                });
+
+                section.appendChild(checkboxContainer);
+                grid.appendChild(section);
+            });
+
+            // Setup checkbox event listeners
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', handleCheckboxChange);
+            });
+        }
+
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Show loading state for data selection
+            const grid = document.getElementById('grid');
+            grid.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>Loading available data columns...</p>
+                </div>
+            `;
+
+            try {
+                // Fetch available columns from database
+                availableColumns = await fetchAvailableColumns();
+                
+                if (availableColumns.length === 0) {
+                    grid.innerHTML = `
+                        <div class="error-container">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>No data columns available. Please check if the database is properly configured.</p>
+                        </div>
+                    `;
+                } else {
+                    // Create the data selection grid
+                    createDataSelectionGrid(availableColumns);
+                }
+            } catch (error) {
+                console.error('Error loading available columns:', error);
+                grid.innerHTML = `
+                    <div class="error-container">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error loading available columns. Please refresh the page.</p>
+                    </div>
+                `;
+            }
+
             startCountdownFromServer();
             updateEmptyChartDisplay();
         });
+
+        async function testDatabase() {
+            try {
+                const response = await fetch('/test_db');
+                if (!response.ok) throw new Error('Failed to test database');
+                
+                const result = await response.json();
+                console.log('Database test result:', result);
+                
+                if (result.total_records === 0) {
+                    alert('No data found in database. Please check if data sources are sending data.');
+                } else {
+                    alert(`Database contains ${result.total_records} records from sources: ${result.data_sources.join(', ')}`);
+                }
+                
+                return result;
+            } catch (err) {
+                console.error('Error testing database:', err);
+                alert('Error testing database: ' + err.message);
+                return null;
+            }
+        }
+
+        async function checkDatabaseStatus() {
+            try {
+                const response = await fetch('/db_status');
+                const result = await response.json();
+                
+                console.log('Database status:', result);
+                
+                if (result.status === 'ok') {
+                    alert(`Database Status:\n- Table exists: ${result.table_exists}\n- Total columns: ${result.total_columns}\n- Total records: ${result.total_records}\n- Has data: ${result.has_data}\n\nColumns: ${result.columns.join(', ')}`);
+                } else {
+                    alert(`Database Error: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error checking database status:', error);
+                alert('Error checking database status. Check console for details.');
+            }
+        }
     </script>
 </head>
 
@@ -313,7 +492,7 @@
         <section class="control-panel">
             <div class="panel-header">
                 <h2><i class="fas fa-sliders-h"></i> Control Panel</h2>
-        </div>
+            </div>
 
             <form id="refresh-form" class="control-form">
                 <div class="form-row">
@@ -321,15 +500,15 @@
                         <label for="hours">Hours</label>
                         <input type="number" id="hours" name="hours" min="0" max="24" value="1">
                     </div>
-        <div class="form-group">
+                    <div class="form-group">
                         <label for="minutes">Minutes</label>
                         <input type="number" id="minutes" name="minutes" min="0" max="59" value="0">
-        </div>
-        <div class="form-group">
+                    </div>
+                    <div class="form-group">
                         <label for="seconds">Seconds</label>
                         <input type="number" id="seconds" name="seconds" min="0" max="59" value="0">
-        </div>
-        <div class="form-group">
+                    </div>
+                    <div class="form-group">
                         <label for="update_every">Update Interval (s)</label>
                         <input type="number" id="update_every" name="update_every" min="1" max="300" value="5">
                     </div>
@@ -338,18 +517,21 @@
                     <button type="submit" class="submit-btn">
                         <i class="fas fa-sync-alt"></i> Apply Settings
                     </button>
+                    <button type="button" class="test-btn" onclick="testDatabase()">
+                        <i class="fas fa-database"></i> Test Database
+                    </button>
                     <div class="countdown-display">
                         <span>Auto-update in: </span>
                         <span id="countdown" class="countdown-timer">5</span>
                         <span>s</span>
                     </div>
-        </div>
-    </form>
+                </div>
+            </form>
 
             <div class="status-info">
                 <p id="last-updated" class="last-updated">
                     <i class="fas fa-clock"></i> Last updated: --
-    </p>
+                </p>
             </div>
         </section>
 
@@ -366,7 +548,7 @@
             <div class="panel-header">
                 <h2><i class="fas fa-database"></i> Data Selection</h2>
             </div>
-    <div class="grid-container" id="grid"></div>
+            <div class="grid-container" id="grid"></div>
         </section>
     </main>
 
@@ -400,10 +582,10 @@
                 const removeLoading = Utils.addLoadingState(submitBtn);
 
                 try {
-                hours = parseInt(document.getElementById('hours').value) || 0;
-                minutes = parseInt(document.getElementById('minutes').value) || 0;
-                seconds = parseInt(document.getElementById('seconds').value) || 0;
-                updateTime = parseInt(document.getElementById('update_every').value) || 1;
+                    hours = parseInt(document.getElementById('hours').value) || 0;
+                    minutes = parseInt(document.getElementById('minutes').value) || 0;
+                    seconds = parseInt(document.getElementById('seconds').value) || 0;
+                    updateTime = parseInt(document.getElementById('update_every').value) || 1;
 
                     await startCountdownFromServer();
                     Utils.showToast('Settings applied successfully!', 'success');
@@ -414,57 +596,6 @@
                     removeLoading();
                 }
             });
-        });
-
-        // Populate parameters
-        const titles = ['Lab QT', 'QT LiqQ', 'QT LiqB', 'QT Purifier', 'QT System', 'Cryo Pressure', 'Cryo Purity', 'Cryo Temperature'];
-        const checkboxData = [
-            ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out', 'lit501_ai', 'pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai', 'purity_downstream', 'purity_upstream', 'ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai', 'r2_value', 'ch1', 'ch2', 'ch3'],
-            ['PT501', 'PT502', 'PT503', 'PD', 'LI501', 'PT', 'TID', 'TI502', 'TI504', 'TI506', 'TI508', 'TI510', 'FC501Q', 'FC501I', 'FCQ', 'FCI', 'LakeShoreCurves_TIDAOHM'],
-            ['PT501', 'PT502', 'PT503', 'PD', 'LI501', 'PT', 'TID', 'TI502', 'TI504', 'TI506', 'TI508', 'TI510', 'FC501Q', 'FC501I', 'FCQ', 'FCI', 'LakeShoreCurves_TIDBOHM'],
-            ['T1A', 'Level A', 'PRTY_Calibrated', 'PRTY', 'PBA', 'PRTY_Calibrated_A_Out', 'PRTY_Calibrated_A_Mid', 'Flow Controller Flow', 'Vfc', 'DPfc', 'Pfc', 'T2Amv', 'T1Amv', 'T2A', 'PTA'],
-            ['Manifolds PT8', 'Manifolds Magnet Dewar Level', 'Manifolds TCD_Smooth', 'Manifolds TX1', 'Manifolds FMR', 'Manifolds Magnet Dewar Pressure', 'Manifolds PC1', 'ODH EV-105-N', 'ODH TE-104N', 'ODH TE-107N', 'ODH TE-108N', 'ODH LL-106-N', 'ODH TE-109N', 'HR3 Enabled', 'ODH PT-106-N', 'ODH PT-110-N'],
-            ['IVC T1F', 'IVC T2F', 'IVC T1T', 'IVC T2T', 'IVC', 'IVC T1', 'IVC T2', 'Fridge/1000', 'Fridge/100', 'He3 Probe', 'Return Manifold', 'Main Return #1', 'Roots-Pump Top', 'Roots-Pump Middle', 'Separator Return', 'Magnet Return', 'Main Return #2', 'n/c', 'Outside gHe Tank', 'HR3 Inlet', 'PTMR3'],
-            ['He Purity'],
-            ['Fridge/1000', 'Fridge/100', 'Fridge/He3', 'Tank T', 'Tank B', 'Coil T', 'Coil B', 'Coil T1', 'Coil T2', 'Coil T3', 'Coil T4', 'Coil B1', 'Coil B2', 'Coil B3', 'Coil B4', 'IVC Side Bottom', 'IVC Side Top', 'Fridge Top', 'LHe FL Stinger', 'LHe FL #1', 'LHe FL #2', 'Cooldown Line TX3', 'Cooldown Line TX2', 'Annealling A', 'Annealing B', 'Microwave A', 'Microwave B', 'He Riser', 'IVC Top', 'Heat Tape on IVC', 'Heat Tape on Turret', 'Baffle Top', 'Baffle Bottom', 'Separator Top', 'Separator Bottom', 'Heat-Ex Top', 'Heat-Ex Bottom', 'Ann-Plate Bar', 'Ann-Plate Top', 'Insert 1', 'Insert 2', 'Insert 3', 'Insert 4', 'Insert 5', 'Insert 6', 'Insert 7', 'Insert 8', 'Cernox 7', 'Cernox 8', 'Outside gHe Tank B', 'Outside gHe Tank R', 'Outside gHe Tank T', 'Outside gHe Tank L', 'Outside gHe Tank', 'LJT4']
-        ];
-
-        const grid = document.getElementById('grid');
-
-        titles.forEach((title, index) => {
-            const section = document.createElement('div');
-            section.className = 'data-section';
-
-            const titleDiv = document.createElement('div');
-            titleDiv.className = 'section-title';
-            titleDiv.innerHTML = `<i class="fas fa-layer-group"></i> ${title}`;
-            section.appendChild(titleDiv);
-
-            const checkboxes = checkboxData[index] || [];
-            const checkboxContainer = document.createElement('div');
-            checkboxContainer.className = 'checkbox-container';
-
-            checkboxes.forEach(labelText => {
-                const group = document.createElement('div');
-                group.className = 'checkbox-group';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                const id = `${title}-${labelText}`.toLowerCase().replace(/\s+/g, '-');
-                checkbox.id = id;
-                checkbox.dataset.key = labelText.toLowerCase().replace(/\s+/g, '_');
-
-                const label = document.createElement('label');
-                label.htmlFor = id;
-                label.textContent = labelText;
-
-                group.appendChild(checkbox);
-                group.appendChild(label);
-                checkboxContainer.appendChild(group);
-            });
-
-            section.appendChild(checkboxContainer);
-            grid.appendChild(section);
         });
 
         // Checkbox change handler
@@ -481,11 +612,6 @@
             const { data: dbData } = await fetchDataFromDB(selectedKeys);
             updatePlot(dbData, selectedKeys);
         }
-
-        // Setup checkbox event listeners
-        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-            checkbox.addEventListener('change', handleCheckboxChange);
-        });
     </script>
 </body>
 
