@@ -211,7 +211,7 @@ def _read_HMI():
         return None
     finally:
         try:
-            if client and client.is_open:
+            if not client or not client.is_open:
                 client.close()
                 logger.info("Closed Modbus connection")
         except:

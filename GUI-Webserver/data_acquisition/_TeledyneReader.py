@@ -72,7 +72,11 @@ class TeledyneDataReader:
                                     except (ValueError, IndexError) as e:
                                         logger.warning(f"Error parsing teledyne data line: {line}, error: {e}")
                 else:
-                    logger.warning(f"Teledyne CSV file not found: {self.csv_path}")
+                    logger.warning(f"Teledyne CSV file not found: {self.csv_path}. Creating file...")
+                    with open(self.csv_path, 'w') as file:
+                        file.write("Timestamp,Flow_1,Flow_2,Flow_3\n")
+                    self.last_position = 0
+                    continue
                     
             except Exception as e:
                 logger.error(f"Error monitoring teledyne file: {e}")
