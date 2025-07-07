@@ -142,7 +142,7 @@ def setup_database():
         conn.close()
 
 def _read_HMI():
-    """Read data from Modbus  TCP server"""
+    """Read data from Modbus TCP server"""
     plc_ip = PLC_IP
     unit_id = UNIT_ID
     int_port = INT_PORT
@@ -157,7 +157,7 @@ def _read_HMI():
         logger.info(f"Connecting to PLC for integer registers (Port {int_port})...")
         client = ModbusClient(host=plc_ip, port=int_port, unit_id=unit_id, auto_open=True, auto_close=False)
         
-        if not client.is_open():
+        if not client.is_open:
             logger.error("Failed to open connection for integer registers")
             return None
             
@@ -173,7 +173,7 @@ def _read_HMI():
         logger.info(f"Connecting to PLC for float registers (Port {float_port})...")
         client = ModbusClient(host=plc_ip, port=float_port, unit_id=unit_id, auto_open=True, auto_close=False)
         
-        if not client.is_open():
+        if not client.is_open:
             logger.error("Failed to open connection for float registers")
             return None
             
@@ -224,8 +224,9 @@ def _read_HMI():
         return None
     finally:
         try:
-            client.close()
-            logger.info("Closed Modbus connection")
+            if client.is_open:
+                client.close()
+                logger.info("Closed Modbus connection")
         except:
             pass
 
