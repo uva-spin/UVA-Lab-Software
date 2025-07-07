@@ -3,7 +3,7 @@
 # Remote Flask server configuration
 REMOTE_SERVER_URL = "http://128.143.231.224:5000"  # Flask server's IP and port
 
-TWIST_PATH = r"\\www.twist.phys.virginia.edu\www\spin\"
+TWIST_PATH = "\\www.twist.phys.virginia.edu\www\spin\"
 
 DATA_PATH = f"{REMOTE_SERVER_URL}/data"
 
@@ -22,7 +22,7 @@ FLOAT_PORT = 502
 NUM_REG_TO_READ = 36  # Changed from 49 to 36 to get exactly 18 float values
 
 # Teledyne flow data settings
-TELEDYNE_CSV_PATH = r"{TWIST_PATH}\monitoring\teledyne_flow.csv"  # Path to teledyne flow CSV file
+TELEDYNE_CSV_PATH = "{TWIST_PATH}\monitoring\teledyne_flow.csv"  # Path to teledyne flow CSV file
 TELEDYNE_CHECK_INTERVAL = 1  # Check for new teledyne data every second
 
 # LabJack pressure data settings
@@ -35,8 +35,8 @@ LOG_FILE = "data_acquisition.log"
 
 
 ### Database settings
-DATABASE_DIR = f"/mnt/twist/www/spin/instance"
+DATABASE_DIR = f"{TWIST_PATH}\instance"
 
 DATABASE_NAME = "flaskr.sqlite"
 
-DATABASE_PATH = r"{DATABASE_DIR}\{DATABASE_NAME}"
+DATABASE_PATH = "{DATABASE_DIR}\{DATABASE_NAME}"
