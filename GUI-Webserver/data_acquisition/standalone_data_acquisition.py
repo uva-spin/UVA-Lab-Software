@@ -157,40 +157,9 @@ def _read_HMI():
     logger.info(f"Float Port: {float_port}")
 
     try:
-        # Test network connectivity first
-        import socket
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2)  # 2 second timeout
-            result = sock.connect_ex((plc_ip, int_port))
-            if result == 0:
-                logger.info(f"Network connection to {plc_ip}:{int_port} successful")
-            else:
-                logger.error(f"Cannot connect to {plc_ip}:{int_port} - Port closed or unreachable")
-        except Exception as e:
-            logger.error(f"Network test failed: {e}")
-        finally:
-            sock.close()
-
         # Read integer values
-        logger.info("Creating ModbusClient for integer registers...")
-        client = ModbusClient(
-            host=plc_ip,
-            port=int_port,
-            unit_id=unit_id,
-            auto_open=True,
-            auto_close=False,
-        )
-        
-        if not client.is_open:
-            logger.error(f"Failed to open connection for integer registers")
-            logger.info("Attempting manual open...")
-            open_result = client.open()
-            logger.info(f"Manual open result: {open_result}")
-            if not client.is_open:
-                return None
-            
-        logger.info("Reading integer registers...")
+        logger.info("Reading integer values")
+        client = ModbusClient(host=plc_ip, port=int_port, unit_id=unit_id, auto_open=True, auto_close=False)
         int_regs = client.read_holding_registers(0, num_reg_to_read)
         if int_regs:
             int_values = utils.get_list_2comp(int_regs, 16)
@@ -199,14 +168,8 @@ def _read_HMI():
             logger.warning(f"Failed to read integer registers from {plc_ip}:{int_port}")
 
         # Read float values
-        logger.info(f"Connecting to PLC for float registers (Port {float_port})...")
+        logger.info("Reading float values")
         client = ModbusClient(host=plc_ip, port=float_port, unit_id=unit_id, auto_open=True, auto_close=False)
-        
-        if not client.is_open:
-            logger.error("Failed to open connection for float registers")
-            return None
-            
-        logger.info("Reading float registers...")
         float_regs = client.read_holding_registers(0, num_reg_to_read)
         
         if not float_regs:
@@ -218,13 +181,8 @@ def _read_HMI():
         float_values = []
         logger.info("Converting register pairs to float values...")
         for i in range(0, num_reg_to_read - 1, 2):
-            try:
-                raw = struct.pack(">HH", float_regs[i], float_regs[i + 1])  # Big Endian format
-                value = struct.unpack(">f", raw)[0]  # Convert to float
-                float_values.append(value)
-            except Exception as e:
-                logger.error(f"Error converting registers {i},{i+1} to float: {e}")
-                return None
+            raw = struct.pack(">HH", float_regs[i], float_regs[i + 1])  # Big Endian format
+            float_values.append(struct.unpack(">f", raw)[0])  # Convert to float
         
         # Round float values to 2 decimal places
         rounded_float_values = [round(value, 2) for value in float_values]
@@ -253,7 +211,7 @@ def _read_HMI():
         return None
     finally:
         try:
-            if client.is_open:
+            if client and client.is_open:
                 client.close()
                 logger.info("Closed Modbus connection")
         except:

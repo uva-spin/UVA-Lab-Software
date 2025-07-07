@@ -36,11 +36,13 @@ def _read_HMI():
     num_reg_to_read = 49
 
     # Read integer values
+    print("Reading integer values")
     client = ModbusClient(host=plc_ip, port=int_port, unit_id=unit_id, auto_open=True, auto_close=False)
     int_regs = client.read_holding_registers(0, num_reg_to_read)
     print(f'Integer values: {utils.get_list_2comp(int_regs, 16)}')
 
     # Read float values
+    print("Reading float values")
     client = ModbusClient(host=plc_ip, port=float_port, unit_id=unit_id, auto_open=True, auto_close=False)
     float_regs = client.read_holding_registers(0, num_reg_to_read)
     float_values = []
@@ -108,9 +110,11 @@ if __name__ == '__main__':
     while True:
         try:
             # Read Modbus data
+            print("Reading HMI data")
             float_data = _read_HMI()
 
             # Try to send to local data collector first
+            print("Sending data to local collector")
             local_success = send_to_data_collector(float_data)
             
             # If local collector fails, try external server as fallback
