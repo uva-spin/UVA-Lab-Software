@@ -41,6 +41,7 @@ class TeledyneDataReader:
         """Monitor the CSV file for new data"""
         while self.running:
             try:
+                print(f"Checking if file exists: {self.csv_path}")
                 if os.path.exists(self.csv_path):
                     with open(self.csv_path, 'r') as file:
                         # Move to the last known position
