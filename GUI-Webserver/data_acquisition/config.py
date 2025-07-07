@@ -3,7 +3,7 @@
 # Remote Flask server configuration
 REMOTE_SERVER_URL = "http://128.143.231.224:5000"  # Flask server's IP and port
 
-TWIST_PATH = "/www.twist.phys.virginia.edu/www/spin"
+TWIST_PATH = "/twist.phys.virginia.edu/www/spin"
 
 DATA_PATH = f"{REMOTE_SERVER_URL}/data"
 

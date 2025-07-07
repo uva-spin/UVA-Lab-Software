@@ -55,7 +55,7 @@ except ImportError:
     NUM_REG_TO_READ = 49
     LOG_LEVEL = "INFO"
     LOG_FILE = "data_acquisition.log"
-    TWIST_PATH = "/www.twist.phys.virginia.edu/www/spin"  # Update this to your actual mount point
+    TWIST_PATH = "/twist.phys.virginia.edu/www/spin"  # Update this to your actual mount point
     DATABASE_DIR = f"{TWIST_PATH}/instance"
     TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"
     TELEDYNE_CHECK_INTERVAL = 1  # Check for new data every second
