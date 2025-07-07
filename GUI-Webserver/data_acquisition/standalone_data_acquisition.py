@@ -42,8 +42,9 @@ logger.addHandler(debug_handler)
 try:
     from config import *
 except ImportError:
+    print("No config.py file found, using default configuration")x
     # Default configuration if config.py doesn't exist
-    DATABASE_PATH = "/mnt/twist/www/spin/instance/flaskr.sqlite"
+    DATABASE_PATH = "\\www.twist.phys.virginia.edu\www\spin\instance\flaskr.sqlite"
     LOCAL_CSV_DIR = "data_logs"
     SLEEP_INTERVAL = 5
     MAX_CONSECUTIVE_FAILURES = 10
@@ -149,17 +150,46 @@ def _read_HMI():
     float_port = FLOAT_PORT
     num_reg_to_read = NUM_REG_TO_READ
 
-    logger.info(f"Attempting to read HMI data from PLC at {plc_ip}")
-    logger.info(f"Connection details: Unit ID: {unit_id}, Integer Port: {int_port}, Float Port: {float_port}")
+    logger.info(f"=== Starting HMI Read ===")
+    logger.info(f"PLC IP: {plc_ip}")
+    logger.info(f"Unit ID: {unit_id}")
+    logger.info(f"Integer Port: {int_port}")
+    logger.info(f"Float Port: {float_port}")
 
     try:
+        # Test network connectivity first
+        import socket
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)  # 2 second timeout
+            result = sock.connect_ex((plc_ip, int_port))
+            if result == 0:
+                logger.info(f"Network connection to {plc_ip}:{int_port} successful")
+            else:
+                logger.error(f"Cannot connect to {plc_ip}:{int_port} - Port closed or unreachable")
+        except Exception as e:
+            logger.error(f"Network test failed: {e}")
+        finally:
+            sock.close()
+
         # Read integer values
-        logger.info(f"Connecting to PLC for integer registers (Port {int_port})...")
-        client = ModbusClient(host=plc_ip, port=int_port, unit_id=unit_id, auto_open=True, auto_close=False)
+        logger.info("Creating ModbusClient for integer registers...")
+        client = ModbusClient(
+            host=plc_ip,
+            port=int_port,
+            unit_id=unit_id,
+            auto_open=True,
+            auto_close=False,
+            debug=True  # Enable debug mode
+        )
         
         if not client.is_open:
-            logger.error("Failed to open connection for integer registers")
-            return None
+            logger.error(f"Failed to open connection for integer registers")
+            logger.info("Attempting manual open...")
+            open_result = client.open()
+            logger.info(f"Manual open result: {open_result}")
+            if not client.is_open:
+                return None
             
         logger.info("Reading integer registers...")
         int_regs = client.read_holding_registers(0, num_reg_to_read)
