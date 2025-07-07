@@ -52,7 +52,7 @@ except ImportError:
     UNIT_ID = 2
     INT_PORT = 503
     FLOAT_PORT = 502
-    NUM_REG_TO_READ = 49
+    NUM_REG_TO_READ = 36
     LOG_LEVEL = "INFO"
     LOG_FILE = "data_acquisition.log"
     TWIST_PATH = "/twist.phys.virginia.edu/www/spin"  # Update this to your actual mount point
