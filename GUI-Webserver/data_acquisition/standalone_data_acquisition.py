@@ -23,7 +23,7 @@ from _LabJackReader import LabJackReader
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO,  # Change to logging.DEBUG for even more detail
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('data_acquisition.log'),
@@ -32,12 +32,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Add file handler with more detailed format for debugging
+debug_handler = logging.FileHandler('data_acquisition_debug.log')
+debug_handler.setLevel(logging.DEBUG)
+debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
+logger.addHandler(debug_handler)
+
 # Import configuration
 try:
     from config import *
 except ImportError:
     # Default configuration if config.py doesn't exist
-    DATABASE_PATH = "/www.twist.phys.virginia.edu/www/spin/instance/flaskr.sqlite"
+    DATABASE_PATH = "/mnt/twist/www/spin/instance/flaskr.sqlite"
     LOCAL_CSV_DIR = "data_logs"
     SLEEP_INTERVAL = 5
     MAX_CONSECUTIVE_FAILURES = 10
@@ -48,9 +54,11 @@ except ImportError:
     NUM_REG_TO_READ = 49
     LOG_LEVEL = "INFO"
     LOG_FILE = "data_acquisition.log"
-    TELEDYNE_CSV_PATH = "/www.twist.phys.virginia.edu/www/spin/monitoring/teledyne_flow.csv"
+    TWIST_PATH = "/mnt/twist/www/spin"  # Update this to your actual mount point
+    DATABASE_DIR = f"{TWIST_PATH}/instance"
+    TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"
     TELEDYNE_CHECK_INTERVAL = 1  # Check for new data every second
-    LABJACK_CSV_PATH = "/www.twist.phys.virginia.edu/www/spin/monitoring/labjack_pressure.csv"
+    LABJACK_CSV_PATH = f"{TWIST_PATH}/monitoring/labjack_pressure.csv"
     LABJACK_CHECK_INTERVAL = 1  # Check for new data every second
 
 # Define the labels for the float values
@@ -141,36 +149,70 @@ def _read_HMI():
     float_port = FLOAT_PORT
     num_reg_to_read = NUM_REG_TO_READ
 
+    logger.info(f"Attempting to read HMI data from PLC at {plc_ip}")
+    logger.info(f"Connection details: Unit ID: {unit_id}, Integer Port: {int_port}, Float Port: {float_port}")
+
     try:
         # Read integer values
+        logger.info(f"Connecting to PLC for integer registers (Port {int_port})...")
         client = ModbusClient(host=plc_ip, port=int_port, unit_id=unit_id, auto_open=True, auto_close=False)
+        
+        if not client.is_open():
+            logger.error("Failed to open connection for integer registers")
+            return None
+            
+        logger.info("Reading integer registers...")
         int_regs = client.read_holding_registers(0, num_reg_to_read)
         if int_regs:
-            logger.debug(f'Integer values: {utils.get_list_2comp(int_regs, 16)}')
+            int_values = utils.get_list_2comp(int_regs, 16)
+            logger.info(f'Successfully read integer values: {int_values[:3]}... ({len(int_values)} values)')
         else:
-            logger.warning("Failed to read integer registers")
+            logger.warning(f"Failed to read integer registers from {plc_ip}:{int_port}")
 
         # Read float values
+        logger.info(f"Connecting to PLC for float registers (Port {float_port})...")
         client = ModbusClient(host=plc_ip, port=float_port, unit_id=unit_id, auto_open=True, auto_close=False)
+        
+        if not client.is_open():
+            logger.error("Failed to open connection for float registers")
+            return None
+            
+        logger.info("Reading float registers...")
         float_regs = client.read_holding_registers(0, num_reg_to_read)
         
         if not float_regs:
-            logger.error("Failed to read float registers")
+            logger.error(f"Failed to read float registers from {plc_ip}:{float_port}")
             return None
             
+        logger.info(f"Successfully read {len(float_regs)} float registers")
+            
         float_values = []
+        logger.info("Converting register pairs to float values...")
         for i in range(0, num_reg_to_read - 1, 2):
-            raw = struct.pack(">HH", float_regs[i], float_regs[i + 1])  # Big Endian format
-            float_values.append(struct.unpack(">f", raw)[0])  # Convert to float
+            try:
+                raw = struct.pack(">HH", float_regs[i], float_regs[i + 1])  # Big Endian format
+                value = struct.unpack(">f", raw)[0]  # Convert to float
+                float_values.append(value)
+            except Exception as e:
+                logger.error(f"Error converting registers {i},{i+1} to float: {e}")
+                return None
         
         # Round float values to 2 decimal places
         rounded_float_values = [round(value, 2) for value in float_values]
-        logger.info(f"Read {len(rounded_float_values)} float values from Modbus")
+        logger.info(f"Processed {len(rounded_float_values)} float values")
+        
+        # Log each value with its corresponding label
+        for label, value in zip(labels, rounded_float_values[:18]):
+            logger.debug(f"{label}: {value}")
         
         # Ensure we have exactly 18 values for HMI data
         if len(rounded_float_values) >= 18:
             hmi_data = rounded_float_values[:18]
-            logger.info(f"Using first 18 values for HMI data: {hmi_data[:3]}...")
+            logger.info("Successfully read all HMI data:")
+            logger.info("First 3 values:")
+            for i in range(3):
+                logger.info(f"  {labels[i]}: {hmi_data[i]}")
+            logger.info("... (15 more values)")
             return hmi_data
         else:
             logger.error(f"Not enough float values: got {len(rounded_float_values)}, need 18")
@@ -178,7 +220,14 @@ def _read_HMI():
         
     except Exception as e:
         logger.error(f"Error reading Modbus data: {e}")
+        logger.error(f"Exception details:", exc_info=True)  # This will log the full traceback
         return None
+    finally:
+        try:
+            client.close()
+            logger.info("Closed Modbus connection")
+        except:
+            pass
 
 def read_teledyne_data():
     """Read latest teledyne flow data"""
