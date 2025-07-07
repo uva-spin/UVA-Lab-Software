@@ -22,3 +22,10 @@
 2025-07-02 17:10:04,787 - ERROR - Failed to read float registers
 2025-07-02 17:10:04,788 - WARNING - Failed to read Modbus data (attempt 3)
 2025-07-02 17:10:39,795 - WARNING - Failed to read integer registers
+2025-07-07 14:07:40,548 - INFO - Starting Data Acquisition System with Direct Database Pipeline
+2025-07-07 14:07:40,549 - INFO - Database path: {DATABASE_DIR}\{DATABASE_NAME}
+2025-07-07 14:07:40,549 - INFO - Sleep interval: 5 seconds
+2025-07-07 14:07:40,549 - INFO - Teledyne CSV path: {TWIST_PATH}\monitoring	eledyne_flow.csv
+2025-07-07 14:07:40,549 - INFO - LabJack CSV path: {TWIST_PATH}\monitoring\labjack_pressure.csv
+2025-07-07 14:07:40,549 - INFO - Data directory ready: data_logs
+2025-07-07 14:07:40,549 - ERROR - Failed to setup database: [Errno 2] No such file or directory: ''

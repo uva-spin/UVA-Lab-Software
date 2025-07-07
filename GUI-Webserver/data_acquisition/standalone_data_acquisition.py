@@ -42,9 +42,9 @@ logger.addHandler(debug_handler)
 try:
     from config import *
 except ImportError:
-    print("No config.py file found, using default configuration")x
+    print("No config.py file found, using default configuration")
     # Default configuration if config.py doesn't exist
-    DATABASE_PATH = "\\www.twist.phys.virginia.edu\www\spin\instance\flaskr.sqlite"
+    DATABASE_PATH = f"{DATABASE_DIR}/{DATABASE_NAME}"
     LOCAL_CSV_DIR = "data_logs"
     SLEEP_INTERVAL = 5
     MAX_CONSECUTIVE_FAILURES = 10
@@ -55,7 +55,7 @@ except ImportError:
     NUM_REG_TO_READ = 49
     LOG_LEVEL = "INFO"
     LOG_FILE = "data_acquisition.log"
-    TWIST_PATH = "/mnt/twist/www/spin"  # Update this to your actual mount point
+    TWIST_PATH = "/www.twist.phys.virginia.edu/www/spin"  # Update this to your actual mount point
     DATABASE_DIR = f"{TWIST_PATH}/instance"
     TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"
     TELEDYNE_CHECK_INTERVAL = 1  # Check for new data every second
@@ -180,7 +180,6 @@ def _read_HMI():
             unit_id=unit_id,
             auto_open=True,
             auto_close=False,
-            debug=True  # Enable debug mode
         )
         
         if not client.is_open:

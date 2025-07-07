@@ -1,0 +1,7 @@
+2025-07-07 14:07:40,548 - INFO - [standalone_data_acquisition.py:417] - Starting Data Acquisition System with Direct Database Pipeline
+2025-07-07 14:07:40,549 - INFO - [standalone_data_acquisition.py:418] - Database path: {DATABASE_DIR}\{DATABASE_NAME}
+2025-07-07 14:07:40,549 - INFO - [standalone_data_acquisition.py:419] - Sleep interval: 5 seconds
+2025-07-07 14:07:40,549 - INFO - [standalone_data_acquisition.py:420] - Teledyne CSV path: {TWIST_PATH}\monitoring	eledyne_flow.csv
+2025-07-07 14:07:40,549 - INFO - [standalone_data_acquisition.py:421] - LabJack CSV path: {TWIST_PATH}\monitoring\labjack_pressure.csv
+2025-07-07 14:07:40,549 - INFO - [standalone_data_acquisition.py:108] - Data directory ready: data_logs
+2025-07-07 14:07:40,549 - ERROR - [standalone_data_acquisition.py:430] - Failed to setup database: [Errno 2] No such file or directory: ''
