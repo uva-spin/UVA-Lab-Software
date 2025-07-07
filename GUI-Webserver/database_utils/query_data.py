@@ -7,11 +7,11 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import argparse
-from config import DATABASE_PATH
+from config import DATABASE_PATH, DATABASE_NAME
 
 def connect_to_db():
     """Connect to the database"""
-    return sqlite3.connect(f"{DATABASE_PATH}")
+    return sqlite3.connect(f"{DATABASE_PATH}/{DATABASE_NAME}")
 
 def get_recent_data(table_name='hmi', limit=100, hours=None):
     """Get recent data from the specified table"""

@@ -12,7 +12,7 @@ import requests
 from flask import Flask, request, jsonify, render_template
 import logging
 
-from config import DATABASE_PATH
+from config import DATABASE_PATH, DATABASE_NAME, DATABASE_DIR
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -33,8 +33,10 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 class DataCollector:
-    def __init__(self, db_path=f"{DATABASE_PATH}"):
+    def __init__(self, db_path=f"{DATABASE_DIR}/{DATABASE_NAME}"):
         self.db_path = db_path
+
+        print(f"Database path: {self.db_path}")
         self.setup_database()
         
     def setup_database(self):

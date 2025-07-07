@@ -10,7 +10,7 @@ import time
 import signal
 import logging
 
-from config import DATABASE_PATH
+from config import DATABASE_PATH, DATABASE_NAME, DATABASE_DIR
 
 
 
@@ -33,7 +33,7 @@ def check_dependencies():
 
 def check_database_directory():
     """Ensure the database directory exists"""
-    db_dir = f"{DATABASE_PATH}"
+    db_dir = f"{DATABASE_DIR}"
     if not os.path.exists(db_dir):
         os.makedirs(db_dir)
         logger.info(f"Created database directory: {db_dir}")
