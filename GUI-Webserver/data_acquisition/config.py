@@ -25,6 +25,18 @@ NUM_REG_TO_READ = 36  # Changed from 49 to 36 to get exactly 18 float values
 TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"  # Path to teledyne flow CSV file
 TELEDYNE_CHECK_INTERVAL = 1  # Check for new teledyne data every second
 
+# LabJack pressure data settings
+LABJACK_CSV_PATH = f"{TWIST_PATH}/monitoring/labjack_pressure.csv"  # Path to labjack pressure CSV file
+LABJACK_CHECK_INTERVAL = 1  # Check for new labjack data every second
+
 # Logging settings
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log" 
+
+
+### Database settings
+DATABASE_DIR = f"/www.twist.phys.virginia.edu/www/spin/instance"
+
+DATABASE_NAME = "flaskr.sqlite"
+
+DATABASE_PATH = f"{DATABASE_DIR}/{DATABASE_NAME}"
