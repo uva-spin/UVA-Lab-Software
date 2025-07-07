@@ -6,7 +6,7 @@ Check database status and recent data using schema-defined tables
 import sqlite3
 import os
 from datetime import datetime, timedelta
-from .config import DATABASE_PATH
+from config import DATABASE_PATH
 
 def check_database():
     """Check database status and show recent data"""

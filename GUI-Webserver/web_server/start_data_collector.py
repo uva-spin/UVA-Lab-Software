@@ -10,7 +10,7 @@ import time
 import signal
 import logging
 
-from .config import DATABASE_PATH
+from config import DATABASE_PATH
 
 
 

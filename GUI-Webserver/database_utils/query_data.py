@@ -7,7 +7,7 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import argparse
-from .config import DATABASE_PATH
+from config import DATABASE_PATH
 
 def connect_to_db():
     """Connect to the database"""
