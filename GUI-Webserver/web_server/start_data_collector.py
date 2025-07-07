@@ -10,6 +10,10 @@ import time
 import signal
 import logging
 
+from .config import DATABASE_PATH
+
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -29,7 +33,7 @@ def check_dependencies():
 
 def check_database_directory():
     """Ensure the database directory exists"""
-    db_dir = "../instance"
+    db_dir = f"{DATABASE_PATH}"
     if not os.path.exists(db_dir):
         os.makedirs(db_dir)
         logger.info(f"Created database directory: {db_dir}")

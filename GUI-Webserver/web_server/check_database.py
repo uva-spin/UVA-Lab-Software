@@ -6,10 +6,11 @@ Check database status and recent data using schema-defined tables
 import sqlite3
 import os
 from datetime import datetime, timedelta
+from .config import DATABASE_PATH
 
 def check_database():
     """Check database status and show recent data"""
-    db_path = "../instance/flaskr.sqlite"
+    db_path = f"{DATABASE_PATH}"
     
     if not os.path.exists(db_path):
         print("✗ Database file not found")

@@ -1,7 +1,11 @@
 # Configuration file for data acquisition system
 
 # Remote Flask server configuration
-REMOTE_SERVER_URL = "http://128.143.231.224:5000/data"  # Flask server's IP and port
+REMOTE_SERVER_URL = "http://128.143.231.224:5000"  # Flask server's IP and port
+
+TWIST_PATH = "/www.twist.phys.virginia.edu/www/spin/"
+
+DATA_PATH = f"{REMOTE_SERVER_URL}/data"
 
 # Local data storage
 LOCAL_CSV_DIR = "data_logs"  # Directory to store local CSV backups
@@ -18,7 +22,7 @@ FLOAT_PORT = 502
 NUM_REG_TO_READ = 36  # Changed from 49 to 36 to get exactly 18 float values
 
 # Teledyne flow data settings
-TELEDYNE_CSV_PATH = "../static/csv/teledyne_flow.csv"  # Path to teledyne flow CSV file
+TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"  # Path to teledyne flow CSV file
 TELEDYNE_CHECK_INTERVAL = 1  # Check for new teledyne data every second
 
 # Logging settings

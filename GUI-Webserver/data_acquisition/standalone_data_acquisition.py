@@ -37,7 +37,7 @@ try:
     from config import *
 except ImportError:
     # Default configuration if config.py doesn't exist
-    DATABASE_PATH = "../instance/flaskr.sqlite"
+    DATABASE_PATH = "/www.twist.phys.virginia.edu/www/spin/instance/flaskr.sqlite"
     LOCAL_CSV_DIR = "data_logs"
     SLEEP_INTERVAL = 5
     MAX_CONSECUTIVE_FAILURES = 10
@@ -48,9 +48,9 @@ except ImportError:
     NUM_REG_TO_READ = 49
     LOG_LEVEL = "INFO"
     LOG_FILE = "data_acquisition.log"
-    TELEDYNE_CSV_PATH = "../static/csv/teledyne_flow.csv"
+    TELEDYNE_CSV_PATH = "/www.twist.phys.virginia.edu/www/spin/monitoring/teledyne_flow.csv"
     TELEDYNE_CHECK_INTERVAL = 1  # Check for new data every second
-    LABJACK_CSV_PATH = "../static/csv/labjack_pressure.csv"
+    LABJACK_CSV_PATH = "/www.twist.phys.virginia.edu/www/spin/monitoring/labjack_pressure.csv"
     LABJACK_CHECK_INTERVAL = 1  # Check for new data every second
 
 # Define the labels for the float values
@@ -133,8 +133,8 @@ def setup_database():
     finally:
         conn.close()
 
-def read_modbus_data():
-    """Read data from Modbus TCP server"""
+def _read_HMI():
+    """Read data from Modbus  TCP server"""
     plc_ip = PLC_IP
     unit_id = UNIT_ID
     int_port = INT_PORT
@@ -373,7 +373,7 @@ def main():
         while True:
             try:
                 # Read data from Modbus
-                modbus_data = read_modbus_data()
+                modbus_data = _read_HMI()
                 
                 if modbus_data is None:
                     consecutive_failures += 1

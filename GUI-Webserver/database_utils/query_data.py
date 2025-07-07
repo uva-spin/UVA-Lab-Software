@@ -7,10 +7,11 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import argparse
+from .config import DATABASE_PATH
 
 def connect_to_db():
     """Connect to the database"""
-    return sqlite3.connect("../instance/flaskr.sqlite")
+    return sqlite3.connect(f"{DATABASE_PATH}")
 
 def get_recent_data(table_name='hmi', limit=100, hours=None):
     """Get recent data from the specified table"""
@@ -226,7 +227,7 @@ def main():
     parser.add_argument('--combined', action='store_true',
                        help='Get combined data from all tables')
     parser.add_argument('--export-combined', action='store_true',
-                       help='Export combined data from all tables to CSV')
+                       help='Export combined data from all tables to CSV (We shouldnt need to use this)')
     
     args = parser.parse_args()
     

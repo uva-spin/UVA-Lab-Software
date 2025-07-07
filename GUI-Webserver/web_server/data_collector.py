@@ -12,6 +12,8 @@ import requests
 from flask import Flask, request, jsonify, render_template
 import logging
 
+from .config import DATABASE_PATH
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -31,7 +33,7 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 class DataCollector:
-    def __init__(self, db_path="../instance/flaskr.sqlite"):
+    def __init__(self, db_path=f"{DATABASE_PATH}"):
         self.db_path = db_path
         self.setup_database()
         
