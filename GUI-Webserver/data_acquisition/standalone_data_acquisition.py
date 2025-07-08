@@ -291,7 +291,7 @@ def insert_teledyne_data(flow_data):
     
     try:
         cursor.execute('''
-            INSERT INTO flow_rates (flow_1, flow_2, flow_3, "Timestamp") 
+            INSERT INTO Flow_Rates (Flow_1, Flow_2, Flow_3, "Timestamp") 
             VALUES (?, ?, ?, ?)
         ''', flow_data + [get_current_est_time()])
         
@@ -311,9 +311,9 @@ def insert_labjack_data(pressure_data):
     
     try:
         cursor.execute('''
-            INSERT INTO pressures (pressure_1, "Timestamp") 
-            VALUES (?, ?)
-        ''', (pressure_data, get_current_est_time()))
+            INSERT INTO Pressures (Pressure_1, Pressure_2, Pressure_3, "Timestamp") 
+            VALUES (?, ?, ?, ?)
+        ''', (pressure_data[1], pressure_data[2], pressure_data[3], get_current_est_time()))
         
         conn.commit()
         logger.info(f"Inserted LabJack data: {pressure_data}")

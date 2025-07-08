@@ -217,9 +217,13 @@
 
         async function fetchDataFromDB(selectedKeys) {
             // Calculate total milliseconds and time range
-            const totalMilliseconds = (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
+            // const totalMilliseconds = (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
+            // const now = new Date();
+            // const start = new Date(now.getTime() - totalMilliseconds);
+
+            const totalMilliseconds = (hours * 3600 + minutes * 60 + seconds) * 1000;
             const now = new Date();
-            const start = new Date(now.getTime() - totalMilliseconds);
+            const start = new Date(now.getTime() - totalMilliseconds); 
             
             // Format timestamps in YYYY-MM-DD HH:mm:ss format
             const startTimeStr = start.toLocaleString('en-US', {

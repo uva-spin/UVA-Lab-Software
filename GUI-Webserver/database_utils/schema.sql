@@ -1,6 +1,7 @@
-DROP TABLE IF EXISTS HMI;
+-- Modified schema to preserve existing data
+-- Use CREATE TABLE IF NOT EXISTS instead of DROP TABLE
 
-CREATE TABLE HMI (
+CREATE TABLE IF NOT EXISTS HMI (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
 
   fc501_ai FLOAT NOT NULL,
@@ -25,20 +26,18 @@ CREATE TABLE HMI (
   "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
-DROP TABLE IF EXISTS Pressures;
-
-CREATE TABLE Pressures (
+CREATE TABLE IF NOT EXISTS Pressures (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  pressure_1 FLOAT NOT NULL,
+  Pressure_1 FLOAT NOT NULL,
+  Pressure_2 FLOAT NOT NULL,
+  Pressure_3 FLOAT NOT NULL,
   "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
-DROP TABLE IF EXISTS Flow_Rates;
-
-CREATE TABLE Flow_Rates (
+CREATE TABLE IF NOT EXISTS Flow_Rates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  flow_1 FLOAT NOT NULL,
-  flow_2 FLOAT NOT NULL,
-  flow_3 FLOAT NOT NULL,
+  Flow_1 FLOAT NOT NULL,
+  Flow_2 FLOAT NOT NULL,
+  Flow_3 FLOAT NOT NULL,
   "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );

@@ -30,7 +30,8 @@ class LabJackReader:
             self.device = u3.U3()
             self.device.configU3()
             self.device.getCalibrationData()
-            self.device.configIO(FIOAnalog=3)
+            # Configure FIO0, FIO1, and FIO2 as analog inputs
+            self.device.configIO(FIOAnalog=7)  # 7 = 111 in binary, enables FIO0, FIO1, FIO2 as analog
             logger.info("LabJackReader: Device initialized")
             
             self.running = True
@@ -61,6 +62,13 @@ class LabJackReader:
             except:
                 pass
             self.device = None
+            
+    def _check_data(self, data):
+        """ Check if the channels are getting data """
+        if data is None or len(data) == 0:
+            logger.warning(f"No data from channel at {datetime.now()}")
+            return False
+        return True
 
     def _monitor_file(self):
         """Monitor the CSV file for new data"""
@@ -77,12 +85,13 @@ class LabJackReader:
             if not os.path.exists(self.csv_path):
                 logger.warning(f"LabJackReader: CSV file not found: {self.csv_path}. Creating file...")
                 with open(self.csv_path, 'w') as file:
-                    file.write("Timestamp,Pressure_1\n")
+                    file.write("Timestamp,Pressure_1,Pressure_2,Pressure_3\n")
                 self.last_position = 0
                 return
 
             logger.info("Configuring U3 stream")
-            self.device.streamConfig(NumChannels=2, PChannels=[0, 1], NChannels=[31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
+            # Configure stream for 3 channels: AIN0, AIN1, AIN2
+            self.device.streamConfig(NumChannels=3, PChannels=[0, 1, 2], NChannels=[31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
 
             try:
                 self.device.streamStart()
@@ -92,7 +101,9 @@ class LabJackReader:
                 missed = 0
                 dataCount = 0
                 packetCount = 0
-                data_R2 = np.zeros(MAX_REQUESTS)
+                data_R2_pressure1 = np.zeros(MAX_REQUESTS)
+                data_R2_pressure2 = np.zeros(MAX_REQUESTS)
+                data_R2_pressure3 = np.zeros(MAX_REQUESTS)
 
                 for i, r in enumerate(self.device.streamData()):
                     if not self.running:
@@ -112,15 +123,38 @@ class LabJackReader:
                             missed += r['missed']
                             logger.warning(f"Missed {r['missed']} packets")
 
-                        vOut = sum(r["AIN0"]) / len(r["AIN0"])
-                        vIn = 10
-                        R1 = 100
-                        R2 = R1*(1/((vIn/vOut)-1))
+                        # Process AIN0 (Pressure 1)
+                        if self._check_data(r["AIN0"]):
+                            vOut_pressure1 = sum(r["AIN0"]) / len(r["AIN0"])
+                            vIn = 10
+                            R1 = 100
+                            R2_pressure1 = R1*(1/((vIn/vOut_pressure1)-1))
+                        else:
+                            R2_pressure1 = None
+                            logger.warning(f"No data for Pressure 1 at {datetime.now()}")
+
+                        # Process AIN1 (Pressure 2)
+                        if self._check_data(r["AIN1"]):
+                            vOut_pressure2 = sum(r["AIN1"]) / len(r["AIN1"])
+                            R2_pressure2 = R1*(1/((vIn/vOut_pressure2)-1))
+                        else:
+                            R2_pressure2 = None
+                            logger.warning(f"No data for Pressure 2 at {datetime.now()}")
+
+                        # Process AIN2 (Pressure 3)
+                        if self._check_data(r["AIN2"]):
+                            vOut_pressure3 = sum(r["AIN2"]) / len(r["AIN2"])
+                            R2_pressure3 = R1*(1/((vIn/vOut_pressure3)-1))
+                        else:
+                            R2_pressure3 = None
+                            logger.warning(f"No data for Pressure 3 at {datetime.now()}")
 
                         dataCount += 1
                         packetCount += r['numPackets']
 
-                        data_R2[i] = R2
+                        data_R2_pressure1[i] = R2_pressure1
+                        data_R2_pressure2[i] = R2_pressure2
+                        data_R2_pressure3[i] = R2_pressure3
                     else:
                         logger.warning(f"No data at {datetime.now()}")
 
@@ -133,21 +167,24 @@ class LabJackReader:
                     logger.error(f"Error stopping stream: {e}")
 
                 if dataCount > 0:
-                    self._to_csv(np.average(data_R2))
-                    logger.info(f"Data written to CSV, average R2: {np.average(data_R2)}")
+                    avg_pressure1 = np.average(data_R2_pressure1)
+                    avg_pressure2 = np.average(data_R2_pressure2)
+                    avg_pressure3 = np.average(data_R2_pressure3)
+                    self._to_csv(avg_pressure1, avg_pressure2, avg_pressure3)
+                    logger.info(f"Data written to CSV, average R2 - Pressure 1: {avg_pressure1}, Pressure 2: {avg_pressure2}, Pressure 3: {avg_pressure3}")
 
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay
 
-    def _to_csv(self, data):
+    def _to_csv(self, pressure1, pressure2, pressure3):
         """Write data to CSV file"""
         try:
             with open(self.csv_path, 'a', newline='') as file:
                 writer = csv.writer(file)
                 if file.tell() == 0:
-                    writer.writerow(["Timestamp", "Pressure_1"])
-                writer.writerow([datetime.now(), data])
+                    writer.writerow(["Timestamp", "Pressure_1", "Pressure_2", "Pressure_3"])
+                writer.writerow([datetime.now(), pressure1, pressure2, pressure3])
         except Exception as e:
             logger.error(f"Error writing to CSV: {e}")
 

@@ -121,31 +121,33 @@ class DataCollector:
             
             # Get latest LabJack data
             cursor.execute("""
-                SELECT pressure_1, "Timestamp"
-                FROM pressures 
+                SELECT Pressure_1, Pressure_2, Pressure_3, "Timestamp"
+                FROM Pressures 
                 ORDER BY "Timestamp" DESC 
                 LIMIT 1
             """)
             labjack_data = cursor.fetchone()
             if labjack_data:
                 combined_data.update({
-                    'pressure_1': labjack_data[0],
-                    'labjack_timestamp': labjack_data[1]
+                    'Pressure_1': labjack_data[1],
+                    'Pressure_2': labjack_data[2],
+                    'Pressure_3': labjack_data[3],
+                    'labjack_timestamp': labjack_data[0]
                 })
             
             # Get latest Teledyne data
             cursor.execute("""
-                SELECT flow_1, flow_2, flow_3, "Timestamp"
-                FROM flow_rates 
+                SELECT Flow_1, Flow_2, Flow_3, "Timestamp"
+                FROM Flow_Rates 
                 ORDER BY "Timestamp" DESC 
                 LIMIT 1
             """)
             teledyne_data = cursor.fetchone()
             if teledyne_data:
                 combined_data.update({
-                    'flow_1': teledyne_data[0],
-                    'flow_2': teledyne_data[1],
-                    'flow_3': teledyne_data[2],
+                    'Flow_1': teledyne_data[0],
+                    'Flow_2': teledyne_data[1],
+                    'Flow_3': teledyne_data[2],
                     'teledyne_timestamp': teledyne_data[3]
                 })
             
@@ -259,8 +261,8 @@ class DataCollector:
         
         try:
             cursor.execute('''
-                INSERT INTO labjack (pressure_1) VALUES (?)
-            ''', (pressure_data,))
+                INSERT INTO labjack (Pressure_1, Pressure_2, Pressure_3) VALUES (?, ?, ?)
+            ''', (pressure_data[1], pressure_data[2], pressure_data[3]))
             
             conn.commit()
             logger.info(f"Inserted LabJack data: {pressure_data}")
@@ -282,7 +284,7 @@ class DataCollector:
         
         try:
             cursor.execute('''
-                INSERT INTO teledyne (flow_1, flow_2, flow_3) VALUES (?, ?, ?)
+                INSERT INTO teledyne (Flow_1, Flow_2, Flow_3) VALUES (?, ?, ?)
             ''', flow_data)
             
             conn.commit()
@@ -315,9 +317,9 @@ class DataCollector:
         if 'teledyne_data' in combined_data:
             teledyne_data = combined_data['teledyne_data']
             if isinstance(teledyne_data, dict):
-                flow_1 = teledyne_data.get('flow_1')
-                flow_2 = teledyne_data.get('flow_2')
-                flow_3 = teledyne_data.get('flow_3')
+                flow_1 = teledyne_data.get('Flow_1')
+                flow_2 = teledyne_data.get('Flow_2')
+                flow_3 = teledyne_data.get('Flow_3')
                 if all(v is not None for v in [flow_1, flow_2, flow_3]):
                     success &= self.insert_teledyne_data([flow_1, flow_2, flow_3])
                 else:
