@@ -58,7 +58,7 @@ except ImportError:
 
     LOG_LEVEL = "INFO"
     LOG_FILE = "data_acquisition.log"
-    TWIST_PATH = "/twist.phys.virginia.edu/www/spin"  # Update this to your actual mount point
+    TWIST_PATH = "//twist.phys.virginia.edu/www/spin"  
     DATABASE_DIR = f"{TWIST_PATH}/instance"
     TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"
     TELEDYNE_CHECK_INTERVAL = 1  # Check for new data every second
@@ -347,7 +347,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
 def save_to_local_csv(data, csv_data):
     """Save data to local CSV file as backup"""
     try:
-        timestamp = datetime.now(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
+        timestamp = datetime.now().isoformat()
         filename = os.path.join(LOCAL_CSV_DIR, f"hmi_data_{timestamp}.csv")
         
         # Check if file exists to determine if we need to write headers
@@ -362,7 +362,7 @@ def save_to_local_csv(data, csv_data):
                 writer.writerow(header_row)
             
             # Write data row
-            data_row = [datetime.now(pytz.timezone('US/Eastern')).isoformat()] + csv_data
+            data_row = [datetime.now().isoformat()] + csv_data
             writer.writerow(data_row)
         
         logger.debug(f"Data saved to local CSV: {filename}")
@@ -445,7 +445,7 @@ def main():
                 
                 # Create combined data for CSV backup
                 combined_data = {
-                    'timestamp': datetime.now(pytz.timezone('US/Eastern')).isoformat(),
+                    'timestamp': datetime.now().isoformat(),
                     'modbus_data': modbus_data,
                     'teledyne_data': teledyne_data,
                     'labjack_data': labjack_data
