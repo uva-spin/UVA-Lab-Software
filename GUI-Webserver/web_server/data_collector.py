@@ -344,7 +344,7 @@ class DataCollector:
                 for col in table_info:
                     col_name = col[1]
                     # Exclude metadata columns
-                    if col_name not in ['id', 'created']:
+                    if col_name not in ['id', '"Timestamp"']:
                         available_columns.append(col_name)
                 
                 columns_by_table[table_name] = available_columns
@@ -597,13 +597,12 @@ def get_recent_data():
         end_time = datetime.now(est)
         start_time = end_time - timedelta(hours=hours_back)
         
-        # Convert to UTC for database query
-        end_time_utc = end_time.astimezone(timezone.utc)
-        start_time_utc = start_time.astimezone(timezone.utc)
+        # Format timestamps for SQLite in EST
+        start_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
+        end_str = end_time.strftime('%Y-%m-%d %H:%M:%S')
         
         logger.info(f"Fetching data for keys: {keys}")
-        logger.info(f"Time range (EST): {start_time} to {end_time}")
-        logger.info(f"Time range (UTC): {start_time_utc} to {end_time_utc}")
+        logger.info(f"Time range (EST): {start_str} to {end_str}")
         
         # Connect to database
         conn = sqlite3.connect(collector.db_path)
@@ -626,17 +625,13 @@ def get_recent_data():
             logger.info(f"Found keys {table_keys} in table {table}")
             
             # Build the query for this table
-            columns_str = ', '.join(['created'] + table_keys)
+            columns_str = ', '.join(['"Timestamp"'] + table_keys)
             query = f"""
                 SELECT {columns_str}
                 FROM {table}
-                WHERE created >= datetime(?, 'utc') AND created <= datetime(?, 'utc')
-                ORDER BY created ASC
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
             """
-            
-            # Format timestamps for SQLite
-            start_str = start_time_utc.strftime('%Y-%m-%d %H:%M:%S')
-            end_str = end_time_utc.strftime('%Y-%m-%d %H:%M:%S')
             
             logger.info(f"Executing query: {query} with params: {start_str}, {end_str}")
             
@@ -649,16 +644,8 @@ def get_recent_data():
             # Process data for this table
             if rows:
                 for row in rows:
-                    utc_timestamp = row[0]
-                    # Convert UTC timestamp to EST
-                    try:
-                        utc_dt = datetime.strptime(utc_timestamp, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
-                        est_dt = utc_dt.astimezone(est)
-                        timestamp = est_dt.strftime('%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        logger.warning(f"Could not parse timestamp: {utc_timestamp}")
-                        timestamp = utc_timestamp
-                        
+                    timestamp = row[0]  # Timestamp is already in EST YYYY-MM-DD HH:MM:SS format
+                    
                     if timestamp not in all_data:
                         all_data[timestamp] = {'timestamp': timestamp}
                     
@@ -693,8 +680,8 @@ def get_recent_data():
             "missing_keys": missing_keys,
             "timezone": "EST",
             "time_range": {
-                "start": start_time.isoformat(),
-                "end": end_time.isoformat()
+                "start": start_str,
+                "end": end_str
             }
         }), 200
         
@@ -808,7 +795,7 @@ def test_db():
                 data_sources.append(table_name)
                 
             # Get latest record timestamp
-            cursor.execute(f"SELECT created FROM {table_name} ORDER BY created DESC LIMIT 1")
+            cursor.execute(f"SELECT Timestamp FROM {table_name} ORDER BY Timestamp DESC LIMIT 1")
             latest = cursor.fetchone()
             if latest:
                 logger.info(f"Latest record in {table_name}: {latest[0]}")

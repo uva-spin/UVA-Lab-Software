@@ -27,13 +27,15 @@ EST = pytz.timezone('America/New_York')
 
 def get_current_est_time():
     """Get current time in EST timezone"""
-    return datetime.now(EST)
+    now = datetime.now(EST)
+    return now.strftime('%Y-%m-%d %H:%M:%S')
 
-def utc_to_est(utc_dt):
-    """Convert UTC datetime to EST"""
+def utc_to_est_str(utc_dt):
+    """Convert UTC datetime to EST string format"""
     if utc_dt.tzinfo is None:
         utc_dt = utc_dt.replace(tzinfo=timezone.utc)
-    return utc_dt.astimezone(EST)
+    est_dt = utc_dt.astimezone(EST)
+    return est_dt.strftime('%Y-%m-%d %H:%M:%S')
 
 # Configure logging
 logging.basicConfig(
@@ -267,7 +269,7 @@ def insert_hmi_data(data):
                 purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
                 ti504_ai, ti505_ai, ti523_ai, "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', data + [get_current_est_time().isoformat()])
+        ''', data + [get_current_est_time()])
         
         conn.commit()
         logger.info(f"Inserted HMI data: {data[:3]}...")
@@ -291,7 +293,7 @@ def insert_teledyne_data(flow_data):
         cursor.execute('''
             INSERT INTO flow_rates (flow_1, flow_2, flow_3, "Timestamp") 
             VALUES (?, ?, ?, ?)
-        ''', flow_data + [get_current_est_time().isoformat()])
+        ''', flow_data + [get_current_est_time()])
         
         conn.commit()
         logger.info(f"Inserted Teledyne data: {flow_data}")
@@ -311,7 +313,7 @@ def insert_labjack_data(pressure_data):
         cursor.execute('''
             INSERT INTO pressures (pressure_1, "Timestamp") 
             VALUES (?, ?)
-        ''', (pressure_data, get_current_est_time().isoformat()))
+        ''', (pressure_data, get_current_est_time()))
         
         conn.commit()
         logger.info(f"Inserted LabJack data: {pressure_data}")
@@ -361,7 +363,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
 def save_to_local_csv(data, csv_data):
     """Save data to local CSV file as backup"""
     try:
-        timestamp = get_current_est_time().isoformat()
+        timestamp = get_current_est_time()
         filename = os.path.join(LOCAL_CSV_DIR, f"hmi_data_{timestamp}.csv")
         
         # Check if file exists to determine if we need to write headers
@@ -376,7 +378,7 @@ def save_to_local_csv(data, csv_data):
                 writer.writerow(header_row)
             
             # Write data row
-            data_row = [get_current_est_time().isoformat()] + csv_data
+            data_row = [timestamp] + csv_data
             writer.writerow(data_row)
         
         logger.debug(f"Data saved to local CSV: {filename}")
@@ -459,7 +461,7 @@ def main():
                 
                 # Create combined data for CSV backup
                 combined_data = {
-                    'timestamp': get_current_est_time().isoformat(),
+                    'timestamp': get_current_est_time(),
                     'modbus_data': modbus_data,
                     'teledyne_data': teledyne_data,
                     'labjack_data': labjack_data
@@ -475,7 +477,7 @@ def main():
                         try:
                             # Parse the timestamp and convert to EST
                             teledyne_dt = datetime.fromisoformat(teledyne_timestamp)
-                            teledyne_timestamp = utc_to_est(teledyne_dt).isoformat()
+                            teledyne_timestamp = utc_to_est_str(teledyne_dt)
                         except ValueError:
                             logger.warning(f"Could not parse teledyne timestamp: {teledyne_timestamp}")
                     
@@ -495,7 +497,7 @@ def main():
                         try:
                             # Parse the timestamp and convert to EST
                             labjack_dt = datetime.fromisoformat(labjack_timestamp)
-                            labjack_timestamp = utc_to_est(labjack_dt).isoformat()
+                            labjack_timestamp = utc_to_est_str(labjack_dt)
                         except ValueError:
                             logger.warning(f"Could not parse labjack timestamp: {labjack_timestamp}")
                     
