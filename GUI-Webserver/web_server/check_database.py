@@ -52,7 +52,7 @@ def check_database():
             if table_records > 0:
                 cursor.execute(f"""
                     SELECT * FROM {table_name} 
-                    ORDER BY created DESC 
+                    ORDER BY Timestamp DESC 
                     LIMIT 5
                 """)
                 recent_data = cursor.fetchall()
@@ -70,7 +70,7 @@ def check_database():
         for table_name in tables:
             cursor.execute(f"""
                 SELECT COUNT(*) FROM {table_name} 
-                WHERE created > ?
+                WHERE Timestamp > ?
             """, (one_hour_ago.strftime('%Y-%m-%d %H:%M:%S'),))
             table_recent = cursor.fetchone()[0]
             recent_count += table_recent

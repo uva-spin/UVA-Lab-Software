@@ -33,6 +33,26 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
+def convert_frontend_timestamp_to_db_format(timestamp_str):
+    """
+    Convert frontend timestamp format (MM/DD/YYYY HH:mm:ss) to database format (YYYY-MM-DD HH:mm:ss)
+    
+    Args:
+        timestamp_str (str): Timestamp in format "MM/DD/YYYY HH:mm:ss" (e.g., "01/15/2024 14:30:25")
+    
+    Returns:
+        str: Timestamp in format "YYYY-MM-DD HH:mm:ss" (e.g., "2024-01-15 14:30:25")
+    """
+    try:
+        # Parse the frontend format: "MM/DD/YYYY HH:mm:ss" (without comma)
+        dt = datetime.strptime(timestamp_str, '%m/%d/%Y %H:%M:%S')
+        # Convert to database format: "YYYY-MM-DD HH:mm:ss"
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    except ValueError as e:
+        logger.warning(f"Could not parse timestamp '{timestamp_str}': {e}")
+        # If parsing fails, return the original string and let the database handle it
+        return timestamp_str
+
 class DataCollector:
     def __init__(self, db_path=f"/var/www/spin/instance/flaskr.sqlite"):
         self.db_path = db_path
@@ -557,57 +577,36 @@ def shutdown_server():
     threading.Thread(target=delayed_shutdown, daemon=True).start()
     return jsonify({"status": "shutdown_initiated", "message": "Server shutting down gracefully"}), 200
 
-# @app.route('/latest_data', methods=['GET'])
-# def get_latest_data():
-#     """Get the latest data from all tables combined"""
-#     try:
-#         latest_data = collector.get_latest_data_from_all_tables()
-        
-#         if not latest_data:
-#             return jsonify({"error": "No data found in any table"}), 404
-        
-#         return jsonify({
-#             "status": "success",
-#             "data": latest_data,
-#             "timestamp": datetime.now().isoformat()
-#         }), 200
-        
-#     except Exception as e:
-#         logger.error(f"Error getting latest data: {e}")
-#         return jsonify({"error": str(e)}), 500
-
 @app.route('/recent_data', methods=['GET'])
 def get_recent_data():
     """Get recent data from the database based on timestamp"""
     try:
         # Get parameters from request
         keys = request.args.get('keys', '').split(',')
-        hours_back = float(request.args.get('hours', 1))  # Default to 1 hour
-
-        print(f"Keys: {keys}")
-        print(f"Hours back: {hours_back}")
+        start_time = request.args.get('start_time', '')
+        end_time = request.args.get('end_time', '')
         
         # Filter out empty keys
         keys = [key.strip() for key in keys if key.strip()]
-
-        print(f"Filtered Keys: {keys}")  # Debug print
         
         if not keys:
             return jsonify({"error": "No keys provided"}), 400
             
+        if not start_time or not end_time:
+            return jsonify({"error": "Start time and end time must be provided"}), 400
+
+        # Convert frontend timestamp format to database format
+        db_start_time = convert_frontend_timestamp_to_db_format(start_time)
+        db_end_time = convert_frontend_timestamp_to_db_format(end_time)
+        
+        logger.info(f"Original timestamps - start: {start_time}, end: {end_time}")
+        logger.info(f"Converted timestamps - start: {db_start_time}, end: {db_end_time}")
+
         # Get EST timezone
         est = pytz.timezone('America/New_York')
         
-        # Calculate time range in EST
-        end_time = datetime.now(est)
-        start_time = end_time - timedelta(hours=hours_back)
-        
-        # Format timestamps for SQLite in EST
-        start_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
-        end_str = end_time.strftime('%Y-%m-%d %H:%M:%S')
-        
         logger.info(f"Fetching data for keys: {keys}")
-        logger.info(f"Time range (EST): {start_str} to {end_str}")
+        logger.info(f"Time range (EST): {db_start_time} to {db_end_time}")
         
         # Connect to database
         conn = sqlite3.connect(collector.db_path)
@@ -637,11 +636,12 @@ def get_recent_data():
                 WHERE "Timestamp" >= ? AND "Timestamp" <= ?
                 ORDER BY "Timestamp" ASC
             """
+            logger.info(f"DB start time: {db_start_time}")
+            logger.info(f"DB end time: {db_end_time}")
+            logger.info(f"Executing query: {query} with params: {db_start_time}, {db_end_time}")
             
-            logger.info(f"Executing query: {query} with params: {start_str}, {end_str}")
-            
-            # Execute query
-            cursor.execute(query, (start_str, end_str))
+            # Execute query with converted timestamps
+            cursor.execute(query, (db_start_time, db_end_time))
             rows = cursor.fetchall()
             
             logger.info(f"Found {len(rows)} rows in table {table}")
@@ -685,8 +685,10 @@ def get_recent_data():
             "missing_keys": missing_keys,
             "timezone": "EST",
             "time_range": {
-                "start": start_str,
-                "end": end_str
+                "start": start_time,
+                "end": end_time,
+                "db_start": db_start_time,
+                "db_end": db_end_time
             }
         }), 200
         

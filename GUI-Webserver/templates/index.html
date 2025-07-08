@@ -216,21 +216,47 @@
         }
 
         async function fetchDataFromDB(selectedKeys) {
-            // Calculate total time in milliseconds
+            // Calculate total milliseconds and time range
             const totalMilliseconds = (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
+            const now = new Date();
+            const start = new Date(now.getTime() - totalMilliseconds);
+            
+            // Format timestamps in YYYY-MM-DD HH:mm:ss format
+            const startTimeStr = start.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(',', '');
+
+            const endTimeStr = now.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(',', '');
             
             console.log('Fetching data for time range:', {
                 hours,
                 minutes,
                 seconds,
                 totalMilliseconds,
+                startTime: startTimeStr,
+                endTime: endTimeStr,
                 humanReadable: `${hours}h ${minutes}m ${seconds}s`
             });
             console.log('Selected keys:', selectedKeys);
 
             const params = new URLSearchParams();
             params.append('keys', selectedKeys.join(','));
-            params.append('milliseconds', totalMilliseconds.toString());
+            params.append('start_time', startTimeStr);
+            params.append('end_time', endTimeStr);
             
             try {
                 const response = await fetch(`/recent_data?${params.toString()}`);

@@ -1,11 +1,3 @@
-const myButton = document.getElementById('myButton');
-const content = document.getElementById('content');
-
-myButton.addEventListener('click', function() {
-    content.textContent = 'Button clicked!';
-});
-
-// Utility functions for the modern interface
 
 // Smooth scrolling for anchor links
 document.addEventListener('DOMContentLoaded', function() {
