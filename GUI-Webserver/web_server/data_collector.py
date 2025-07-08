@@ -33,6 +33,10 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
+def get_current_est_time():
+    """Get the current time in EST"""
+    return datetime.now(timezone(timedelta(hours=-5))).strftime('%Y-%m-%d %H:%M:%S')
+
 def convert_frontend_timestamp_to_db_format(timestamp_str):
     """
     Convert frontend timestamp format (MM/DD/YYYY HH:mm:ss) to database format (YYYY-MM-DD HH:mm:ss)
@@ -129,10 +133,10 @@ class DataCollector:
             labjack_data = cursor.fetchone()
             if labjack_data:
                 combined_data.update({
-                    'Pressure_1': labjack_data[1],
-                    'Pressure_2': labjack_data[2],
-                    'Pressure_3': labjack_data[3],
-                    'labjack_timestamp': labjack_data[0]
+                    'Pressure_1': labjack_data[0],
+                    'Pressure_2': labjack_data[1],
+                    'Pressure_3': labjack_data[2],
+                    'labjack_timestamp': get_current_est_time()
                 })
             
             # Get latest Teledyne data
@@ -262,7 +266,7 @@ class DataCollector:
         try:
             cursor.execute('''
                 INSERT INTO labjack (Pressure_1, Pressure_2, Pressure_3) VALUES (?, ?, ?)
-            ''', (pressure_data[1], pressure_data[2], pressure_data[3]))
+            ''', (pressure_data[0], pressure_data[1], pressure_data[2]))
             
             conn.commit()
             logger.info(f"Inserted LabJack data: {pressure_data}")

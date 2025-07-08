@@ -313,7 +313,7 @@ def insert_labjack_data(pressure_data):
         cursor.execute('''
             INSERT INTO Pressures (Pressure_1, Pressure_2, Pressure_3, "Timestamp") 
             VALUES (?, ?, ?, ?)
-        ''', (pressure_data[1], pressure_data[2], pressure_data[3], get_current_est_time()))
+        ''', (pressure_data[0], pressure_data[1], pressure_data[2], get_current_est_time()))
         
         conn.commit()
         logger.info(f"Inserted LabJack data: {pressure_data}")
@@ -349,10 +349,12 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
     # Insert LabJack data
     if labjack_data is not None:
         pressure_1 = labjack_data.get('Pressure_1')
+        pressure_2 = labjack_data.get('Pressure_2')
+        pressure_3 = labjack_data.get('Pressure_3')
 
-        print(f"DEBUG:Pressure 1: {pressure_1}")
+        print(f"DEBUG:Pressure 1: {pressure_1}, Pressure 2: {pressure_2}, Pressure 3: {pressure_3}")
         if pressure_1 is not None:
-            if not insert_labjack_data(pressure_1):
+            if not insert_labjack_data([pressure_1, pressure_2, pressure_3]):
                 success = False
                 logger.error("Failed to insert LabJack data")
         else:

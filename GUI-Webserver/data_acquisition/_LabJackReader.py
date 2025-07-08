@@ -22,6 +22,9 @@ class LabJackReader:
         self.running = False
         self.thread = None
         self.device = None
+        self.avg_pressure1 = None
+        self.avg_pressure2 = None
+        self.avg_pressure3 = None
 
     def start(self):
         """Start the labjack data reading thread"""
@@ -62,7 +65,7 @@ class LabJackReader:
             except:
                 pass
             self.device = None
-            
+
     def _check_data(self, data):
         """ Check if the channels are getting data """
         if data is None or len(data) == 0:
@@ -170,6 +173,9 @@ class LabJackReader:
                     avg_pressure1 = np.average(data_R2_pressure1)
                     avg_pressure2 = np.average(data_R2_pressure2)
                     avg_pressure3 = np.average(data_R2_pressure3)
+                    self.avg_pressure1 = avg_pressure1
+                    self.avg_pressure2 = avg_pressure2
+                    self.avg_pressure3 = avg_pressure3
                     self._to_csv(avg_pressure1, avg_pressure2, avg_pressure3)
                     logger.info(f"Data written to CSV, average R2 - Pressure 1: {avg_pressure1}, Pressure 2: {avg_pressure2}, Pressure 3: {avg_pressure3}")
 
@@ -201,6 +207,7 @@ class LabJackReader:
     def get_latest_data(self):
         """Get the latest data from the data queue"""
         try:
-            return self.data_queue.get_nowait()
-        except queue.Empty:
-            return None
+            return self.avg_pressure1, self.avg_pressure2, self.avg_pressure3
+        except Exception as e:
+            logger.error(f"Error getting latest data: {e}")
+            return None, None, None
