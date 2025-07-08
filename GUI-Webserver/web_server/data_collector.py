@@ -6,11 +6,12 @@ import threading
 import os
 import signal
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import requests
 from flask import Flask, request, jsonify, render_template
 import logging
+import pytz
 
 from config import DATABASE_PATH, DATABASE_NAME, DATABASE_DIR
 
@@ -33,7 +34,7 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 class DataCollector:
-    def __init__(self, db_path=f"{DATABASE_DIR}/{DATABASE_NAME}"):
+    def __init__(self, db_path=f"/var/www/spin/instance/flaskr.sqlite"):
         self.db_path = db_path
 
         print(f"Database path: {self.db_path}")
@@ -581,103 +582,125 @@ def get_recent_data():
     try:
         # Get parameters from request
         keys = request.args.get('keys', '').split(',')
-        hours_back = int(request.args.get('hours', 1))  # Default to 1 hour
-        table_name = request.args.get('table', None)  # None means all tables
+        hours_back = float(request.args.get('hours', 1))  # Default to 1 hour
         
         # Filter out empty keys
         keys = [key.strip() for key in keys if key.strip()]
         
         if not keys:
             return jsonify({"error": "No keys provided"}), 400
+            
+        # Get EST timezone
+        est = pytz.timezone('America/New_York')
         
-        # Calculate time range
-        end_time = datetime.now()
+        # Calculate time range in EST
+        end_time = datetime.now(est)
         start_time = end_time - timedelta(hours=hours_back)
         
-        # Get available columns by table
-        columns_by_table = collector.get_available_columns_by_table()
+        # Convert to UTC for database query
+        end_time_utc = end_time.astimezone(timezone.utc)
+        start_time_utc = start_time.astimezone(timezone.utc)
         
-        # Check which tables contain the requested keys
-        valid_keys_by_table = {}
-        invalid_keys = []
+        logger.info(f"Fetching data for keys: {keys}")
+        logger.info(f"Time range (EST): {start_time} to {end_time}")
+        logger.info(f"Time range (UTC): {start_time_utc} to {end_time_utc}")
         
-        for key in keys:
-            key_found = False
-            for table, table_columns in columns_by_table.items():
-                if key in table_columns:
-                    if table not in valid_keys_by_table:
-                        valid_keys_by_table[table] = []
-                    valid_keys_by_table[table].append(key)
-                    key_found = True
-                    break
+        # Connect to database
+        conn = sqlite3.connect(collector.db_path)
+        cursor = conn.cursor()
+        
+        all_data = {}
+        available_keys = []
+        missing_keys = []
+        
+        # Check each table for the requested columns
+        for table in ['HMI', 'Pressures', 'Flow_Rates']:
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = [col[1] for col in cursor.fetchall()]
             
-            if not key_found:
-                invalid_keys.append(key)
-        
-        if invalid_keys:
-            logger.warning(f"Requested columns not found in any table: {invalid_keys}")
-        
-        if not valid_keys_by_table:
-            return jsonify({"error": "No valid columns provided", "invalid_keys": invalid_keys}), 400
-        
-        # Get data from tables that contain the requested keys
-        data_by_table = collector.get_data_by_time_range(
-            start_time=start_time.strftime('%Y-%m-%d %H:%M:%S'),
-            end_time=end_time.strftime('%Y-%m-%d %H:%M:%S'),
-            table_name=table_name
-        )
-        
-        # Filter data to only include tables that have the requested keys
-        filtered_data_by_table = {}
-        for table, table_data in data_by_table.items():
-            if table in valid_keys_by_table:
-                filtered_data_by_table[table] = table_data
-        
-        # Combine data from all relevant tables
-        combined_data = []
-        available_keys = set()
-        
-        for table, table_data in filtered_data_by_table.items():
-            for record in table_data:
-                # Add table prefix to timestamp to avoid conflicts
-                if 'created' in record:
-                    record[f'{table}_timestamp'] = record.pop('created')
+            # Find which keys are in this table
+            table_keys = [key for key in keys if key in columns]
+            if not table_keys:
+                continue
                 
-                # Track available keys
-                available_keys.update(record.keys())
-                combined_data.append(record)
+            logger.info(f"Found keys {table_keys} in table {table}")
+            
+            # Build the query for this table
+            columns_str = ', '.join(['created'] + table_keys)
+            query = f"""
+                SELECT {columns_str}
+                FROM {table}
+                WHERE created >= datetime(?, 'utc') AND created <= datetime(?, 'utc')
+                ORDER BY created ASC
+            """
+            
+            # Format timestamps for SQLite
+            start_str = start_time_utc.strftime('%Y-%m-%d %H:%M:%S')
+            end_str = end_time_utc.strftime('%Y-%m-%d %H:%M:%S')
+            
+            logger.info(f"Executing query: {query} with params: {start_str}, {end_str}")
+            
+            # Execute query
+            cursor.execute(query, (start_str, end_str))
+            rows = cursor.fetchall()
+            
+            logger.info(f"Found {len(rows)} rows in table {table}")
+            
+            # Process data for this table
+            if rows:
+                for row in rows:
+                    utc_timestamp = row[0]
+                    # Convert UTC timestamp to EST
+                    try:
+                        utc_dt = datetime.strptime(utc_timestamp, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+                        est_dt = utc_dt.astimezone(est)
+                        timestamp = est_dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        logger.warning(f"Could not parse timestamp: {utc_timestamp}")
+                        timestamp = utc_timestamp
+                        
+                    if timestamp not in all_data:
+                        all_data[timestamp] = {'timestamp': timestamp}
+                    
+                    # Add data for each key
+                    for i, key in enumerate(table_keys, 1):
+                        try:
+                            all_data[timestamp][key] = round(float(row[i]), 2)
+                        except (ValueError, TypeError):
+                            logger.warning(f"Could not convert value for {key}: {row[i]}")
+                            all_data[timestamp][key] = None
+                
+                available_keys.extend(table_keys)
+            else:
+                missing_keys.extend(table_keys)
+                
+        conn.close()
         
-        # Get all valid keys that were actually found in the data
-        all_valid_keys = []
-        for table_keys in valid_keys_by_table.values():
-            all_valid_keys.extend(table_keys)
+        # Convert dictionary to list and sort by timestamp
+        data = list(all_data.values())
+        data.sort(key=lambda x: x['timestamp'])
         
-        # Filter records to only include requested keys that are available
-        final_valid_keys = [key for key in all_valid_keys if key in available_keys]
-        filtered_data = []
-        for record in combined_data:
-            filtered_record = {}
-            for key in final_valid_keys:
-                if key in record:
-                    filtered_record[key] = record[key]
-            if filtered_record:  # Only add if we have some data
-                filtered_data.append(filtered_record)
+        # Log results
+        if available_keys:
+            logger.info(f"Found data for keys: {available_keys}")
+            logger.info(f"Sample data point: {data[0] if data else 'No data'}")
+        if missing_keys:
+            logger.warning(f"No data found for keys: {missing_keys}")
         
         return jsonify({
-            "tables_queried": list(filtered_data_by_table.keys()),
-            "columns": final_valid_keys,
-            "data": filtered_data,
-            "invalid_keys": invalid_keys,
+            "data": data,
+            "available_keys": available_keys,
+            "missing_keys": missing_keys,
+            "timezone": "EST",
             "time_range": {
                 "start": start_time.isoformat(),
-                "end": end_time.isoformat(),
-                "hours_back": hours_back
-            },
-            "columns_by_table": valid_keys_by_table
+                "end": end_time.isoformat()
+            }
         }), 200
         
     except Exception as e:
         logger.error(f"Error getting recent data: {e}")
+        logger.exception("Full traceback:")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/available_columns', methods=['GET'])
@@ -755,6 +778,52 @@ def get_db_status():
         
     except Exception as e:
         logger.error(f"Error checking database status: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/test_db', methods=['GET'])
+def test_db():
+    """Test database connection and data availability"""
+    try:
+        conn = sqlite3.connect(collector.db_path)
+        cursor = conn.cursor()
+        
+        # Get all tables, excluding system tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        all_tables = [row[0] for row in cursor.fetchall()]
+        
+        # Filter out system tables
+        system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
+        tables = [table for table in all_tables if table not in system_tables]
+        
+        total_records = 0
+        data_sources = []
+        
+        for table_name in tables:
+            # Get record count
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            total_records += count
+            
+            if count > 0:
+                data_sources.append(table_name)
+                
+            # Get latest record timestamp
+            cursor.execute(f"SELECT created FROM {table_name} ORDER BY created DESC LIMIT 1")
+            latest = cursor.fetchone()
+            if latest:
+                logger.info(f"Latest record in {table_name}: {latest[0]}")
+        
+        conn.close()
+        
+        return jsonify({
+            "status": "ok",
+            "total_records": total_records,
+            "data_sources": data_sources,
+            "tables": tables
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error testing database: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

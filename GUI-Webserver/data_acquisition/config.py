@@ -3,12 +3,13 @@
 # Remote Flask server configuration
 REMOTE_SERVER_URL = "http://128.143.231.224:5000"  # Flask server's IP and port
 
+# Network share path for the local machine
 TWIST_PATH = "//twist.phys.virginia.edu/www/spin"  # UNC path to the network share
 
-DATA_PATH = r"{REMOTE_SERVER_URL}\\data"
+DATA_PATH = f"{REMOTE_SERVER_URL}/data"
 
 # Local data storage
-LOCAL_CSV_DIR = r"data_logs"  # Directory to store local CSV backups
+LOCAL_CSV_DIR = "data_logs"  # Directory to store local CSV backups
 
 # Data acquisition settings
 SLEEP_INTERVAL = 5  # Seconds between data readings
@@ -19,7 +20,7 @@ PLC_IP = "192.168.0.1"
 UNIT_ID = 2
 INT_PORT = 503
 FLOAT_PORT = 502
-NUM_REG_TO_READ = 36  # Changed from 49 to 36 to get exactly 18 float values
+NUM_REG_TO_READ = 36  
 
 # Teledyne flow data settings
 TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"  # Path to teledyne flow CSV file
@@ -35,6 +36,6 @@ LOG_FILE = "data_acquisition.log"
 
 
 ### Database settings
-DATABASE_DIR = f"{TWIST_PATH}/instance"
+DATABASE_DIR = "/var/www/spin/instance"
 DATABASE_NAME = "flaskr.sqlite"
 DATABASE_PATH = f"{DATABASE_DIR}/{DATABASE_NAME}"

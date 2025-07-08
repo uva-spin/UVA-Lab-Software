@@ -6,10 +6,11 @@ Diagnostic script to check database status and test data insertion
 import sqlite3
 import os
 from datetime import datetime
+from config import DATABASE_PATH
 
 def diagnose_database():
     """Diagnose database issues"""
-    db_path = "../instance/flaskr.sqlite"
+    db_path = DATABASE_PATH
     
     print("=== Database Diagnosis ===")
     print(f"Database path: {db_path}")
@@ -55,50 +56,37 @@ def diagnose_database():
         
         # Test insertion
         print(f"\n--- Testing Data Insertion ---")
-        
-        # Test HMI insertion
-        try:
-            hmi_data = [25.5, 26.2, 24.8, 25.1, 26.0, 25.3, 25.7, 25.9, 25.4, 25.6, 25.8, 25.2, 25.0, 25.1, 25.3, 25.5, 25.7, 25.9]
-            cursor.execute('''
-                INSERT INTO hmi (
-                    fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                    pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
-                    purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                    ti504_ai, ti505_ai, ti523_ai
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', hmi_data)
+        test_table = user_tables[0] if user_tables else None
+        if test_table:
+            # Get column names excluding id and created
+            cursor.execute(f"PRAGMA table_info({test_table})")
+            columns = [col[1] for col in cursor.fetchall() if col[1] not in ['id', 'created']]
+            
+            # Create test data
+            test_values = [1.0] * len(columns)
+            placeholders = ','.join(['?'] * len(columns))
+            column_names = ','.join(columns)
+            
+            # Insert test data
+            cursor.execute(f"""
+                INSERT INTO {test_table} ({column_names})
+                VALUES ({placeholders})
+            """, test_values)
             conn.commit()
-            print("✅ HMI data insertion successful")
-        except Exception as e:
-            print(f"❌ HMI data insertion failed: {e}")
-        
-        # Test LabJack insertion
-        try:
-            cursor.execute('INSERT INTO labjack (pressure_1) VALUES (?)', (101.3,))
+            print(f"✓ Successfully inserted test data into {test_table}")
+            
+            # Clean up test data
+            cursor.execute(f"DELETE FROM {test_table} WHERE id = last_insert_rowid()")
             conn.commit()
-            print("✅ LabJack data insertion successful")
-        except Exception as e:
-            print(f"❌ LabJack data insertion failed: {e}")
-        
-        # Test Teledyne insertion
-        try:
-            cursor.execute('INSERT INTO teledyne (flow_1, flow_2, flow_3) VALUES (?, ?, ?)', (30.1, 30.2, 30.3))
-            conn.commit()
-            print("✅ Teledyne data insertion successful")
-        except Exception as e:
-            print(f"❌ Teledyne data insertion failed: {e}")
-        
-        # Check final counts
-        print(f"\n--- Final Record Counts ---")
-        for table_name in user_tables:
-            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-            count = cursor.fetchone()[0]
-            print(f"{table_name}: {count} records")
+            print(f"✓ Successfully cleaned up test data")
         
         conn.close()
+        print("\n✓ Database diagnosis completed")
         
     except Exception as e:
-        print(f"❌ Database error: {e}")
+        print(f"❌ Error during diagnosis: {e}")
+        if 'conn' in locals():
+            conn.close()
 
 if __name__ == "__main__":
     diagnose_database() 

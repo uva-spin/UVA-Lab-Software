@@ -12,7 +12,7 @@ import time
 import csv
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import threading
 from collections import deque
@@ -20,6 +20,8 @@ import queue
 import sqlite3
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
+import pytz
+
 
 # Configure logging
 logging.basicConfig(
@@ -53,6 +55,7 @@ except ImportError:
     INT_PORT = 503
     FLOAT_PORT = 502
     NUM_REG_TO_READ = 36
+
     LOG_LEVEL = "INFO"
     LOG_FILE = "data_acquisition.log"
     TWIST_PATH = "/twist.phys.virginia.edu/www/spin"  # Update this to your actual mount point
@@ -330,6 +333,8 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
     # Insert LabJack data
     if labjack_data is not None:
         pressure_1 = labjack_data.get('Pressure_1')
+
+        print(f"DEBUG:Pressure 1: {pressure_1}")
         if pressure_1 is not None:
             if not insert_labjack_data(pressure_1):
                 success = False
@@ -342,7 +347,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
 def save_to_local_csv(data, csv_data):
     """Save data to local CSV file as backup"""
     try:
-        timestamp = datetime.now().strftime("%Y%m%d")
+        timestamp = datetime.now(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
         filename = os.path.join(LOCAL_CSV_DIR, f"hmi_data_{timestamp}.csv")
         
         # Check if file exists to determine if we need to write headers
@@ -357,7 +362,7 @@ def save_to_local_csv(data, csv_data):
                 writer.writerow(header_row)
             
             # Write data row
-            data_row = [datetime.now().isoformat()] + csv_data
+            data_row = [datetime.now(pytz.timezone('US/Eastern')).isoformat()] + csv_data
             writer.writerow(data_row)
         
         logger.debug(f"Data saved to local CSV: {filename}")
@@ -440,7 +445,7 @@ def main():
                 
                 # Create combined data for CSV backup
                 combined_data = {
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': datetime.now(pytz.timezone('US/Eastern')).isoformat(),
                     'modbus_data': modbus_data,
                     'teledyne_data': teledyne_data,
                     'labjack_data': labjack_data

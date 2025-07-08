@@ -67,20 +67,58 @@
 
         // Function to update the plot
         function updatePlot(data, selectedColumns) {
-            const timestamps = data.map((_, index) => index + 1);
+            console.log('Updating plot with data:', data);
+            console.log('Selected columns:', selectedColumns);
 
-            const plotData = selectedColumns.map(column => ({
-                label: column,
-                data: timestamps.map((t, i) => [t, data[i][column]]),
-                points: { show: true, radius: 3 },
-                lines: { show: false }
-            }));
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                console.warn('No data available for plotting');
+                const chartContainer = document.getElementById('chart');
+                chartContainer.innerHTML = `
+                    <div class="error-container">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>No data available for the selected time range.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Create timestamps array from the data points
+            const timestamps = data.map(point => new Date(point.timestamp).getTime());
+            console.log('Timestamps:', timestamps);
+
+            const plotData = selectedColumns.map(column => {
+                const values = data.map(point => point[column]);
+                console.log(`Values for ${column}:`, values);
+                
+                // Calculate min/max for y-axis
+                const validValues = values.filter(v => v !== null && !isNaN(v));
+                const min = Math.min(...validValues);
+                const max = Math.max(...validValues);
+                const padding = (max - min) * 0.1; // Add 10% padding
+                
+                return {
+                    label: column,
+                    data: timestamps.map((t, i) => [t, values[i]]),
+                    points: { show: true, radius: 2 },
+                    lines: { show: true, lineWidth: 1 },
+                    yaxis: {
+                        min: min - padding,
+                        max: max + padding
+                    }
+                };
+            });
+
+            console.log('Plot data:', plotData);
 
             const options = {
                 xaxis: {
+                    mode: "time",
+                    timezone: "browser",
+                    timeformat: "%H:%M:%S",
+                    minTickSize: [1, "second"],
                     axisLabel: 'Time',
                     axisLabelUseCanvas: true,
-                    axisLabelFontSizePixels: 16,
+                    axisLabelFontSizePixels: 12,
                     axisLabelFontFamily: 'Inter, sans-serif',
                     color: isDarkMode ? '#ffffff' : '#333333',
                     tickColor: isDarkMode ? '#444444' : '#dddddd'
@@ -89,7 +127,10 @@
                     axisLabel: 'Value',
                     axisLabelUseCanvas: true,
                     color: isDarkMode ? '#ffffff' : '#333333',
-                    tickColor: isDarkMode ? '#444444' : '#dddddd'
+                    tickColor: isDarkMode ? '#444444' : '#dddddd',
+                    tickFormatter: function(val, axis) {
+                        return val.toFixed(2);
+                    }
                 },
                 legend: {
                     position: 'ne',
@@ -102,13 +143,49 @@
                 },
                 grid: {
                     color: isDarkMode ? '#444444' : '#dddddd',
-                    backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff'
+                    backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
+                    hoverable: true,
+                    clickable: true,
+                    borderWidth: 1
+                },
+                tooltip: true,
+                tooltipOpts: {
+                    content: "%s: %y.2",
+                    xDateFormat: "%Y-%m-%d %H:%M:%S",
+                    defaultTheme: !isDarkMode
                 }
             };
 
             $('#chart').empty();
             if (selectedColumns.length > 0) {
-                $.plot($('#chart'), plotData, options);
+                try {
+                    $.plot($('#chart'), plotData, options);
+
+                    // Add hover event for tooltips
+                    $("#chart").bind("plothover", function (event, pos, item) {
+                        if (item) {
+                            const x = new Date(item.datapoint[0]).toLocaleTimeString();
+                            const y = item.datapoint[1].toFixed(2);
+                            const series = item.series.label;
+                            
+                            $("#tooltip").remove();
+                            showTooltip(item.pageX, item.pageY,
+                                `${series}<br>${x}<br>${y}`);
+                        } else {
+                            $("#tooltip").remove();
+                        }
+                    });
+
+                } catch (error) {
+                    console.error('Error plotting data:', error);
+                    const chartContainer = document.getElementById('chart');
+                    chartContainer.innerHTML = `
+                        <div class="error-container">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Error plotting data: ${error.message}</p>
+                        </div>
+                    `;
+                }
             } else {
                 updateEmptyChartDisplay();
             }
@@ -122,6 +199,25 @@
             } else {
                 titleElement.textContent = `Multiple Signals vs. Time`;
             }
+        }
+
+        // Helper function to show tooltips
+        function showTooltip(x, y, contents) {
+            $('<div id="tooltip">' + contents + '</div>').css({
+                position: 'absolute',
+                display: 'none',
+                top: y + 5,
+                left: x + 5,
+                border: '1px solid ' + (isDarkMode ? '#666' : '#ddd'),
+                padding: '2px',
+                'background-color': isDarkMode ? '#333' : '#fff',
+                color: isDarkMode ? '#fff' : '#333',
+                'font-size': '12px',
+                'border-radius': '3px',
+                'box-shadow': '0 2px 4px rgba(0,0,0,0.1)',
+                'pointer-events': 'none',
+                'z-index': 1000
+            }).appendTo("body").fadeIn(200);
         }
 
         async function fetchDataFromDB(selectedKeys) {
@@ -147,15 +243,15 @@
 
                 const result = await response.json();
                 console.log('Received data:', result);
-                console.log('Time range:', result.time_range);
                 
                 return {
-                    headers: result.columns,
-                    data: result.data
+                    data: result.data || [],
+                    availableKeys: result.available_keys || [],
+                    missingKeys: result.missing_keys || []
                 };
             } catch (err) {
                 console.error('Error fetching from server:', err);
-                return { headers: [], data: [] };
+                throw new Error('Error obtaining data from database');
             }
         }
 
@@ -180,37 +276,94 @@
         }
 
         async function updateFromDB() {
-            const selectedKeys = Array.from(
-                document.querySelectorAll('input[type="checkbox"]:checked')
-            ).map(cb => cb.dataset.key);
-
+            const selectedKeys = getSelectedKeys();
             if (selectedKeys.length === 0) {
-                updateEmptyChartDisplay();
-                document.getElementById('chart-title').textContent = 'No Data Selected';
+                showWarning("Please select at least one variable to plot");
                 return;
             }
 
-            // Show loading state
-            const chartContainer = document.getElementById('chart');
-            chartContainer.innerHTML = `
-                <div class="loading-container">
-                    <div class="loading-spinner"></div>
-                    <p>Loading data...</p>
-                </div>
-            `;
+            console.log("Fetching data for keys:", selectedKeys);
+            
+            // Get the hours back value
+            const hoursBack = document.getElementById('timeRange').value;
+            
+            fetch(`/recent_data?keys=${selectedKeys.join(',')}&hours=${hoursBack}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    console.log("Received data:", result);
+                    
+                    if (!result.data || result.data.length === 0) {
+                        showWarning("No data available for the selected time range");
+                        return;
+                    }
 
-            try {
-                const { headers, data } = await fetchDataFromDB(selectedKeys);
-                updatePlot(data, selectedKeys);
-            } catch (error) {
-                console.error('Error updating data:', error);
-                chartContainer.innerHTML = `
-                    <div class="error-container">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>Error loading data. Please try again.</p>
-                    </div>
-                `;
-            }
+                    // Clear any existing warnings
+                    clearWarnings();
+                    
+                    // Show warnings for missing keys if any
+                    if (result.missing_keys && result.missing_keys.length > 0) {
+                        showWarning(`No data available for: ${result.missing_keys.join(', ')}`);
+                    }
+
+                    // Prepare data for plotting
+                    const traces = [];
+                    const availableKeys = result.available_keys || [];
+                    
+                    availableKeys.forEach(key => {
+                        const trace = {
+                            x: result.data.map(d => {
+                                const localDate = new Date(d.timestamp);
+                                return localDate;
+                            }),
+                            y: result.data.map(d => d[key]),
+                            name: key,
+                            type: 'scatter',
+                            mode: 'lines+markers'
+                        };
+                        traces.push(trace);
+                    });
+
+                    const layout = {
+                        title: 'Sensor Data',
+                        xaxis: {
+                            title: 'Time (Local)',
+                            tickformat: '%Y-%m-%d %H:%M:%S',
+                            hoverformat: '%Y-%m-%d %H:%M:%S'
+                        },
+                        yaxis: {
+                            title: 'Value'
+                        },
+                        showlegend: true,
+                        legend: {
+                            x: 1,
+                            xanchor: 'right',
+                            y: 1
+                        },
+                        hoverlabel: {
+                            namelength: -1  // Show full variable names in hover
+                        }
+                    };
+
+                    const config = {
+                        responsive: true,
+                        displayModeBar: true,
+                        modeBarButtonsToAdd: ['toggleSpikelines'],
+                        modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                    };
+
+                    Plotly.newPlot('plot', traces, layout, config);
+                    
+                    console.log("Plot updated with traces:", traces);
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    showWarning(`Error fetching data: ${error.message}`);
+                });
         }
 
         function refreshUpdatetime() {
@@ -465,6 +618,41 @@
             }
         }
     </script>
+
+    <!-- Add CSS for warning message -->
+    <style>
+        .warning-message {
+            background-color: var(--warning-bg, #fff3cd);
+            color: var(--warning-text, #856404);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .warning-message i {
+            color: var(--warning-icon, #856404);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        [data-theme='dark'] .warning-message {
+            background-color: var(--warning-bg-dark, #2c2a1c);
+            color: var(--warning-text-dark, #ffd866);
+        }
+    </style>
 </head>
 
 <body>
