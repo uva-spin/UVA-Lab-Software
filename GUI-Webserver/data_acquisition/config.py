@@ -36,6 +36,6 @@ LOG_FILE = "data_acquisition.log"
 
 
 ### Database settings
-DATABASE_DIR = "/var/www/spin/instance"
+DATABASE_DIR = "//twist.phys.virginia.edu/www/spin/instance"
 DATABASE_NAME = "flaskr.sqlite"
 DATABASE_PATH = f"{DATABASE_DIR}/{DATABASE_NAME}"
