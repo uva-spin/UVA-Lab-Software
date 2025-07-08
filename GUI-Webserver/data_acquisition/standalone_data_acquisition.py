@@ -22,6 +22,18 @@ from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
 import pytz
 
+# Configure timezone
+EST = pytz.timezone('America/New_York')
+
+def get_current_est_time():
+    """Get current time in EST timezone"""
+    return datetime.now(EST)
+
+def utc_to_est(utc_dt):
+    """Convert UTC datetime to EST"""
+    if utc_dt.tzinfo is None:
+        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+    return utc_dt.astimezone(EST)
 
 # Configure logging
 logging.basicConfig(
@@ -253,9 +265,9 @@ def insert_hmi_data(data):
                 fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
                 pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
                 purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                ti504_ai, ti505_ai, ti523_ai
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', data)
+                ti504_ai, ti505_ai, ti523_ai, "Timestamp"
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', data + [get_current_est_time().isoformat()])
         
         conn.commit()
         logger.info(f"Inserted HMI data: {data[:3]}...")
@@ -277,8 +289,9 @@ def insert_teledyne_data(flow_data):
     
     try:
         cursor.execute('''
-            INSERT INTO flow_rates (flow_1, flow_2, flow_3) VALUES (?, ?, ?)
-        ''', flow_data)
+            INSERT INTO flow_rates (flow_1, flow_2, flow_3, "Timestamp") 
+            VALUES (?, ?, ?, ?)
+        ''', flow_data + [get_current_est_time().isoformat()])
         
         conn.commit()
         logger.info(f"Inserted Teledyne data: {flow_data}")
@@ -296,8 +309,9 @@ def insert_labjack_data(pressure_data):
     
     try:
         cursor.execute('''
-            INSERT INTO pressures (pressure_1) VALUES (?)
-        ''', (pressure_data,))
+            INSERT INTO pressures (pressure_1, "Timestamp") 
+            VALUES (?, ?)
+        ''', (pressure_data, get_current_est_time().isoformat()))
         
         conn.commit()
         logger.info(f"Inserted LabJack data: {pressure_data}")
@@ -347,7 +361,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
 def save_to_local_csv(data, csv_data):
     """Save data to local CSV file as backup"""
     try:
-        timestamp = datetime.now().isoformat()
+        timestamp = get_current_est_time().isoformat()
         filename = os.path.join(LOCAL_CSV_DIR, f"hmi_data_{timestamp}.csv")
         
         # Check if file exists to determine if we need to write headers
@@ -358,11 +372,11 @@ def save_to_local_csv(data, csv_data):
             
             if not file_exists:
                 # Write headers
-                header_row = ['timestamp'] + labels + teledyne_labels + Pressure_labels
+                header_row = ['timestamp (EST)'] + labels + teledyne_labels + Pressure_labels
                 writer.writerow(header_row)
             
             # Write data row
-            data_row = [datetime.now().isoformat()] + csv_data
+            data_row = [get_current_est_time().isoformat()] + csv_data
             writer.writerow(data_row)
         
         logger.debug(f"Data saved to local CSV: {filename}")
@@ -445,7 +459,7 @@ def main():
                 
                 # Create combined data for CSV backup
                 combined_data = {
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': get_current_est_time().isoformat(),
                     'modbus_data': modbus_data,
                     'teledyne_data': teledyne_data,
                     'labjack_data': labjack_data
@@ -455,8 +469,18 @@ def main():
                 csv_data = modbus_data.copy()
                 
                 if teledyne_data:
+                    # Convert teledyne timestamp to EST if it exists
+                    teledyne_timestamp = teledyne_data.get('Timestamp')
+                    if teledyne_timestamp:
+                        try:
+                            # Parse the timestamp and convert to EST
+                            teledyne_dt = datetime.fromisoformat(teledyne_timestamp)
+                            teledyne_timestamp = utc_to_est(teledyne_dt).isoformat()
+                        except ValueError:
+                            logger.warning(f"Could not parse teledyne timestamp: {teledyne_timestamp}")
+                    
                     csv_data.extend([
-                        teledyne_data.get('Timestamp', ''),
+                        teledyne_timestamp or '',
                         teledyne_data.get('flow_1', ''),
                         teledyne_data.get('flow_2', ''),
                         teledyne_data.get('flow_3', '')
@@ -465,8 +489,18 @@ def main():
                     csv_data.extend(['', '', '', ''])
                 
                 if labjack_data:
+                    # Convert labjack timestamp to EST if it exists
+                    labjack_timestamp = labjack_data.get('Timestamp')
+                    if labjack_timestamp:
+                        try:
+                            # Parse the timestamp and convert to EST
+                            labjack_dt = datetime.fromisoformat(labjack_timestamp)
+                            labjack_timestamp = utc_to_est(labjack_dt).isoformat()
+                        except ValueError:
+                            logger.warning(f"Could not parse labjack timestamp: {labjack_timestamp}")
+                    
                     csv_data.extend([
-                        labjack_data.get('Timestamp', ''),
+                        labjack_timestamp or '',
                         labjack_data.get('Pressure_1', '')
                     ])
                 else:

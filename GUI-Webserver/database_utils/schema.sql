@@ -22,7 +22,7 @@ CREATE TABLE HMI (
   ti505_ai FLOAT NOT NULL,
   ti523_ai FLOAT NOT NULL,
 
-  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 DROP TABLE IF EXISTS Pressures;
@@ -30,7 +30,7 @@ DROP TABLE IF EXISTS Pressures;
 CREATE TABLE Pressures (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   pressure_1 FLOAT NOT NULL,
-  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 DROP TABLE IF EXISTS Flow_Rates;
@@ -40,5 +40,5 @@ CREATE TABLE Flow_Rates (
   flow_1 FLOAT NOT NULL,
   flow_2 FLOAT NOT NULL,
   flow_3 FLOAT NOT NULL,
-  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );

@@ -79,9 +79,9 @@ class DataCollector:
                 SELECT fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                       ti504_ai, ti505_ai, ti523_ai, created
+                       ti504_ai, ti505_ai, ti523_ai, "Timestamp"
                 FROM hmi 
-                ORDER BY created DESC 
+                ORDER BY "Timestamp" DESC 
                 LIMIT 1
             """)
             hmi_data = cursor.fetchone()
@@ -101,9 +101,9 @@ class DataCollector:
             
             # Get latest LabJack data
             cursor.execute("""
-                SELECT pressure_1, created
-                FROM labjack 
-                ORDER BY created DESC 
+                SELECT pressure_1, "Timestamp"
+                FROM pressures 
+                ORDER BY "Timestamp" DESC 
                 LIMIT 1
             """)
             labjack_data = cursor.fetchone()
@@ -115,9 +115,9 @@ class DataCollector:
             
             # Get latest Teledyne data
             cursor.execute("""
-                SELECT flow_1, flow_2, flow_3, created
-                FROM teledyne 
-                ORDER BY created DESC 
+                SELECT flow_1, flow_2, flow_3, "Timestamp"
+                FROM flow_rates 
+                ORDER BY "Timestamp" DESC 
                 LIMIT 1
             """)
             teledyne_data = cursor.fetchone()
@@ -163,20 +163,20 @@ class DataCollector:
                 table_info = cursor.fetchall()
                 columns = [col[1] for col in table_info]
                 
-                # Check if 'created' column exists
-                has_created_column = 'created' in columns
+                # Check if 'Timestamp' column exists
+                has_timestamp_column = '"Timestamp"' in columns
                 
                 where_clause = ""
                 params = []
                 order_clause = ""
                 
-                if has_created_column:
+                if has_timestamp_column:
                     if start_time and end_time:
-                        where_clause = "WHERE created BETWEEN ? AND ?"
+                        where_clause = 'WHERE "Timestamp" BETWEEN ? AND ?'
                         params = [start_time, end_time]
-                    order_clause = "ORDER BY created ASC"
+                    order_clause = 'ORDER BY "Timestamp" ASC'
                 else:
-                    # If no created column, just get all data
+                    # If no Timestamp column, just get all data
                     order_clause = "ORDER BY id ASC"
                 
                 query = f"SELECT * FROM {table} {where_clause} {order_clause}"
@@ -430,8 +430,8 @@ def query_db():
         for table, table_data in filtered_data_by_table.items():
             for record in table_data:
                 # Add table prefix to timestamp to avoid conflicts
-                if 'created' in record:
-                    record[f'{table}_timestamp'] = record.pop('created')
+                if '"Timestamp"' in record:
+                    record[f'{table}_timestamp'] = record.pop('"Timestamp"')
                 
                 # Track available keys
                 available_keys.update(record.keys())
