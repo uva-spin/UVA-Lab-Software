@@ -13,7 +13,7 @@ def connect_to_db():
     """Connect to the database"""
     return sqlite3.connect(f"{DATABASE_PATH}/{DATABASE_NAME}")
 
-def get_recent_data(table_name='hmi', limit=100, hours=None):
+def get_recent_data(table_name='HMI', limit=100, hours=None):
     """Get recent data from the specified table"""
     conn = connect_to_db()
     
@@ -172,7 +172,7 @@ def get_data_summary():
         'tables': summary
     }
 
-def export_to_csv(table_name='hmi', filename=None, hours=None, limit=None):
+def export_to_csv(table_name='HMI', filename=None, hours=None, limit=None):
     """Export data to CSV"""
     if not filename:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -212,8 +212,8 @@ def export_combined_to_csv(filename=None, hours=None, limit=None):
 
 def main():
     parser = argparse.ArgumentParser(description='Query and export database data')
-    parser.add_argument('--table', default='hmi', choices=['hmi', 'labjack', 'teledyne'],
-                       help='Table to query (default: hmi)')
+    parser.add_argument('--table', default='HMI', choices=['HMI', 'Pressures', 'Flow_Rates'],
+                       help='Table to query (default: HMI)')
     parser.add_argument('--limit', type=int, default=100,
                        help='Number of records to retrieve (default: 100)')
     parser.add_argument('--hours', type=int,

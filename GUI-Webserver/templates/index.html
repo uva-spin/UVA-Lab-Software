@@ -66,7 +66,7 @@
         }
 
         // Function to update the plot
-        function updatePlot(data, selectedColumns) {
+        async function updatePlot(data, selectedColumns) {
             console.log('Updating plot with data:', data);
             console.log('Selected columns:', selectedColumns);
 
@@ -82,52 +82,48 @@
                 return;
             }
 
-            // Create timestamps array from the data points
-            const timestamps = data.map(point => new Date(point.timestamp).getTime());
-            console.log('Timestamps:', timestamps);
+            // Create timestamps array and ensure they're properly parsed
+            const timestamps = data.map(point => {
+                const timestamp = typeof point.timestamp === 'string' ? 
+                    Date.parse(point.timestamp) : 
+                    Number(point.timestamp);
+                return timestamp;
+            });
 
             const plotData = selectedColumns.map(column => {
                 const values = data.map(point => point[column]);
-                console.log(`Values for ${column}:`, values);
-                
-                // Calculate min/max for y-axis
-                const validValues = values.filter(v => v !== null && !isNaN(v));
-                const min = Math.min(...validValues);
-                const max = Math.max(...validValues);
-                const padding = (max - min) * 0.1; // Add 10% padding
-                
                 return {
                     label: column,
                     data: timestamps.map((t, i) => [t, values[i]]),
                     points: { show: true, radius: 2 },
-                    lines: { show: true, lineWidth: 1 },
-                    yaxis: {
-                        min: min - padding,
-                        max: max + padding
-                    }
+                    lines: { show: true, lineWidth: 1 }
                 };
             });
 
-            console.log('Plot data:', plotData);
+            // Get actual timestamps from data for ticks
+            const sortedTimestamps = [...timestamps].sort((a, b) => a - b);
+            const minTime = sortedTimestamps[0];
+            const maxTime = sortedTimestamps[sortedTimestamps.length - 1];
 
             const options = {
                 xaxis: {
                     mode: "time",
                     timezone: "browser",
                     timeformat: "%H:%M:%S",
-                    minTickSize: [1, "second"],
+                    min: minTime,
+                    max: maxTime,
+                    ticks: timestamps.map(t => [t, new Date(t).toLocaleTimeString()]),
+                    tickLength: 5,
                     axisLabel: 'Time',
                     axisLabelUseCanvas: true,
                     axisLabelFontSizePixels: 12,
                     axisLabelFontFamily: 'Inter, sans-serif',
-                    color: isDarkMode ? '#ffffff' : '#333333',
-                    tickColor: isDarkMode ? '#444444' : '#dddddd'
+                    color: isDarkMode ? '#ffffff' : '#333333'
                 },
                 yaxis: {
                     axisLabel: 'Value',
                     axisLabelUseCanvas: true,
                     color: isDarkMode ? '#ffffff' : '#333333',
-                    tickColor: isDarkMode ? '#444444' : '#dddddd',
                     tickFormatter: function(val, axis) {
                         return val.toFixed(2);
                     }
@@ -137,16 +133,15 @@
                     backgroundOpacity: 0,
                     labelBoxBorderColor: 'transparent',
                     show: true,
-                    textColor: isDarkMode ? '#ffffff' : '#333333',
                     noColumns: 1,
                     margin: [10, 10]
                 },
                 grid: {
-                    color: isDarkMode ? '#444444' : '#dddddd',
-                    backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
                     hoverable: true,
                     clickable: true,
-                    borderWidth: 1
+                    borderWidth: 1,
+                    color: isDarkMode ? '#444444' : '#dddddd',
+                    backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff'
                 },
                 tooltip: true,
                 tooltipOpts: {
@@ -221,15 +216,21 @@
         }
 
         async function fetchDataFromDB(selectedKeys) {
-            // Calculate total hours from the form inputs
-            const totalHours = hours + (minutes / 60) + (seconds / 3600);
+            // Calculate total time in milliseconds
+            const totalMilliseconds = (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
             
-            console.log('Fetching data for the last', totalHours, 'hours');
+            console.log('Fetching data for time range:', {
+                hours,
+                minutes,
+                seconds,
+                totalMilliseconds,
+                humanReadable: `${hours}h ${minutes}m ${seconds}s`
+            });
             console.log('Selected keys:', selectedKeys);
 
             const params = new URLSearchParams();
             params.append('keys', selectedKeys.join(','));
-            params.append('hours', totalHours.toString());
+            params.append('milliseconds', totalMilliseconds.toString());
             
             try {
                 const response = await fetch(`/recent_data?${params.toString()}`);
@@ -242,7 +243,13 @@
                 }
 
                 const result = await response.json();
-                console.log('Received data:', result);
+                console.log('Received data points:', result.data ? result.data.length : 0);
+                if (result.data && result.data.length > 0) {
+                    console.log('Time range of received data:',
+                        'from', new Date(result.data[0].timestamp).toISOString(),
+                        'to', new Date(result.data[result.data.length - 1].timestamp).toISOString()
+                    );
+                }
                 
                 return {
                     data: result.data || [],
@@ -276,94 +283,35 @@
         }
 
         async function updateFromDB() {
-            const selectedKeys = getSelectedKeys();
+            const selectedKeys = Array.from(
+                document.querySelectorAll('input[type="checkbox"]:checked')
+            ).map(cb => cb.dataset.key);
+
             if (selectedKeys.length === 0) {
-                showWarning("Please select at least one variable to plot");
+                updateEmptyChartDisplay();
+                document.getElementById('chart-title').textContent = 'No Data Selected';
                 return;
             }
 
-            console.log("Fetching data for keys:", selectedKeys);
-            
-            // Get the hours back value
-            const hoursBack = document.getElementById('timeRange').value;
-            
-            fetch(`/recent_data?keys=${selectedKeys.join(',')}&hours=${hoursBack}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(result => {
-                    console.log("Received data:", result);
-                    
-                    if (!result.data || result.data.length === 0) {
-                        showWarning("No data available for the selected time range");
-                        return;
-                    }
+            try {
+                const { data, missingKeys } = await fetchDataFromDB(selectedKeys);
+                
+                if (missingKeys && missingKeys.length > 0) {
+                    console.warn('Missing data for keys:', missingKeys);
+                }
 
-                    // Clear any existing warnings
-                    clearWarnings();
-                    
-                    // Show warnings for missing keys if any
-                    if (result.missing_keys && result.missing_keys.length > 0) {
-                        showWarning(`No data available for: ${result.missing_keys.join(', ')}`);
-                    }
-
-                    // Prepare data for plotting
-                    const traces = [];
-                    const availableKeys = result.available_keys || [];
-                    
-                    availableKeys.forEach(key => {
-                        const trace = {
-                            x: result.data.map(d => {
-                                const localDate = new Date(d.timestamp);
-                                return localDate;
-                            }),
-                            y: result.data.map(d => d[key]),
-                            name: key,
-                            type: 'scatter',
-                            mode: 'lines+markers'
-                        };
-                        traces.push(trace);
-                    });
-
-                    const layout = {
-                        title: 'Sensor Data',
-                        xaxis: {
-                            title: 'Time (Local)',
-                            tickformat: '%Y-%m-%d %H:%M:%S',
-                            hoverformat: '%Y-%m-%d %H:%M:%S'
-                        },
-                        yaxis: {
-                            title: 'Value'
-                        },
-                        showlegend: true,
-                        legend: {
-                            x: 1,
-                            xanchor: 'right',
-                            y: 1
-                        },
-                        hoverlabel: {
-                            namelength: -1  // Show full variable names in hover
-                        }
-                    };
-
-                    const config = {
-                        responsive: true,
-                        displayModeBar: true,
-                        modeBarButtonsToAdd: ['toggleSpikelines'],
-                        modeBarButtonsToRemove: ['lasso2d', 'select2d']
-                    };
-
-                    Plotly.newPlot('plot', traces, layout, config);
-                    
-                    console.log("Plot updated with traces:", traces);
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                    showWarning(`Error fetching data: ${error.message}`);
-                });
+                await updatePlot(data, selectedKeys);
+                
+            } catch (error) {
+                console.error('Error updating from database:', error);
+                const chartContainer = document.getElementById('chart');
+                chartContainer.innerHTML = `
+                    <div class="error-container">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error fetching data: ${error.message}</p>
+                    </div>
+                `;
+            }
         }
 
         function refreshUpdatetime() {
@@ -564,6 +512,11 @@
                     // Create the data selection grid
                     createDataSelectionGrid(availableColumns);
                 }
+
+                // Start the auto-update cycle
+                startCountdownFromServer();
+                updateEmptyChartDisplay();
+
             } catch (error) {
                 console.error('Error loading available columns:', error);
                 grid.innerHTML = `
@@ -573,9 +526,6 @@
                     </div>
                 `;
             }
-
-            startCountdownFromServer();
-            updateEmptyChartDisplay();
         });
 
         async function testDatabase() {
@@ -686,19 +636,19 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="hours">Hours</label>
-                        <input type="number" id="hours" name="hours" min="0" max="24" value="1">
+                        <input type="number" id="hours" name="hours" min="0" max="24" value="1" step="1">
                     </div>
                     <div class="form-group">
                         <label for="minutes">Minutes</label>
-                        <input type="number" id="minutes" name="minutes" min="0" max="59" value="0">
+                        <input type="number" id="minutes" name="minutes" min="0" max="59" value="0" step="1">
                     </div>
                     <div class="form-group">
                         <label for="seconds">Seconds</label>
-                        <input type="number" id="seconds" name="seconds" min="0" max="59" value="0">
+                        <input type="number" id="seconds" name="seconds" min="0" max="59" value="0" step="1">
                     </div>
                     <div class="form-group">
                         <label for="update_every">Update Interval (s)</label>
-                        <input type="number" id="update_every" name="update_every" min="1" max="300" value="5">
+                        <input type="number" id="update_every" name="update_every" min="1" max="300" value="5" step="1">
                     </div>
                 </div>
                 <div class="form-row">
@@ -770,12 +720,32 @@
                 const removeLoading = Utils.addLoadingState(submitBtn);
 
                 try {
-                    hours = parseInt(document.getElementById('hours').value) || 0;
-                    minutes = parseInt(document.getElementById('minutes').value) || 0;
-                    seconds = parseInt(document.getElementById('seconds').value) || 0;
-                    updateTime = parseInt(document.getElementById('update_every').value) || 1;
+                    // Get values directly from the form
+                    const formHours = parseInt(document.getElementById('hours').value) || 0;
+                    const formMinutes = parseInt(document.getElementById('minutes').value) || 0;
+                    const formSeconds = parseInt(document.getElementById('seconds').value) || 0;
+                    const formUpdateTime = parseInt(document.getElementById('update_every').value) || 1;
 
+                    // Update global variables
+                    hours = formHours;
+                    minutes = formMinutes;
+                    seconds = formSeconds;
+                    updateTime = formUpdateTime;
+
+                    console.log('Form values updated:', { hours, minutes, seconds, updateTime });
+
+                    // Get currently selected keys
+                    const selectedKeys = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+                        .map(cb => cb.dataset.key);
+
+                    if (selectedKeys.length > 0) {
+                        // Force an immediate data update
+                        await updateFromDB();
+                    }
+
+                    // Restart the countdown with new update interval
                     await startCountdownFromServer();
+                    
                     Utils.showToast('Settings applied successfully!', 'success');
                 } catch (error) {
                     console.error('Error applying settings:', error);
@@ -798,7 +768,7 @@
             }
 
             const { data: dbData } = await fetchDataFromDB(selectedKeys);
-            updatePlot(dbData, selectedKeys);
+            await updatePlot(dbData, selectedKeys);
         }
     </script>
 </body>

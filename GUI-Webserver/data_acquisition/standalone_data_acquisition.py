@@ -263,7 +263,7 @@ def insert_hmi_data(data):
     
     try:
         cursor.execute('''
-            INSERT INTO hmi (
+            INSERT INTO HMI (
                 fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
                 pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
                 purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,

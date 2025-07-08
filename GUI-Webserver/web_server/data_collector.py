@@ -80,7 +80,7 @@ class DataCollector:
                        pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
                        purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
                        ti504_ai, ti505_ai, ti523_ai, "Timestamp"
-                FROM hmi 
+                FROM HMI 
                 ORDER BY "Timestamp" DESC 
                 LIMIT 1
             """)
@@ -557,24 +557,24 @@ def shutdown_server():
     threading.Thread(target=delayed_shutdown, daemon=True).start()
     return jsonify({"status": "shutdown_initiated", "message": "Server shutting down gracefully"}), 200
 
-@app.route('/latest_data', methods=['GET'])
-def get_latest_data():
-    """Get the latest data from all tables combined"""
-    try:
-        latest_data = collector.get_latest_data_from_all_tables()
+# @app.route('/latest_data', methods=['GET'])
+# def get_latest_data():
+#     """Get the latest data from all tables combined"""
+#     try:
+#         latest_data = collector.get_latest_data_from_all_tables()
         
-        if not latest_data:
-            return jsonify({"error": "No data found in any table"}), 404
+#         if not latest_data:
+#             return jsonify({"error": "No data found in any table"}), 404
         
-        return jsonify({
-            "status": "success",
-            "data": latest_data,
-            "timestamp": datetime.now().isoformat()
-        }), 200
+#         return jsonify({
+#             "status": "success",
+#             "data": latest_data,
+#             "timestamp": datetime.now().isoformat()
+#         }), 200
         
-    except Exception as e:
-        logger.error(f"Error getting latest data: {e}")
-        return jsonify({"error": str(e)}), 500
+#     except Exception as e:
+#         logger.error(f"Error getting latest data: {e}")
+#         return jsonify({"error": str(e)}), 500
 
 @app.route('/recent_data', methods=['GET'])
 def get_recent_data():
@@ -583,9 +583,14 @@ def get_recent_data():
         # Get parameters from request
         keys = request.args.get('keys', '').split(',')
         hours_back = float(request.args.get('hours', 1))  # Default to 1 hour
+
+        print(f"Keys: {keys}")
+        print(f"Hours back: {hours_back}")
         
         # Filter out empty keys
         keys = [key.strip() for key in keys if key.strip()]
+
+        print(f"Filtered Keys: {keys}")  # Debug print
         
         if not keys:
             return jsonify({"error": "No keys provided"}), 400
@@ -613,7 +618,7 @@ def get_recent_data():
         missing_keys = []
         
         # Check each table for the requested columns
-        for table in ['HMI', 'Pressures', 'Flow_Rates']:
+        for table in ['HMI', 'Pressures', 'Flow_Rates']:  
             cursor.execute(f"PRAGMA table_info({table})")
             columns = [col[1] for col in cursor.fetchall()]
             
@@ -644,7 +649,7 @@ def get_recent_data():
             # Process data for this table
             if rows:
                 for row in rows:
-                    timestamp = row[0]  # Timestamp is already in EST YYYY-MM-DD HH:MM:SS format
+                    timestamp = row[0]
                     
                     if timestamp not in all_data:
                         all_data[timestamp] = {'timestamp': timestamp}
