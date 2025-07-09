@@ -196,8 +196,9 @@ class LabJackReader:
         try:
             logger.info(f"Getting latest Pressure data from queue")
             print(f"DEBUG: Pressure data queue size: {self.data_queue.qsize()}")
-            print(f"DEBUG: Pressure data queue: {self.data_queue.get_nowait()}")
-            return self.data_queue.get_nowait()
+            data = self.data_queue.get_nowait()  # Get data once and store it
+            print(f"DEBUG: Pressure data queue: {data}")
+            return data
         except queue.Empty:
             logger.warning("No data in queue. Returning None values instead...")
             return [None] * 3
