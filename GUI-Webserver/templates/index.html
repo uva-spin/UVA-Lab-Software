@@ -169,7 +169,6 @@
                     backgroundOpacity: 0,
                     labelBoxBorderColor: 'transparent',
                     show: true,
-                    container: $('#legend-container'),
                     // noColumns: 1,
                     // margin: [10, 10],
                     // Add legend color support for dark mode:
@@ -686,6 +685,18 @@
             background-color: var(--warning-bg-dark, #2c2a1c);
             color: var(--warning-text-dark, #ffd866);
         }
+
+        /* Flot legend styling */
+        .legendLayer .background {
+            fill: var(--bg-color, #ffffff) !important;
+            stroke: var(--border-color, #e0e0e0) !important;
+            rx: 4px;
+        }
+
+        [data-theme='dark'] .legendLayer .background {
+            fill: var(--bg-color-dark, #1a1a1a) !important;
+            stroke: var(--border-color-dark, #333333) !important;
+        }
     </style>
 </head>
 
@@ -763,7 +774,6 @@
                 <h2 id="chart-title">Select Data Entries</h2>
             </div>
             <div id="chart" class="chart-container"></div>
-            <div id="legend-container" class="legend-container"></div>
         </section>
 
         <!-- Data Selection Panel -->
