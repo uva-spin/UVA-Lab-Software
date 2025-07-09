@@ -207,7 +207,7 @@ class LabJackReader:
         """Get the latest data from the data queue"""
         try:
             logger.info(f"Getting latest Pressure data from queue")
-            if len(self.data_queue) != 3:
+            if self.data_queue.qsize() != 3:
                 logger.warning("Pressure data is not of length 3. Data should be: \n Pressure_1,Pressure_2,Pressure_3\n Returning None values instead...")
                 return [None] * 3
             else:
