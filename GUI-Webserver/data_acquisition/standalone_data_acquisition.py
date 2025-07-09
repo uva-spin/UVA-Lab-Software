@@ -329,16 +329,18 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
     success = True
     
     # Insert HMI/Modbus data
+    print("DEBUG: Attempting to insert HMI data")
     if modbus_data is not None:
         if not insert_hmi_data(modbus_data):
             success = False
             logger.error("Failed to insert HMI data")
     
     # Insert Teledyne data
+    print("DEBUG: Attempting to insert Teledyne data")
     if teledyne_data is not None:
-        flow_1 = teledyne_data[1]
-        flow_2 = teledyne_data[2]
-        flow_3 = teledyne_data[3]
+        flow_1 = teledyne_data[0]
+        flow_2 = teledyne_data[1]
+        flow_3 = teledyne_data[2]
         if all(v is not None for v in [flow_1, flow_2, flow_3]):
             if not insert_teledyne_data([flow_1, flow_2, flow_3]):
                 success = False
@@ -350,6 +352,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
             
     
     # Insert LabJack data
+    print("DEBUG: Attempting to insert LabJack data")
     if labjack_data is not None:
         pressure_1 = labjack_data[0]
         pressure_2 = labjack_data[1]
@@ -364,6 +367,8 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
             logger.warning("Missing LabJack pressure value. Inserting None values instead...")
             pressure_1 = pressure_2 = pressure_3 = None
             insert_labjack_data([pressure_1, pressure_2, pressure_3])
+
+    print(f"Successfully inserted data to database!")
     
     return success
 
