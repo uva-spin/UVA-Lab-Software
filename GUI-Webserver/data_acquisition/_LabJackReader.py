@@ -170,14 +170,11 @@ class LabJackReader:
                     logger.error(f"Error stopping stream: {e}")
 
                 if dataCount > 0:
-                    avg_pressure1 = np.average(data_R2_pressure1)
-                    avg_pressure2 = np.average(data_R2_pressure2)
-                    avg_pressure3 = np.average(data_R2_pressure3)
-                    self.avg_pressure1 = avg_pressure1
-                    self.avg_pressure2 = avg_pressure2
-                    self.avg_pressure3 = avg_pressure3
-                    self.data_queue.put([avg_pressure1, avg_pressure2, avg_pressure3])
-                    logger.info(f"Data written to queue, average R2 - Pressure 1: {avg_pressure1}, Pressure 2: {avg_pressure2}, Pressure 3: {avg_pressure3}")
+                    self.avg_pressure1 = np.average(data_R2_pressure1)
+                    self.avg_pressure2 = np.average(data_R2_pressure2)
+                    self.avg_pressure3 = np.average(data_R2_pressure3)
+                    self.data_queue.put([self.avg_pressure1, self.avg_pressure2, self.avg_pressure3])
+                    logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_pressure1}, Pressure 2: {self.avg_pressure2}, Pressure 3: {self.avg_pressure3}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay
