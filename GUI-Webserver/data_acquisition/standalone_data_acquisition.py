@@ -21,6 +21,7 @@ import sqlite3
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
 import pytz
+import numpy as np
 
 # Configure timezone
 EST = pytz.timezone('America/New_York')
@@ -37,7 +38,6 @@ def utc_to_est_str(utc_dt):
     est_dt = utc_dt.astimezone(EST)
     return est_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,  # Change to logging.DEBUG for even more detail
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -239,7 +239,7 @@ def read_teledyne_data():
     global teledyne_reader
     
     if teledyne_reader is None:
-        return None
+        return None * np.empty(len(teledyne_labels))
         
     return teledyne_reader.get_latest_data()
 
@@ -248,7 +248,7 @@ def read_labjack_data():
     global labjack_reader
     
     if labjack_reader is None:
-        return None
+        return None * np.empty(len(Pressure_labels))
         
     return labjack_reader.get_latest_data()
 
@@ -282,8 +282,8 @@ def insert_hmi_data(data):
 
 def insert_teledyne_data(flow_data):
     """Insert Teledyne data into the flow_rates table"""
-    if len(flow_data) != 3:
-        logger.error(f"Expected 3 flow values, got {len(flow_data)}")
+    if len(flow_data) != len(teledyne_labels):
+        logger.error(f"Expected {len(teledyne_labels)} flow values, got {len(flow_data)}")
         return False
         
     conn = sqlite3.connect(DATABASE_PATH)
@@ -336,21 +336,24 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
     
     # Insert Teledyne data
     if teledyne_data is not None:
-        flow_1 = teledyne_data.get('flow_1')
-        flow_2 = teledyne_data.get('flow_2')
-        flow_3 = teledyne_data.get('flow_3')
+        flow_1 = teledyne_data[1]
+        flow_2 = teledyne_data[2]
+        flow_3 = teledyne_data[3]
         if all(v is not None for v in [flow_1, flow_2, flow_3]):
             if not insert_teledyne_data([flow_1, flow_2, flow_3]):
                 success = False
                 logger.error("Failed to insert Teledyne data")
         else:
-            logger.warning("Missing required teledyne flow values")
+            logger.warning("Missing required teledyne flow values. Inserting None values instead...")
+            flow_1 = flow_2 = flow_3 = None
+            insert_teledyne_data([flow_1, flow_2, flow_3])
+            
     
     # Insert LabJack data
     if labjack_data is not None:
-        pressure_1 = labjack_data.get('Pressure_1')
-        pressure_2 = labjack_data.get('Pressure_2')
-        pressure_3 = labjack_data.get('Pressure_3')
+        pressure_1 = labjack_data[0]
+        pressure_2 = labjack_data[1]
+        pressure_3 = labjack_data[2]
 
         print(f"DEBUG:Pressure 1: {pressure_1}, Pressure 2: {pressure_2}, Pressure 3: {pressure_3}")
         if pressure_1 is not None:
@@ -358,37 +361,39 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
                 success = False
                 logger.error("Failed to insert LabJack data")
         else:
-            logger.warning("Missing LabJack pressure value")
+            logger.warning("Missing LabJack pressure value. Inserting None values instead...")
+            pressure_1 = pressure_2 = pressure_3 = None
+            insert_labjack_data([pressure_1, pressure_2, pressure_3])
     
     return success
 
-def save_to_local_csv(data, csv_data):
-    """Save data to local CSV file as backup"""
-    try:
-        timestamp = get_current_est_time()
-        filename = os.path.join(LOCAL_CSV_DIR, f"hmi_data_{timestamp}.csv")
+# def save_to_local_csv(data, csv_data):
+#     """Save data to local CSV file as backup"""
+#     try:
+#         timestamp = get_current_est_time()
+#         filename = os.path.join(LOCAL_CSV_DIR, f"hmi_data_{timestamp}.csv")
         
-        # Check if file exists to determine if we need to write headers
-        file_exists = os.path.exists(filename)
+#         # Check if file exists to determine if we need to write headers
+#         file_exists = os.path.exists(filename)
         
-        with open(filename, 'a', newline='') as csvfile:
-            writer = csv.writer(csvfile)
+#         with open(filename, 'a', newline='') as csvfile:
+#             writer = csv.writer(csvfile)
             
-            if not file_exists:
-                # Write headers
-                header_row = ['timestamp (EST)'] + labels + teledyne_labels + Pressure_labels
-                writer.writerow(header_row)
+#             if not file_exists:
+#                 # Write headers
+#                 header_row = ['timestamp (EST)'] + labels + teledyne_labels + Pressure_labels
+#                 writer.writerow(header_row)
             
-            # Write data row
-            data_row = [timestamp] + csv_data
-            writer.writerow(data_row)
+#             # Write data row
+#             data_row = [timestamp] + csv_data
+#             writer.writerow(data_row)
         
-        logger.debug(f"Data saved to local CSV: {filename}")
-        return True
+#         logger.debug(f"Data saved to local CSV: {filename}")
+#         return True
         
-    except Exception as e:
-        logger.error(f"Error saving to local CSV: {e}")
-        return False
+#     except Exception as e:
+#         logger.error(f"Error saving to local CSV: {e}")
+#         return False
 
 def main():
     """Main data acquisition loop"""
@@ -459,62 +464,66 @@ def main():
                 db_success = pipeline_to_database(modbus_data, teledyne_data, labjack_data)
                 
                 if not db_success:
-                    logger.warning("Some data failed to insert into database")
+                    logger.warning("Some data failed to insert into database \n")
                 
                 # Create combined data for CSV backup
-                combined_data = {
-                    'timestamp': get_current_est_time(),
-                    'modbus_data': modbus_data,
-                    'teledyne_data': teledyne_data,
-                    'labjack_data': labjack_data
-                }
+                # combined_data = {
+                #     'timestamp': get_current_est_time(),
+                #     'modbus_data': modbus_data,
+                #     'teledyne_data': teledyne_data,
+                #     'labjack_data': labjack_data
+                # }
                 
                 # Create CSV data for backup
-                csv_data = modbus_data.copy()
+                # csv_data = modbus_data.copy()
                 
-                if teledyne_data:
-                    # Convert teledyne timestamp to EST if it exists
-                    teledyne_timestamp = teledyne_data.get('Timestamp')
-                    if teledyne_timestamp:
-                        try:
-                            # Parse the timestamp and convert to EST
-                            teledyne_dt = datetime.fromisoformat(teledyne_timestamp)
-                            teledyne_timestamp = utc_to_est_str(teledyne_dt)
-                        except ValueError:
-                            logger.warning(f"Could not parse teledyne timestamp: {teledyne_timestamp}")
+                ### This is all for csv backing up, don't worry about it for now.
+
+                # if teledyne_data:
+                #     # Convert teledyne timestamp to EST if it exists
+                #     teledyne_timestamp = teledyne_data.get('Timestamp')
+                #     if teledyne_timestamp:
+                #         try:
+                #             # Parse the timestamp and convert to EST
+                #             teledyne_dt = datetime.fromisoformat(teledyne_timestamp)
+                #             teledyne_timestamp = utc_to_est_str(teledyne_dt)
+                #         except ValueError:
+                #             logger.warning(f"Could not parse teledyne timestamp: {teledyne_timestamp}")
                     
-                    csv_data.extend([
-                        teledyne_timestamp or '',
-                        teledyne_data.get('flow_1', ''),
-                        teledyne_data.get('flow_2', ''),
-                        teledyne_data.get('flow_3', '')
-                    ])
-                else:
-                    csv_data.extend(['', '', '', ''])
+                #     csv_data.extend([
+                #         teledyne_timestamp or '',
+                #         teledyne_data.get('flow_1', ''),
+                #         teledyne_data.get('flow_2', ''),
+                #         teledyne_data.get('flow_3', '')
+                #     ])
+                # else:
+                #     csv_data.extend(['', '', '', ''])
                 
-                if labjack_data:
-                    # Convert labjack timestamp to EST if it exists
-                    labjack_timestamp = labjack_data.get('Timestamp')
-                    if labjack_timestamp:
-                        try:
-                            # Parse the timestamp and convert to EST
-                            labjack_dt = datetime.fromisoformat(labjack_timestamp)
-                            labjack_timestamp = utc_to_est_str(labjack_dt)
-                        except ValueError:
-                            logger.warning(f"Could not parse labjack timestamp: {labjack_timestamp}")
+                # if labjack_data:
+                #     # Convert labjack timestamp to EST if it exists
+                #     labjack_timestamp = labjack_data.get('Timestamp')
+                #     if labjack_timestamp:
+                #         try:
+                #             # Parse the timestamp and convert to EST
+                #             labjack_dt = datetime.fromisoformat(labjack_timestamp)
+                #             labjack_timestamp = utc_to_est_str(labjack_dt)
+                #         except ValueError:
+                #             logger.warning(f"Could not parse labjack timestamp: {labjack_timestamp}")
                     
-                    csv_data.extend([
-                        labjack_timestamp or '',
-                        labjack_data.get('Pressure_1', '')
-                    ])
-                else:
-                    csv_data.extend(['', ''])
+                #     csv_data.extend([
+                #         labjack_timestamp or '',
+                #         labjack_data.get('Pressure_1', '')
+                #     ])
+                # else:
+                #     csv_data.extend(['', ''])
                 
-                # Always save locally as backup
-                csv_success = save_to_local_csv(combined_data, csv_data)
+
+                ### Dont' worry about this right now (only teledyne needs to be saved as csv, for now...)
+                # # Always save locally as backup
+                # csv_success = save_to_local_csv(combined_data, csv_data)
                 
-                if not csv_success:
-                    logger.warning("Failed to save CSV backup")
+                # if not csv_success:
+                #     logger.warning("Failed to save CSV backup")
                 
                 # Wait before next reading
                 time.sleep(SLEEP_INTERVAL)

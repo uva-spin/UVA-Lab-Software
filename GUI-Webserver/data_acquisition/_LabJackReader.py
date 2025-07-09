@@ -176,23 +176,22 @@ class LabJackReader:
                     self.avg_pressure1 = avg_pressure1
                     self.avg_pressure2 = avg_pressure2
                     self.avg_pressure3 = avg_pressure3
-                    self._to_csv(avg_pressure1, avg_pressure2, avg_pressure3)
-                    logger.info(f"Data written to CSV, average R2 - Pressure 1: {avg_pressure1}, Pressure 2: {avg_pressure2}, Pressure 3: {avg_pressure3}")
-
+                    self.data_queue.put([avg_pressure1, avg_pressure2, avg_pressure3])
+                    logger.info(f"Data written to queue, average R2 - Pressure 1: {avg_pressure1}, Pressure 2: {avg_pressure2}, Pressure 3: {avg_pressure3}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay
 
-    def _to_csv(self, pressure1, pressure2, pressure3):
-        """Write data to CSV file"""
-        try:
-            with open(self.csv_path, 'a', newline='') as file:
-                writer = csv.writer(file)
-                if file.tell() == 0:
-                    writer.writerow(["Timestamp", "Pressure_1", "Pressure_2", "Pressure_3"])
-                writer.writerow([datetime.now(), pressure1, pressure2, pressure3])
-        except Exception as e:
-            logger.error(f"Error writing to CSV: {e}")
+    # def _to_csv(self, pressure1, pressure2, pressure3):
+    #     """Write data to CSV file"""
+    #     try:
+    #         with open(self.csv_path, 'a', newline='') as file:
+    #             writer = csv.writer(file)
+    #             if file.tell() == 0:
+    #                 writer.writerow(["Timestamp", "Pressure_1", "Pressure_2", "Pressure_3"])
+    #             writer.writerow([datetime.now(), pressure1, pressure2, pressure3])
+    #     except Exception as e:
+    #         logger.error(f"Error writing to CSV: {e}")
 
     def data_stream(self):
         """Read data from LabJack"""
@@ -207,7 +206,12 @@ class LabJackReader:
     def get_latest_data(self):
         """Get the latest data from the data queue"""
         try:
-            return self.avg_pressure1, self.avg_pressure2, self.avg_pressure3
-        except Exception as e:
-            logger.error(f"Error getting latest data: {e}")
-            return None, None, None
+            logger.info(f"Getting latest Pressure data from queue")
+            if len(self.data_queue) != 3:
+                logger.warning("Pressure data is not of length 3. Data should be: \n Pressure_1,Pressure_2,Pressure_3\n Returning None values instead...")
+                return None * np.empty(3)
+            else:
+                return self.data_queue.get_nowait()
+        except queue.Empty:
+            logger.warning("No data in queue. Returning None values instead...")
+            return None * np.empty(3)

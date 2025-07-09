@@ -65,6 +65,34 @@
             `;
         }
 
+        // Generate evenly spaced time ticks based on time range
+        function generateTimeTicks(minTime, maxTime, numTicks = 10) {
+            const timeRange = maxTime - minTime;
+            const interval = timeRange / (numTicks - 1);
+            
+            const ticks = [];
+            for (let i = 0; i < numTicks; i++) {
+                const tickTime = minTime + (i * interval);
+                const date = new Date(tickTime);
+                
+                // Format based on time range
+                let timeFormat;
+                if (timeRange > 24 * 60 * 60 * 1000) { // > 1 day
+                    timeFormat = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                } else if (timeRange > 60 * 60 * 1000) { // > 1 hour
+                    timeFormat = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                } else if (timeRange > 60 * 1000) { // > 1 minute
+                    timeFormat = date.toLocaleTimeString([], {minute: '2-digit', second: '2-digit'});
+                } else { // < 1 minute
+                    timeFormat = date.toLocaleTimeString([], {second: '2-digit', fractionalSecondDigits: 3});
+                }
+                
+                ticks.push([tickTime, timeFormat]);
+            }
+            
+            return ticks;
+        }
+
         // Function to update the plot
         async function updatePlot(data, selectedColumns) {
             console.log('Updating plot with data:', data);
@@ -112,18 +140,26 @@
                     timeformat: "%H:%M:%S",
                     min: minTime,
                     max: maxTime,
-                    ticks: timestamps.map(t => [t, new Date(t).toLocaleTimeString()]),
+                    ticks: generateTimeTicks(minTime, maxTime, 10),
                     tickLength: 5,
-                    axisLabel: 'Time',
+                    axisLabel: 'Time (EST)',
                     axisLabelUseCanvas: true,
                     axisLabelFontSizePixels: 12,
                     axisLabelFontFamily: 'Inter, sans-serif',
-                    color: isDarkMode ? '#ffffff' : '#333333'
+                    color: isDarkMode ? '#ffffff' : '#333333',
+                    font: {
+                        color: isDarkMode ? '#ffffff' : '#333333'
+                    },
+                    tickColor: isDarkMode ? '#ffffff' : '#333333',
                 },
                 yaxis: {
                     axisLabel: 'Value',
                     axisLabelUseCanvas: true,
                     color: isDarkMode ? '#ffffff' : '#333333',
+                    font: {
+                        color: isDarkMode ? '#ffffff' : '#333333'
+                    },
+                    tickColor: isDarkMode ? '#ffffff' : '#333333',
                     tickFormatter: function(val, axis) {
                         return val.toFixed(2);
                     }
@@ -134,7 +170,11 @@
                     labelBoxBorderColor: 'transparent',
                     show: true,
                     noColumns: 1,
-                    margin: [10, 10]
+                    margin: [10, 10],
+                    // Add legend color support for dark mode:
+                    labelFormatter: function(label, series) {
+                        return '<span style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + '">' + label + '</span>';
+                    }
                 },
                 grid: {
                     hoverable: true,
@@ -288,7 +328,7 @@
                 };
             } catch (err) {
                 console.error('Error fetching from server:', err);
-                throw new Error('Error obtaining data from database');
+                throw new Error('Error obtaining data from database. Retrying...');
             }
         }
 
@@ -597,6 +637,19 @@
                 alert('Error checking database status. Check console for details.');
             }
         }
+
+        // // Helper function to generate time ticks for Plotly
+        // function generateTimeTicks(minTime, maxTime, numTicks) {
+        //     const ticks = [];
+        //     const timeDiff = maxTime - minTime;
+        //     const step = timeDiff / (numTicks - 1); // Ensure at least one tick
+
+        //     for (let i = 0; i < numTicks; i++) {
+        //         const time = minTime + (i * step);
+        //         ticks.push([time, new Date(time).toLocaleTimeString()]);
+        //     }
+        //     return ticks;
+        // }
     </script>
 
     <!-- Add CSS for warning message -->

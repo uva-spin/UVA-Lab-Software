@@ -3,6 +3,7 @@ import queue
 import threading
 import time
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +34,15 @@ class TeledyneDataReader:
     def get_latest_data(self):
         """Get the latest teledyne data from the queue"""
         try:
-            return self.data_queue.get_nowait()
+            logger.info(f"Getting latest Teledyne data from queue")
+            if len(self.data_queue) != 4:
+                logger.warning("Teledyne data is not of length 4. Data should be: \n Timestamp,Flow_1,Flow_2,Flow_3\n Returning None values instead...")
+                return None * np.empty(4)
+            else:
+                return self.data_queue.get_nowait()
         except queue.Empty:
-            return None
+            logger.warning("No data in queue. Returning None values instead...")
+            return None * np.empty(4)
             
     def _monitor_file(self):
         """Monitor the CSV file for new data"""
