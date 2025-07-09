@@ -171,8 +171,12 @@
                     show: true,
                     noColumns: 1,
                     margin: [10, 10],
-                    labelFormatter: function(label) {
-                        return '<div style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + ';">' + label + '</div>';
+                    labelFormatter: function(label, series) {
+                        const color = series.color;
+                        return '<div style="display: flex; align-items: center; gap: 5px;">' +
+                               '<div style="width: 12px; height: 12px; background-color: ' + color + '; border-radius: 2px;"></div>' +
+                               '<span style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + '">' + label + '</span>' +
+                               '</div>';
                     }
                 },
                 grid: {
