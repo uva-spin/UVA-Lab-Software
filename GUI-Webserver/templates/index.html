@@ -167,12 +167,15 @@
                 legend: {
                     position: 'ne',
                     backgroundOpacity: 0,
-                    labelBoxBorderColor: 'none',
+                    labelBoxBorderColor: 'transparent',
                     show: true,
-                    noColumns: 1,
-                    margin: [10, 10],
-                    backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
-                    labelFormatter: null  
+                    // noColumns: 1,
+                    // margin: [10, 10],
+                    // Add legend color support for dark mode:
+                    labelFormatter: function(label, series) {
+                        return '<span style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + '">' + label + '</span>';
+                    }
+
                 },
                 grid: {
                     hoverable: true,
