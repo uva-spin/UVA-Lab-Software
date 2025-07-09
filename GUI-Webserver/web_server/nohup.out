@@ -23674,3 +23674,260 @@ sqlite3.OperationalError: disk I/O error
 2025-07-09 12:18:07,019 - INFO - Found data for keys: ['pt502_ai', 'pt503_ai']
 2025-07-09 12:18:07,019 - INFO - Sample data point: {'timestamp': '2025-07-09 12:08:06', 'pt502_ai': 12.08, 'pt503_ai': 1.2}
 2025-07-09 12:18:07,019 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:07] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A06&end_time=07%2F09%2F2025+12%3A18%3A06 HTTP/1.1" 200 -
+2025-07-09 12:18:12,028 - INFO - Original timestamps - start: 07/09/2025 12:08:11, end: 07/09/2025 12:18:11
+2025-07-09 12:18:12,028 - INFO - Converted timestamps - start: 2025-07-09 12:08:11, end: 2025-07-09 12:18:11
+2025-07-09 12:18:12,028 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:12,028 - INFO - Time range (EST): 2025-07-09 12:08:11 to 2025-07-09 12:18:11
+2025-07-09 12:18:12,028 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:12,028 - INFO - DB start time: 2025-07-09 12:08:11
+2025-07-09 12:18:12,028 - INFO - DB end time: 2025-07-09 12:18:11
+2025-07-09 12:18:12,028 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:11, 2025-07-09 12:18:11
+2025-07-09 12:18:12,030 - INFO - Found 1 rows in table HMI
+2025-07-09 12:18:12,030 - INFO - Found data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:12,030 - INFO - Sample data point: {'timestamp': '2025-07-09 12:08:12', 'pt502_ai': 12.08, 'pt503_ai': 1.2}
+2025-07-09 12:18:12,031 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:12] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A11&end_time=07%2F09%2F2025+12%3A18%3A11 HTTP/1.1" 200 -
+2025-07-09 12:18:17,031 - INFO - Original timestamps - start: 07/09/2025 12:08:16, end: 07/09/2025 12:18:16
+2025-07-09 12:18:17,031 - INFO - Converted timestamps - start: 2025-07-09 12:08:16, end: 2025-07-09 12:18:16
+2025-07-09 12:18:17,031 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:17,031 - INFO - Time range (EST): 2025-07-09 12:08:16 to 2025-07-09 12:18:16
+2025-07-09 12:18:17,031 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:17,031 - INFO - DB start time: 2025-07-09 12:08:16
+2025-07-09 12:18:17,031 - INFO - DB end time: 2025-07-09 12:18:16
+2025-07-09 12:18:17,031 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:16, 2025-07-09 12:18:16
+2025-07-09 12:18:17,033 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:17,033 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:17,034 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:17] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A16&end_time=07%2F09%2F2025+12%3A18%3A16 HTTP/1.1" 200 -
+2025-07-09 12:18:22,044 - INFO - Original timestamps - start: 07/09/2025 12:08:21, end: 07/09/2025 12:18:21
+2025-07-09 12:18:22,044 - INFO - Converted timestamps - start: 2025-07-09 12:08:21, end: 2025-07-09 12:18:21
+2025-07-09 12:18:22,044 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:22,044 - INFO - Time range (EST): 2025-07-09 12:08:21 to 2025-07-09 12:18:21
+2025-07-09 12:18:22,044 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:22,044 - INFO - DB start time: 2025-07-09 12:08:21
+2025-07-09 12:18:22,044 - INFO - DB end time: 2025-07-09 12:18:21
+2025-07-09 12:18:22,045 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:21, 2025-07-09 12:18:21
+2025-07-09 12:18:22,046 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:22,046 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:22,047 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:22] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A21&end_time=07%2F09%2F2025+12%3A18%3A21 HTTP/1.1" 200 -
+2025-07-09 12:18:27,059 - INFO - Original timestamps - start: 07/09/2025 12:08:27, end: 07/09/2025 12:18:27
+2025-07-09 12:18:27,059 - INFO - Converted timestamps - start: 2025-07-09 12:08:27, end: 2025-07-09 12:18:27
+2025-07-09 12:18:27,059 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:27,059 - INFO - Time range (EST): 2025-07-09 12:08:27 to 2025-07-09 12:18:27
+2025-07-09 12:18:27,059 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:27,059 - INFO - DB start time: 2025-07-09 12:08:27
+2025-07-09 12:18:27,059 - INFO - DB end time: 2025-07-09 12:18:27
+2025-07-09 12:18:27,059 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:27, 2025-07-09 12:18:27
+2025-07-09 12:18:27,061 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:27,061 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:27,061 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:27] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A27&end_time=07%2F09%2F2025+12%3A18%3A27 HTTP/1.1" 200 -
+2025-07-09 12:18:32,064 - INFO - Original timestamps - start: 07/09/2025 12:08:32, end: 07/09/2025 12:18:32
+2025-07-09 12:18:32,065 - INFO - Converted timestamps - start: 2025-07-09 12:08:32, end: 2025-07-09 12:18:32
+2025-07-09 12:18:32,065 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:32,065 - INFO - Time range (EST): 2025-07-09 12:08:32 to 2025-07-09 12:18:32
+2025-07-09 12:18:32,065 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:32,065 - INFO - DB start time: 2025-07-09 12:08:32
+2025-07-09 12:18:32,065 - INFO - DB end time: 2025-07-09 12:18:32
+2025-07-09 12:18:32,065 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:32, 2025-07-09 12:18:32
+2025-07-09 12:18:32,066 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:32,067 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:32,067 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:32] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A32&end_time=07%2F09%2F2025+12%3A18%3A32 HTTP/1.1" 200 -
+2025-07-09 12:18:37,079 - INFO - Original timestamps - start: 07/09/2025 12:08:37, end: 07/09/2025 12:18:37
+2025-07-09 12:18:37,079 - INFO - Converted timestamps - start: 2025-07-09 12:08:37, end: 2025-07-09 12:18:37
+2025-07-09 12:18:37,079 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:37,079 - INFO - Time range (EST): 2025-07-09 12:08:37 to 2025-07-09 12:18:37
+2025-07-09 12:18:37,080 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:37,080 - INFO - DB start time: 2025-07-09 12:08:37
+2025-07-09 12:18:37,080 - INFO - DB end time: 2025-07-09 12:18:37
+2025-07-09 12:18:37,080 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:37, 2025-07-09 12:18:37
+2025-07-09 12:18:37,081 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:37,081 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:37,082 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:37] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A37&end_time=07%2F09%2F2025+12%3A18%3A37 HTTP/1.1" 200 -
+2025-07-09 12:18:42,080 - INFO - Original timestamps - start: 07/09/2025 12:08:42, end: 07/09/2025 12:18:42
+2025-07-09 12:18:42,080 - INFO - Converted timestamps - start: 2025-07-09 12:08:42, end: 2025-07-09 12:18:42
+2025-07-09 12:18:42,080 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:42,080 - INFO - Time range (EST): 2025-07-09 12:08:42 to 2025-07-09 12:18:42
+2025-07-09 12:18:42,080 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:42,080 - INFO - DB start time: 2025-07-09 12:08:42
+2025-07-09 12:18:42,080 - INFO - DB end time: 2025-07-09 12:18:42
+2025-07-09 12:18:42,081 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:42, 2025-07-09 12:18:42
+2025-07-09 12:18:42,082 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:42,082 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:42,083 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:42] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A42&end_time=07%2F09%2F2025+12%3A18%3A42 HTTP/1.1" 200 -
+2025-07-09 12:18:47,082 - INFO - Original timestamps - start: 07/09/2025 12:08:47, end: 07/09/2025 12:18:47
+2025-07-09 12:18:47,082 - INFO - Converted timestamps - start: 2025-07-09 12:08:47, end: 2025-07-09 12:18:47
+2025-07-09 12:18:47,082 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:47,082 - INFO - Time range (EST): 2025-07-09 12:08:47 to 2025-07-09 12:18:47
+2025-07-09 12:18:47,082 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:47,083 - INFO - DB start time: 2025-07-09 12:08:47
+2025-07-09 12:18:47,083 - INFO - DB end time: 2025-07-09 12:18:47
+2025-07-09 12:18:47,083 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:47, 2025-07-09 12:18:47
+2025-07-09 12:18:47,084 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:47,084 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:47,085 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:47] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A47&end_time=07%2F09%2F2025+12%3A18%3A47 HTTP/1.1" 200 -
+2025-07-09 12:18:52,095 - INFO - Original timestamps - start: 07/09/2025 12:08:52, end: 07/09/2025 12:18:52
+2025-07-09 12:18:52,095 - INFO - Converted timestamps - start: 2025-07-09 12:08:52, end: 2025-07-09 12:18:52
+2025-07-09 12:18:52,095 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:52,095 - INFO - Time range (EST): 2025-07-09 12:08:52 to 2025-07-09 12:18:52
+2025-07-09 12:18:52,095 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:52,095 - INFO - DB start time: 2025-07-09 12:08:52
+2025-07-09 12:18:52,095 - INFO - DB end time: 2025-07-09 12:18:52
+2025-07-09 12:18:52,095 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:52, 2025-07-09 12:18:52
+2025-07-09 12:18:52,097 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:52,097 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:52,097 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:52] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A52&end_time=07%2F09%2F2025+12%3A18%3A52 HTTP/1.1" 200 -
+2025-07-09 12:18:57,109 - INFO - Original timestamps - start: 07/09/2025 12:08:57, end: 07/09/2025 12:18:57
+2025-07-09 12:18:57,109 - INFO - Converted timestamps - start: 2025-07-09 12:08:57, end: 2025-07-09 12:18:57
+2025-07-09 12:18:57,109 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:57,109 - INFO - Time range (EST): 2025-07-09 12:08:57 to 2025-07-09 12:18:57
+2025-07-09 12:18:57,109 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:18:57,110 - INFO - DB start time: 2025-07-09 12:08:57
+2025-07-09 12:18:57,110 - INFO - DB end time: 2025-07-09 12:18:57
+2025-07-09 12:18:57,110 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:08:57, 2025-07-09 12:18:57
+2025-07-09 12:18:57,111 - INFO - Found 0 rows in table HMI
+2025-07-09 12:18:57,111 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:18:57,112 - INFO - 172.28.36.111 - - [09/Jul/2025 12:18:57] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A08%3A57&end_time=07%2F09%2F2025+12%3A18%3A57 HTTP/1.1" 200 -
+2025-07-09 12:19:02,113 - INFO - Original timestamps - start: 07/09/2025 12:09:02, end: 07/09/2025 12:19:02
+2025-07-09 12:19:02,113 - INFO - Converted timestamps - start: 2025-07-09 12:09:02, end: 2025-07-09 12:19:02
+2025-07-09 12:19:02,113 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:02,113 - INFO - Time range (EST): 2025-07-09 12:09:02 to 2025-07-09 12:19:02
+2025-07-09 12:19:02,114 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:19:02,114 - INFO - DB start time: 2025-07-09 12:09:02
+2025-07-09 12:19:02,114 - INFO - DB end time: 2025-07-09 12:19:02
+2025-07-09 12:19:02,114 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:09:02, 2025-07-09 12:19:02
+2025-07-09 12:19:02,115 - INFO - Found 0 rows in table HMI
+2025-07-09 12:19:02,116 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:02,116 - INFO - 172.28.36.111 - - [09/Jul/2025 12:19:02] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A09%3A02&end_time=07%2F09%2F2025+12%3A19%3A02 HTTP/1.1" 200 -
+2025-07-09 12:19:07,125 - INFO - Original timestamps - start: 07/09/2025 12:09:07, end: 07/09/2025 12:19:07
+2025-07-09 12:19:07,125 - INFO - Converted timestamps - start: 2025-07-09 12:09:07, end: 2025-07-09 12:19:07
+2025-07-09 12:19:07,125 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:07,125 - INFO - Time range (EST): 2025-07-09 12:09:07 to 2025-07-09 12:19:07
+2025-07-09 12:19:07,125 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:19:07,125 - INFO - DB start time: 2025-07-09 12:09:07
+2025-07-09 12:19:07,125 - INFO - DB end time: 2025-07-09 12:19:07
+2025-07-09 12:19:07,125 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:09:07, 2025-07-09 12:19:07
+2025-07-09 12:19:07,127 - INFO - Found 0 rows in table HMI
+2025-07-09 12:19:07,127 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:07,127 - INFO - 172.28.36.111 - - [09/Jul/2025 12:19:07] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A09%3A07&end_time=07%2F09%2F2025+12%3A19%3A07 HTTP/1.1" 200 -
+2025-07-09 12:19:12,137 - INFO - Original timestamps - start: 07/09/2025 12:09:12, end: 07/09/2025 12:19:12
+2025-07-09 12:19:12,137 - INFO - Converted timestamps - start: 2025-07-09 12:09:12, end: 2025-07-09 12:19:12
+2025-07-09 12:19:12,137 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:12,137 - INFO - Time range (EST): 2025-07-09 12:09:12 to 2025-07-09 12:19:12
+2025-07-09 12:19:12,137 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:19:12,137 - INFO - DB start time: 2025-07-09 12:09:12
+2025-07-09 12:19:12,137 - INFO - DB end time: 2025-07-09 12:19:12
+2025-07-09 12:19:12,137 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:09:12, 2025-07-09 12:19:12
+2025-07-09 12:19:12,139 - INFO - Found 0 rows in table HMI
+2025-07-09 12:19:12,139 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:12,140 - INFO - 172.28.36.111 - - [09/Jul/2025 12:19:12] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A09%3A12&end_time=07%2F09%2F2025+12%3A19%3A12 HTTP/1.1" 200 -
+2025-07-09 12:19:17,136 - INFO - Original timestamps - start: 07/09/2025 12:09:17, end: 07/09/2025 12:19:17
+2025-07-09 12:19:17,137 - INFO - Converted timestamps - start: 2025-07-09 12:09:17, end: 2025-07-09 12:19:17
+2025-07-09 12:19:17,137 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:17,137 - INFO - Time range (EST): 2025-07-09 12:09:17 to 2025-07-09 12:19:17
+2025-07-09 12:19:17,137 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:19:17,137 - INFO - DB start time: 2025-07-09 12:09:17
+2025-07-09 12:19:17,137 - INFO - DB end time: 2025-07-09 12:19:17
+2025-07-09 12:19:17,137 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:09:17, 2025-07-09 12:19:17
+2025-07-09 12:19:17,139 - INFO - Found 0 rows in table HMI
+2025-07-09 12:19:17,139 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:17,139 - INFO - 172.28.36.111 - - [09/Jul/2025 12:19:17] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A09%3A17&end_time=07%2F09%2F2025+12%3A19%3A17 HTTP/1.1" 200 -
+2025-07-09 12:19:22,147 - INFO - Original timestamps - start: 07/09/2025 12:09:22, end: 07/09/2025 12:19:22
+2025-07-09 12:19:22,147 - INFO - Converted timestamps - start: 2025-07-09 12:09:22, end: 2025-07-09 12:19:22
+2025-07-09 12:19:22,148 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:22,148 - INFO - Time range (EST): 2025-07-09 12:09:22 to 2025-07-09 12:19:22
+2025-07-09 12:19:22,148 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:19:22,148 - INFO - DB start time: 2025-07-09 12:09:22
+2025-07-09 12:19:22,148 - INFO - DB end time: 2025-07-09 12:19:22
+2025-07-09 12:19:22,148 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:09:22, 2025-07-09 12:19:22
+2025-07-09 12:19:22,149 - INFO - Found 0 rows in table HMI
+2025-07-09 12:19:22,150 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:22,150 - INFO - 172.28.36.111 - - [09/Jul/2025 12:19:22] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A09%3A22&end_time=07%2F09%2F2025+12%3A19%3A22 HTTP/1.1" 200 -
+2025-07-09 12:19:27,152 - INFO - Original timestamps - start: 07/09/2025 12:09:27, end: 07/09/2025 12:19:27
+2025-07-09 12:19:27,152 - INFO - Converted timestamps - start: 2025-07-09 12:09:27, end: 2025-07-09 12:19:27
+2025-07-09 12:19:27,152 - INFO - Fetching data for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:27,152 - INFO - Time range (EST): 2025-07-09 12:09:27 to 2025-07-09 12:19:27
+2025-07-09 12:19:27,152 - INFO - Found keys ['pt502_ai', 'pt503_ai'] in table HMI
+2025-07-09 12:19:27,153 - INFO - DB start time: 2025-07-09 12:09:27
+2025-07-09 12:19:27,153 - INFO - DB end time: 2025-07-09 12:19:27
+2025-07-09 12:19:27,153 - INFO - Executing query: 
+                SELECT "Timestamp", pt502_ai, pt503_ai
+                FROM HMI
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
+             with params: 2025-07-09 12:09:27, 2025-07-09 12:19:27
+2025-07-09 12:19:27,154 - INFO - Found 0 rows in table HMI
+2025-07-09 12:19:27,154 - WARNING - No data found for keys: ['pt502_ai', 'pt503_ai']
+2025-07-09 12:19:27,155 - INFO - 172.28.36.111 - - [09/Jul/2025 12:19:27] "GET /recent_data?keys=pt502_ai%2Cpt503_ai&start_time=07%2F09%2F2025+12%3A09%3A27&end_time=07%2F09%2F2025+12%3A19%3A27 HTTP/1.1" 200 -
