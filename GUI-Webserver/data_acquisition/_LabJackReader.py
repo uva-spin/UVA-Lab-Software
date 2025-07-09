@@ -12,14 +12,6 @@ import time
 
 logger = logging.getLogger(__name__)
 
-def get_all_queue_result(queue):
-
-    result_list = []
-    while not queue.empty():
-        result_list.append(queue.get())
-
-    return result_list
-
 class LabJackReader:
 
     def __init__(self, csv_path, check_interval=1):
@@ -181,7 +173,9 @@ class LabJackReader:
                     self.avg_pressure1 = np.average(data_R2_pressure1)
                     self.avg_pressure2 = np.average(data_R2_pressure2)
                     self.avg_pressure3 = np.average(data_R2_pressure3)
-                    map(self.data_queue.put, [self.avg_pressure1, self.avg_pressure2, self.avg_pressure3])
+                    self.data_queue.put(self.avg_pressure1)
+                    self.data_queue.put(self.avg_pressure2)
+                    self.data_queue.put(self.avg_pressure3)
                     logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_pressure1}, Pressure 2: {self.avg_pressure2}, Pressure 3: {self.avg_pressure3}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
@@ -204,9 +198,11 @@ class LabJackReader:
         try:
             logger.info(f"Getting latest Pressure data from queue")
             print(f"DEBUG: Pressure data queue size: {self.data_queue.qsize()}")
-            data = get_all_queue_result(self.data_queue)  # Get data once and store it
-            print(f"DEBUG: Pressure data queue: {data}")
-            return data
+            data1 = self.data_queue.get_nowait()
+            data2 = self.data_queue.get_nowait()
+            data3 = self.data_queue.get_nowait()
+            print(f"DEBUG: Pressure data queue: {data1}, {data2}, {data3}")
+            return [data1, data2, data3]
         except queue.Empty:
             logger.warning("No data in queue. Returning None values instead...")
             return [None] * 3

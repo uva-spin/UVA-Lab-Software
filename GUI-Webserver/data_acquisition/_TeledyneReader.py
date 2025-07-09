@@ -14,10 +14,9 @@ class TeledyneDataReader:
         self.csv_path = csv_path
         self.check_interval = check_interval
         self.last_position = 0
-        self.data_queue = queue.Queue(maxsize=1)  # Only keep the latest value
+        self.data_queue = queue.Queue()
         self.running = False
         self.thread = None
-        self.latest_data = [None] * 4  # timestamp, flow1, flow2, flow3
         
     def start(self):
         """Start the teledyne data reading thread"""
@@ -36,12 +35,13 @@ class TeledyneDataReader:
         """Get the latest teledyne data"""
         try:
             # Try to get latest data from queue
-            data = self.data_queue.get_nowait()
-            self.latest_data = data  # Update our cached data
-            return data
+            data1 = self.data_queue.get_nowait()
+            data2 = self.data_queue.get_nowait()
+            data3 = self.data_queue.get_nowait()
+            return [data1, data2, data3]
         except queue.Empty:
             # Return the last known data or None values if no data yet
-            return self.latest_data
+            return [None] * 3
             
     def _monitor_file(self):
         """Monitor the CSV file for new data"""
@@ -74,40 +74,38 @@ class TeledyneDataReader:
                                         continue
                                 
                                 try:
-                                    # Parse CSV line
                                     data = line.split(',')
-                                    if data.qsize() >= 3:  # timestamp + 3 flow values
-                                        timestamp = data[0].strip()
-                                        flow_values = []
-                                        
-                                        # Parse flow values, replacing empty or invalid values with None
-                                        for val in data[1:4]:
-                                            try:
-                                                flow_values.append(float(val.strip()))
-                                            except (ValueError, TypeError):
-                                                flow_values.append(None)
+                                    timestamp = data[0].strip()
+                                    flow_values = []
+                                    
+                                    # Parse flow values, replacing empty or invalid values with None
+                                    for val in data[1:3]:
+                                        try:
+                                            flow_values.append(float(val.strip()))
+                                        except (ValueError, TypeError):
+                                            flow_values.append(None)
 
-                                        # Check if flow values are all None
-                                        if all(val is None for val in flow_values):
-                                            logger.warning("All flow values are None. Returning None values...")
-                                            return [None] * 4
-                                        
-                                        # Put data in queue, replacing old data if queue is full
-                                        new_data = [timestamp] + flow_values
-                                        
-                                        # Clear queue before putting new data
-                                        while not self.data_queue.empty():
-                                            try:
-                                                self.data_queue.get_nowait()
-                                            except queue.Empty:
-                                                break
-                                                
-                                        self.data_queue.put(new_data)
-                                        logger.debug(f"New teledyne data: {new_data}")
-                                        
-                                except (ValueError, IndexError) as e:
-                                    logger.warning(f"Error parsing teledyne data line: {line}, error: {e}")
-                                    continue  # Skip this line and continue with the next 4
+                                    # Check if flow values are all None
+                                    if all(val is None for val in flow_values):
+                                        logger.warning("All flow values are None. Returning None values...")
+                                        return [None] * 3
+                                    
+                                    # Put data in queue, replacing old data if queue is full                                    
+                                    # Clear queue before putting new data
+                                    while not self.data_queue.empty():
+                                        try:
+                                            self.data_queue.get_nowait()
+                                        except queue.Empty:
+                                            break
+                                            
+                                    self.data_queue.put(flow_values[0])
+                                    self.data_queue.put(flow_values[1])
+                                    self.data_queue.put(flow_values[2])
+                                    logger.debug(f"New teledyne data: {timestamp}, {flow_values[0]}, {flow_values[1]}, {flow_values[2]}")
+                                    
+                            except (ValueError, IndexError) as e:
+                                logger.warning(f"Error parsing teledyne data line: {line}, error: {e}")
+                                continue  # Skip this line and continue with the next 4
 
                 else:
                     logger.warning(f"Teledyne CSV file not found: {self.csv_path}. Creating file...")
