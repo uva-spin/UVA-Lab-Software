@@ -169,12 +169,12 @@
                     backgroundOpacity: 0,
                     labelBoxBorderColor: 'transparent',
                     show: true,
-                    // noColumns: 1,
-                    // margin: [10, 10],
+                    noColumns: 1,
+                    margin: [10, 10],
                     // Add legend color support for dark mode:
-                    labelFormatter: function(label, series) {
-                        return '<span style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + '">' + label + '</span>';
-                    }
+                    // labelFormatter: function(label, series) {
+                    //     return '<span style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + '">' + label + '</span>';
+                    // }
                 },
                 grid: {
                     hoverable: true,
@@ -684,18 +684,6 @@
         [data-theme='dark'] .warning-message {
             background-color: var(--warning-bg-dark, #2c2a1c);
             color: var(--warning-text-dark, #ffd866);
-        }
-
-        /* Flot legend styling */
-        .legendLayer .background {
-            fill: var(--bg-color, #ffffff) !important;
-            stroke: var(--border-color, #e0e0e0) !important;
-            rx: 4px;
-        }
-
-        [data-theme='dark'] .legendLayer .background {
-            fill: var(--bg-color-dark, #1a1a1a) !important;
-            stroke: var(--border-color-dark, #333333) !important;
         }
     </style>
 </head>
