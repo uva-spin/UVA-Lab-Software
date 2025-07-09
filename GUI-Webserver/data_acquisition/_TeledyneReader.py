@@ -103,9 +103,9 @@ class TeledyneDataReader:
                                     self.data_queue.put(flow_values[2])
                                     logger.debug(f"New teledyne data: {timestamp}, {flow_values[0]}, {flow_values[1]}, {flow_values[2]}")
                                     
-                        except (ValueError, IndexError) as e:
-                            logger.warning(f"Error parsing teledyne data line: {line}, error: {e}")
-                            continue  # Skip this line and continue with the next 4
+                                except (ValueError, IndexError) as e:
+                                    logger.warning(f"Error parsing teledyne data line: {line}, error: {e}")
+                                    continue  # Skip this line and continue with the next
 
                 else:
                     logger.warning(f"Teledyne CSV file not found: {self.csv_path}. Creating file...")
