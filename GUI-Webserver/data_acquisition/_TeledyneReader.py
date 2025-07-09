@@ -76,7 +76,7 @@ class TeledyneDataReader:
                                 try:
                                     # Parse CSV line
                                     data = line.split(',')
-                                    if data.qsize() >= 4:  # timestamp + 3 flow values
+                                    if data.qsize() >= 3:  # timestamp + 3 flow values
                                         timestamp = data[0].strip()
                                         flow_values = []
                                         
