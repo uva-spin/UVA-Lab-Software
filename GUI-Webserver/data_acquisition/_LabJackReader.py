@@ -22,6 +22,7 @@ class LabJackReader:
         self.running = False
         self.thread = None
         self.device = None
+        self.last_known_values = [None, None, None]  # Store last known good values
         self.avg_pressure1 = None
         self.avg_pressure2 = None
         self.avg_pressure3 = None
@@ -180,18 +181,6 @@ class LabJackReader:
                     logger.info(f"Data written to queue, average R2 - Pressure 1: {avg_pressure1}, Pressure 2: {avg_pressure2}, Pressure 3: {avg_pressure3}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
-            # Don't sleep here, let the data_stream method handle the delay
-
-    # def _to_csv(self, pressure1, pressure2, pressure3):
-    #     """Write data to CSV file"""
-    #     try:
-    #         with open(self.csv_path, 'a', newline='') as file:
-    #             writer = csv.writer(file)
-    #             if file.tell() == 0:
-    #                 writer.writerow(["Timestamp", "Pressure_1", "Pressure_2", "Pressure_3"])
-    #             writer.writerow([datetime.now(), pressure1, pressure2, pressure3])
-    #     except Exception as e:
-    #         logger.error(f"Error writing to CSV: {e}")
 
     def data_stream(self):
         """Read data from LabJack"""
@@ -209,7 +198,8 @@ class LabJackReader:
             logger.info(f"Getting latest Pressure data from queue")
             print(f"DEBUG: Pressure data queue size: {self.data_queue.qsize()}")
             print(f"DEBUG: Pressure data queue: {self.data_queue.queue}")
-            return self.data_queue.get_nowait()
+            self.last_known_values = self.data_queue.get_nowait()
+            return self.last_known_values
         except queue.Empty:
-            logger.warning("No data in queue. Returning None values instead...")
-            return [None] * 3
+            logger.info("No new data in queue. Returning last known values...")
+            return self.last_known_values
