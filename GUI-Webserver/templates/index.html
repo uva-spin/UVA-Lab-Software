@@ -171,10 +171,9 @@
                     show: true,
                     noColumns: 1,
                     margin: [10, 10],
-                    // Add legend color support for dark mode:
-                    // labelFormatter: function(label, series) {
-                    //     return '<span style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + '">' + label + '</span>';
-                    // }
+                    labelFormatter: function(label) {
+                        return '<div style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + ';">' + label + '</div>';
+                    }
                 },
                 grid: {
                     hoverable: true,
