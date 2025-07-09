@@ -77,7 +77,9 @@ class TeledyneDataReader:
                                             self.data_queue.put(teledyne_data)
                                             logger.debug(f"New teledyne data: {teledyne_data}")
                                     except (ValueError, IndexError) as e:
-                                        logger.warning(f"Error parsing teledyne data line: {line}, error: {e}")
+                                        logger.warning(f"Error parsing teledyne data line: {line}, error: {e}. Returning None values...")
+                                        self.data_queue.put(None * np.empty(4))
+
                 else:
                     logger.warning(f"Teledyne CSV file not found: {self.csv_path}. Creating file...")
                     with open(self.csv_path, 'w') as file:

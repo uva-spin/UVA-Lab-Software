@@ -239,7 +239,7 @@ def read_teledyne_data():
     global teledyne_reader
     
     if teledyne_reader is None:
-        return None * np.empty(len(teledyne_labels))
+        return [None] * 4  # Return None for timestamp and 3 flow values
         
     return teledyne_reader.get_latest_data()
 
@@ -248,7 +248,7 @@ def read_labjack_data():
     global labjack_reader
     
     if labjack_reader is None:
-        return None * np.empty(len(Pressure_labels))
+        return [None] * 3  # Return None for 3 pressure values
         
     return labjack_reader.get_latest_data()
 
