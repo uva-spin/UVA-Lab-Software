@@ -209,9 +209,9 @@ class LabJackReader:
             logger.info(f"Getting latest Pressure data from queue")
             if len(self.data_queue) != 3:
                 logger.warning("Pressure data is not of length 3. Data should be: \n Pressure_1,Pressure_2,Pressure_3\n Returning None values instead...")
-                return None * np.empty(3)
+                return [None] * 3
             else:
                 return self.data_queue.get_nowait()
         except queue.Empty:
             logger.warning("No data in queue. Returning None values instead...")
-            return None * np.empty(3)
+            return [None] * 3
