@@ -19,7 +19,6 @@ import sqlite3
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
 import pytz
-import numpy as np
 import argparse
 
 # Configure timezone
@@ -46,14 +45,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-# Add file handler with more detailed format for debugging
-
-if args.debug:
-    debug_handler = logging.FileHandler('data_acquisition_debug.log')
-    debug_handler.setLevel(logging.DEBUG)
-    debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
-    logger.addHandler(debug_handler)
 
 # Import configuration
 try:
@@ -116,22 +107,6 @@ Pressure_labels = [
     "Magnet_Pressure",
     "Purifier_Inlet_Pressure"
 ]
-
-if args.debug:
-    logger.info("DEBUG: Debug mode enabled")
-    logger.info(f"DEBUG: Database path: {DATABASE_PATH}")
-    logger.info(f"DEBUG: Sleep interval: {SLEEP_INTERVAL} seconds")
-    logger.info(f"DEBUG: Teledyne CSV path: {TELEDYNE_CSV_PATH}")
-    logger.info(f"DEBUG: LabJack CSV path: {LABJACK_CSV_PATH}")
-    logger.info(f"DEBUG: PLC IP: {PLC_IP}")
-    logger.info(f"DEBUG: Unit ID: {UNIT_ID}")
-    logger.info(f"DEBUG: Integer Port: {INT_PORT}")
-    logger.info(f"DEBUG: Float Port: {FLOAT_PORT}")
-    logger.info(f"DEBUG: Number of registers to read: {NUM_REG_TO_READ}")
-    logger.info(f"DEBUG: Labels: {labels}")
-    logger.info(f"DEBUG: Teledyne labels: {teledyne_labels}")
-    logger.info(f"DEBUG: Pressure labels: {Pressure_labels}")
-    logger.info(f"DEBUG: Max consecutive failures: {MAX_CONSECUTIVE_FAILURES}")
 
 # Global teledyne reader instance
 teledyne_reader = None
@@ -415,12 +390,30 @@ def main():
         logger.setLevel(logging.DEBUG)
 
     global teledyne_reader, labjack_reader
+
+    if args.debug:
+        debug_handler = logging.FileHandler('data_acquisition_debug.log')
+        debug_handler.setLevel(logging.DEBUG)
+        debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
+        logger.addHandler(debug_handler)
+
     if args.debug:
         logger.info("Starting Data Acquisition System with Direct Database Pipeline")
-        logger.info(f"Database path: {DATABASE_PATH}")
-        logger.info(f"Sleep interval: {SLEEP_INTERVAL} seconds")
-        logger.info(f"Teledyne CSV path: {TELEDYNE_CSV_PATH}")
-        logger.info(f"LabJack CSV path: {LABJACK_CSV_PATH}")
+        logger.info("DEBUG: Debug mode enabled")
+        logger.info(f"DEBUG: Database path: {DATABASE_PATH}")
+        logger.info(f"DEBUG: Sleep interval: {SLEEP_INTERVAL} seconds")
+        logger.info(f"DEBUG: Teledyne CSV path: {TELEDYNE_CSV_PATH}")
+        logger.info(f"DEBUG: LabJack CSV path: {LABJACK_CSV_PATH}")
+        logger.info(f"DEBUG: PLC IP: {PLC_IP}")
+        logger.info(f"DEBUG: Unit ID: {UNIT_ID}")
+        logger.info(f"DEBUG: Integer Port: {INT_PORT}")
+        logger.info(f"DEBUG: Float Port: {FLOAT_PORT}")
+        logger.info(f"DEBUG: Number of registers to read: {NUM_REG_TO_READ}")
+        logger.info(f"DEBUG: Labels: {labels}")
+        logger.info(f"DEBUG: Teledyne labels: {teledyne_labels}")
+        logger.info(f"DEBUG: Pressure labels: {Pressure_labels}")
+        logger.info(f"DEBUG: Max consecutive failures: {MAX_CONSECUTIVE_FAILURES}")
+
     
     # Ensure data directory exists
     ensure_data_directory()
