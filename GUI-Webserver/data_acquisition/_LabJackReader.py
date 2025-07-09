@@ -17,14 +17,14 @@ class LabJackReader:
         self.csv_path = csv_path
         self.check_interval = check_interval
         self.last_position = 0
-        self.data_queue = [None, None, None]
+        self.data_queue = [None, None, None, None]
         self.running = False
         self.thread = None
         self.device = None
         self.avg_pressure1 = None
         self.avg_pressure2 = None
         self.avg_pressure3 = None
-
+        self.avg_pressure4 = None
     def start(self):
         """Start the labjack data reading thread"""
         try:
@@ -92,8 +92,8 @@ class LabJackReader:
                 return
 
             logger.info("Configuring U3 stream")
-            # Configure stream for 3 channels: AIN0, AIN1, AIN2
-            self.device.streamConfig(NumChannels=3, PChannels=[0, 1, 2], NChannels=[31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
+            # Configure stream for 4 channels: AIN0, AIN1, AIN2, AIN3
+            self.device.streamConfig(NumChannels=4, PChannels=[0, 1, 2, 3], NChannels=[31, 31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
 
             try:
                 self.device.streamStart()
@@ -106,7 +106,7 @@ class LabJackReader:
                 data_R2_pressure1 = np.zeros(MAX_REQUESTS)
                 data_R2_pressure2 = np.zeros(MAX_REQUESTS)
                 data_R2_pressure3 = np.zeros(MAX_REQUESTS)
-
+                data_R2_pressure4 = np.zeros(MAX_REQUESTS)
                 for i, r in enumerate(self.device.streamData()):
                     if not self.running:
                         break
@@ -126,30 +126,37 @@ class LabJackReader:
                             logger.warning(f"Missed {r['missed']} packets")
 
                         # Process AIN0 (Pressure 1)
-                        if self._check_data(r["AIN0"]):
+                        if self._check_data(r["AIN0"]): ### Root Exhaust Pressure
                             vOut_pressure1 = sum(r["AIN0"]) / len(r["AIN0"])
                             vIn = 10
                             R1 = 100
                             R2_pressure1 = R1*(1/((vIn/vOut_pressure1)-1))
                         else:
                             R2_pressure1 = None
-                            logger.warning(f"No data for Pressure 1 at {datetime.now()}")
+                            logger.warning(f"No data for Root Exhaust Pressure Transducer at {datetime.now()}")
 
                         # Process AIN1 (Pressure 2)
-                        if self._check_data(r["AIN1"]):
+                        if self._check_data(r["AIN1"]): ### Buffer Pressure
                             vOut_pressure2 = sum(r["AIN1"]) / len(r["AIN1"])
                             R2_pressure2 = R1*(1/((vIn/vOut_pressure2)-1))
                         else:
                             R2_pressure2 = None
-                            logger.warning(f"No data for Pressure 2 at {datetime.now()}")
+                            logger.warning(f"No data for Buffer Pressure Transducer at {datetime.now()}")
 
                         # Process AIN2 (Pressure 3)
-                        if self._check_data(r["AIN2"]):
+                        if self._check_data(r["AIN2"]): ### Magnet Pressure
                             vOut_pressure3 = sum(r["AIN2"]) / len(r["AIN2"])
                             R2_pressure3 = R1*(1/((vIn/vOut_pressure3)-1))
                         else:
                             R2_pressure3 = None
-                            logger.warning(f"No data for Pressure 3 at {datetime.now()}")
+                            logger.warning(f"No data for Magnet Pressure Transducer at {datetime.now()}")
+
+                        if self._check_data(r["AIN3"]): ### Purifier Inlet Pressure
+                            vOut_pressure4 = sum(r["AIN3"]) / len(r["AIN3"])
+                            R2_pressure4 = R1*(1/((vIn/vOut_pressure4)-1))
+                        else:
+                            R2_pressure4 = None
+                            logger.warning(f"No data for Magnet Pressure Transducer at {datetime.now()}")
 
                         dataCount += 1
                         packetCount += r['numPackets']
@@ -157,6 +164,9 @@ class LabJackReader:
                         data_R2_pressure1[i] = R2_pressure1
                         data_R2_pressure2[i] = R2_pressure2
                         data_R2_pressure3[i] = R2_pressure3
+                        data_R2_pressure4[i] = R2_pressure4
+
+                        logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_pressure1}, Pressure 2: {self.avg_pressure2}, Pressure 3: {self.avg_pressure3}, Pressure 4: {self.avg_pressure4}")
                     else:
                         logger.warning(f"No data at {datetime.now()}")
 
@@ -172,10 +182,12 @@ class LabJackReader:
                     self.avg_pressure1 = np.average(data_R2_pressure1)
                     self.avg_pressure2 = np.average(data_R2_pressure2)
                     self.avg_pressure3 = np.average(data_R2_pressure3)
+                    self.avg_pressure4 = np.average(data_R2_pressure4)
                     self.data_queue[0] = self.avg_pressure1
                     self.data_queue[1] = self.avg_pressure2
                     self.data_queue[2] = self.avg_pressure3
-                    logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_pressure1}, Pressure 2: {self.avg_pressure2}, Pressure 3: {self.avg_pressure3}")
+                    self.data_queue[3] = self.avg_pressure4
+                    logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_pressure1}, Pressure 2: {self.avg_pressure2}, Pressure 3: {self.avg_pressure3}, Pressure 4: {self.avg_pressure4}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay
@@ -196,8 +208,8 @@ class LabJackReader:
         """Get the latest data from the data queue"""
         try:
             logger.info(f"Getting latest Pressure data from queue")
-            print(f"DEBUG: Pressure data queue: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}")
-            return [self.data_queue[0], self.data_queue[1], self.data_queue[2]]
+            print(f"DEBUG: Pressure data: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}, {self.data_queue[3]}")
+            return [self.data_queue[0], self.data_queue[1], self.data_queue[2], self.data_queue[3]]
         except Exception as e:
             logger.error(f"Error getting latest labjack data: {e}")
-            return [None] * 3
+            return [None] * 4

@@ -36,8 +36,9 @@ class TeledyneDataReader:
             # Try to get latest data from queue
             print(f"DEBUG: Teledyne data queue: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}")
             return [self.data_queue[0], self.data_queue[1], self.data_queue[2]]
-        except queue.Empty:
+        except Exception as e:
             # Return the last known data or None values if no data yet
+            logger.error(f"Error getting latest teledyne data: {e}")
             return [None] * 3
             
     def _monitor_file(self):
@@ -88,16 +89,10 @@ class TeledyneDataReader:
                                         return [None] * 3
                                     
                                     # Put data in queue, replacing old data if queue is full                                    
-                                    # Clear queue before putting new data
-                                    while not self.data_queue.empty():
-                                        try:
-                                            self.data_queue.get_nowait()
-                                        except queue.Empty:
-                                            break
                                             
-                                    self.data_queue[0] = flow_values[0]
-                                    self.data_queue[1] = flow_values[1]
-                                    self.data_queue[2] = flow_values[2]
+                                    self.data_queue[0] = flow_values[0] ### Seperator Flow 
+                                    self.data_queue[1] = flow_values[1] ### Magnet Flow 
+                                    self.data_queue[2] = flow_values[2] ### Main Flow 
                                     logger.debug(f"New teledyne data: {timestamp}, {flow_values[0]}, {flow_values[1]}, {flow_values[2]}")
                                     
                                 except (ValueError, IndexError) as e:

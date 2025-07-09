@@ -25,16 +25,17 @@ CREATE TABLE IF NOT EXISTS HMI (
 
 CREATE TABLE IF NOT EXISTS Pressures (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  Pressure_1 FLOAT NOT NULL,
-  Pressure_2 FLOAT NOT NULL,
-  Pressure_3 FLOAT NOT NULL,
+  Root_Exhaust_Pressure FLOAT NOT NULL,
+  Buffer_Pressure FLOAT NOT NULL,
+  Magnet_Pressure FLOAT NOT NULL,
+  Purifier_Inlet_Pressure FLOAT NOT NULL,
   "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS Flow_Rates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  Flow_1 FLOAT NOT NULL,
-  Flow_2 FLOAT NOT NULL,
-  Flow_3 FLOAT NOT NULL,
+  Seperator_Flow FLOAT NOT NULL,
+  Magnet_Flow FLOAT NOT NULL,
+  Main_Flow FLOAT NOT NULL,
   "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );

@@ -15,13 +15,12 @@ import logging
 from datetime import datetime, timezone
 import os
 import threading
-from collections import deque
-import queue
 import sqlite3
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
 import pytz
 import numpy as np
+import argparse
 
 # Configure timezone
 EST = pytz.timezone('America/New_York')
@@ -49,10 +48,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Add file handler with more detailed format for debugging
-debug_handler = logging.FileHandler('data_acquisition_debug.log')
-debug_handler.setLevel(logging.DEBUG)
-debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
-logger.addHandler(debug_handler)
+
+if args.debug:
+    debug_handler = logging.FileHandler('data_acquisition_debug.log')
+    debug_handler.setLevel(logging.DEBUG)
+    debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
+    logger.addHandler(debug_handler)
 
 # Import configuration
 try:
@@ -104,14 +105,33 @@ labels = [
 # Define labels for teledyne flow data
 teledyne_labels = [
     "teledyne_timestamp",
-    "teledyne_flow_1",
-    "teledyne_flow_2", 
-    "teledyne_flow_3"
+    "Seperator_Flow",
+    "Magnet_Flow", 
+    "Main_Flow"
 ]
 
 Pressure_labels = [
-    "Pressure_1"
+    "Root_Exhaust_Pressure",
+    "Buffer_Pressure",
+    "Magnet_Pressure",
+    "Purifier_Inlet_Pressure"
 ]
+
+if args.debug:
+    logger.info("DEBUG: Debug mode enabled")
+    logger.info(f"DEBUG: Database path: {DATABASE_PATH}")
+    logger.info(f"DEBUG: Sleep interval: {SLEEP_INTERVAL} seconds")
+    logger.info(f"DEBUG: Teledyne CSV path: {TELEDYNE_CSV_PATH}")
+    logger.info(f"DEBUG: LabJack CSV path: {LABJACK_CSV_PATH}")
+    logger.info(f"DEBUG: PLC IP: {PLC_IP}")
+    logger.info(f"DEBUG: Unit ID: {UNIT_ID}")
+    logger.info(f"DEBUG: Integer Port: {INT_PORT}")
+    logger.info(f"DEBUG: Float Port: {FLOAT_PORT}")
+    logger.info(f"DEBUG: Number of registers to read: {NUM_REG_TO_READ}")
+    logger.info(f"DEBUG: Labels: {labels}")
+    logger.info(f"DEBUG: Teledyne labels: {teledyne_labels}")
+    logger.info(f"DEBUG: Pressure labels: {Pressure_labels}")
+    logger.info(f"DEBUG: Max consecutive failures: {MAX_CONSECUTIVE_FAILURES}")
 
 # Global teledyne reader instance
 teledyne_reader = None
@@ -206,17 +226,19 @@ def _read_HMI():
         logger.info(f"Processed {len(rounded_float_values)} float values")
         
         # Log each value with its corresponding label
-        for label, value in zip(labels, rounded_float_values[:18]):
-            logger.debug(f"{label}: {value}")
+        if args.debug:
+            for label, value in zip(labels, rounded_float_values[:18]):
+                logger.debug(f"{label}: {value}")
         
         # Ensure we have exactly 18 values for HMI data
         if len(rounded_float_values) >= 18:
             hmi_data = rounded_float_values[:18]
-            logger.info("Successfully read all HMI data:")
-            logger.info("First 3 values:")
-            for i in range(3):
-                logger.info(f"  {labels[i]}: {hmi_data[i]}")
-            logger.info("... (15 more values)")
+            logger.info("Successfully read all HMI data")
+            if args.debug:
+                logger.info("First 3 values:")
+                for i in range(3):
+                    logger.info(f"  {labels[i]}: {hmi_data[i]}")
+                logger.info("... (15 more values)")
             return hmi_data
         else:
             logger.error(f"Not enough float values: got {len(rounded_float_values)}, need 18")
@@ -224,7 +246,8 @@ def _read_HMI():
         
     except Exception as e:
         logger.error(f"Error reading Modbus data: {e}")
-        logger.error(f"Exception details:", exc_info=True)  # This will log the full traceback
+        if args.debug:
+            logger.error(f"Exception details:", exc_info=True)  # This will log the full traceback
         return None
     finally:
         try:
@@ -248,7 +271,7 @@ def read_labjack_data():
     global labjack_reader
     
     if labjack_reader is None:
-        return [None] * 3  # Return None for 3 pressure values
+        return [None] * 4  # Return None for 4 pressure values
         
     return labjack_reader.get_latest_data()
 
@@ -272,7 +295,8 @@ def insert_hmi_data(data):
         ''', data + [get_current_est_time()])
         
         conn.commit()
-        logger.info(f"Inserted HMI data: {data[:3]}...")
+        if args.debug:
+            logger.info(f"DEBUG: Inserted HMI data: {data[:3]}...")
         return True
     except Exception as e:
         logger.error(f"Error inserting HMI data: {e}")
@@ -282,21 +306,19 @@ def insert_hmi_data(data):
 
 def insert_teledyne_data(flow_data):
     """Insert Teledyne data into the flow_rates table"""
-    if len(flow_data) != 3:
-        logger.error(f"Expected 3 flow values, got {len(flow_data)}")
-        return False
         
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     try:
         cursor.execute('''
-            INSERT INTO Flow_Rates (Flow_1, Flow_2, Flow_3, "Timestamp") 
+            INSERT INTO Flow_Rates (Seperator_Flow, Magnet_Flow, Main_Flow, "Timestamp") 
             VALUES (?, ?, ?, ?)
         ''', flow_data + [get_current_est_time()])
         
         conn.commit()
-        logger.info(f"Inserted Teledyne data: {flow_data}")
+        if args.debug:
+            logger.info(f"DEBUG: Inserted Teledyne data: {flow_data}")
         return True
     except Exception as e:
         logger.error(f"Error inserting Teledyne data: {e}")
@@ -311,12 +333,13 @@ def insert_labjack_data(pressure_data):
     
     try:
         cursor.execute('''
-            INSERT INTO Pressures (Pressure_1, Pressure_2, Pressure_3, "Timestamp") 
-            VALUES (?, ?, ?, ?)
-        ''', (pressure_data[0], pressure_data[1], pressure_data[2], get_current_est_time()))
+            INSERT INTO Pressures (Root_Exhaust_Pressure, Buffer_Pressure, Magnet_Pressure, Purifier_Inlet_Pressure, "Timestamp") 
+            VALUES (?, ?, ?, ?, ?)
+        ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], get_current_est_time()))
         
         conn.commit()
-        logger.info(f"Inserted LabJack data: {pressure_data}")
+        if args.debug:
+            logger.info(f"DEBUG: Inserted LabJack data: {pressure_data}")
         return True
     except Exception as e:
         logger.error(f"Error inserting LabJack data: {e}")
@@ -329,64 +352,82 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
     success = True
     
     # Insert HMI/Modbus data
-    print("DEBUG: Attempting to insert HMI data")
+    if args.debug:
+        print("DEBUG: Attempting to insert HMI data")
     if modbus_data is not None:
         if not insert_hmi_data(modbus_data):
             success = False
             logger.error("Failed to insert HMI data")
     
     # Insert Teledyne data
-    print("DEBUG: Attempting to insert Teledyne data")
+    if args.debug:
+        print("DEBUG: Attempting to insert Teledyne data")
     if teledyne_data is not None:
-        flow_1 = teledyne_data[0]
-        flow_2 = teledyne_data[1]
-        flow_3 = teledyne_data[2]
-        if all(v is not None for v in [flow_1, flow_2, flow_3]):
-            if not insert_teledyne_data([flow_1, flow_2, flow_3]):
+        seperator_flow = teledyne_data[0]
+        magnet_flow = teledyne_data[1]
+        main_flow = teledyne_data[2]
+        if all(v is not None for v in [seperator_flow, magnet_flow, main_flow]):
+            if not insert_teledyne_data([seperator_flow, magnet_flow, main_flow]):
                 success = False
                 logger.error("Failed to insert Teledyne data")
         else:
             logger.warning("Missing required teledyne flow values. Inserting None values instead...")
-            flow_1 = flow_2 = flow_3 = None
-            insert_teledyne_data([flow_1, flow_2, flow_3])
+            seperator_flow = magnet_flow = main_flow = None
+            insert_teledyne_data([seperator_flow, magnet_flow, main_flow])
+    else:
+        if args.debug:
+            print("DEBUG: Successfully inserted Teledyne data")
             
     
     # Insert LabJack data
-    print("DEBUG: Attempting to insert LabJack data")
+    if args.debug:
+        print("DEBUG: Attempting to insert LabJack data")
     if labjack_data is not None:
-        pressure_1 = labjack_data[0]
-        pressure_2 = labjack_data[1]
-        pressure_3 = labjack_data[2]
+        root_exhaust_pressure = labjack_data[0]
+        buffer_pressure = labjack_data[1]
+        magnet_pressure = labjack_data[2]
+        purifier_inlet_pressure = labjack_data[3]
 
-        print(f"DEBUG:Pressure 1: {pressure_1}, Pressure 2: {pressure_2}, Pressure 3: {pressure_3}")
-        if pressure_1 is not None:
-            if not insert_labjack_data([pressure_1, pressure_2, pressure_3]):
+        if args.debug:
+            print(f"DEBUG:Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}")
+        if root_exhaust_pressure is not None:
+            if not insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure]):
                 success = False
                 logger.error("Failed to insert LabJack data")
         else:
             logger.warning("Missing LabJack pressure value. Inserting None values instead...")
-            pressure_1 = pressure_2 = pressure_3 = None
-            insert_labjack_data([pressure_1, pressure_2, pressure_3])
+            root_exhaust_pressure = buffer_pressure = magnet_pressure = purifier_inlet_pressure = None
+            insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure])
     else:
-        print(f"DEBUG: Successfully inserted data to database!")
+        if args.debug:
+            print(f"DEBUG: Successfully inserted data to database!")
     
     return success
 
 
 def main():
     """Main data acquisition loop"""
+    parser = argparse.ArgumentParser(description='Data Acquisition System')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+
     global teledyne_reader, labjack_reader
-    
-    logger.info("Starting Data Acquisition System with Direct Database Pipeline")
-    logger.info(f"Database path: {DATABASE_PATH}")
-    logger.info(f"Sleep interval: {SLEEP_INTERVAL} seconds")
-    logger.info(f"Teledyne CSV path: {TELEDYNE_CSV_PATH}")
-    logger.info(f"LabJack CSV path: {LABJACK_CSV_PATH}")
+    if args.debug:
+        logger.info("Starting Data Acquisition System with Direct Database Pipeline")
+        logger.info(f"Database path: {DATABASE_PATH}")
+        logger.info(f"Sleep interval: {SLEEP_INTERVAL} seconds")
+        logger.info(f"Teledyne CSV path: {TELEDYNE_CSV_PATH}")
+        logger.info(f"LabJack CSV path: {LABJACK_CSV_PATH}")
     
     # Ensure data directory exists
     ensure_data_directory()
     
     # Setup database
+    if args.debug:
+        logger.info("DEBUG: Setting up database")
     try:
         setup_database()
     except Exception as e:
@@ -397,7 +438,8 @@ def main():
     try:
         teledyne_reader = TeledyneDataReader(TELEDYNE_CSV_PATH, TELEDYNE_CHECK_INTERVAL)
         teledyne_reader.start()
-        logger.info("Teledyne data reader started")
+        if args.debug:
+            logger.info("DEBUG: Teledyne data reader started")
     except Exception as e:
         logger.error(f"Error starting teledyne data reader: {e}")
     
@@ -405,7 +447,8 @@ def main():
     try:
         labjack_reader = LabJackReader(LABJACK_CSV_PATH, LABJACK_CHECK_INTERVAL)
         labjack_reader.start()
-        logger.info("LabJack data reader started")
+        if args.debug:
+            logger.info("DEBUG: LabJack data reader started")
     except Exception as e:
         logger.error(f"Error starting labjack data reader: {e}")
     

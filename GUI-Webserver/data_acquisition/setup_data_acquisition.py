@@ -8,6 +8,10 @@ import os
 import sys
 import subprocess
 from pathlib import Path
+import argparse
+import logging
+
+logger = logging.getLogger(__name__)
 
 def check_dependencies():
     """Check if required packages are installed"""
@@ -110,6 +114,14 @@ def create_data_directory():
 
 def main():
     """Main setup function"""
+    parser = argparse.ArgumentParser(description='Data Acquisition Setup')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        logger.info("DEBUG: Debug mode enabled")
+
     print("Data Acquisition Setup")
     print("=" * 40)
     print("This script will help you set up the data acquisition system")

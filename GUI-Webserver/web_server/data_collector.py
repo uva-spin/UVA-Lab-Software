@@ -141,7 +141,7 @@ class DataCollector:
             
             # Get latest Teledyne data
             cursor.execute("""
-                SELECT Flow_1, Flow_2, Flow_3, "Timestamp"
+                SELECT seperator_flow, magnet_flow, main_flow, "Timestamp"
                 FROM Flow_Rates 
                 ORDER BY "Timestamp" DESC 
                 LIMIT 1
@@ -149,9 +149,9 @@ class DataCollector:
             teledyne_data = cursor.fetchone()
             if teledyne_data:
                 combined_data.update({
-                    'Flow_1': teledyne_data[0],
-                    'Flow_2': teledyne_data[1],
-                    'Flow_3': teledyne_data[2],
+                    'seperator_flow': teledyne_data[0],
+                    'magnet_flow': teledyne_data[1],
+                    'main_flow': teledyne_data[2],
                     'teledyne_timestamp': teledyne_data[3]
                 })
             
@@ -250,7 +250,7 @@ class DataCollector:
             ''', data)
             
             conn.commit()
-            logger.info(f"Inserted HMI data: {data[:3]}...")
+            logger.info(f"Inserted HMI data!")
             return True
         except Exception as e:
             logger.error(f"Error inserting HMI data: {e}")
@@ -262,14 +262,18 @@ class DataCollector:
         """Insert LabJack data into the labjack table as per schema"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+
+        if len(pressure_data) != 4:
+            logger.error(f"Expected 4 pressure values, got {len(pressure_data)}")
+            return False
         
         try:
             cursor.execute('''
-                INSERT INTO labjack (Pressure_1, Pressure_2, Pressure_3) VALUES (?, ?, ?)
-            ''', (pressure_data[0], pressure_data[1], pressure_data[2]))
+                INSERT INTO labjack (Root_Exhaust_Pressure, Buffer_Pressure, Magnet_Pressure, Purifier_Inlet_Pressure) VALUES (?, ?, ?, ?)
+            ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3]))
             
             conn.commit()
-            logger.info(f"Inserted LabJack data: {pressure_data}")
+            logger.info(f"Inserted LabJack data!")
             return True
         except Exception as e:
             logger.error(f"Error inserting LabJack data: {e}")
@@ -288,11 +292,11 @@ class DataCollector:
         
         try:
             cursor.execute('''
-                INSERT INTO teledyne (Flow_1, Flow_2, Flow_3) VALUES (?, ?, ?)
+                INSERT INTO teledyne (Seperator_Flow, Magnet_Flow, Main_Flow) VALUES (?, ?, ?)
             ''', flow_data)
             
             conn.commit()
-            logger.info(f"Inserted Teledyne data: {flow_data}")
+            logger.info(f"Inserted Teledyne data!")
             return True
         except Exception as e:
             logger.error(f"Error inserting Teledyne data: {e}")
@@ -321,11 +325,11 @@ class DataCollector:
         if 'teledyne_data' in combined_data:
             teledyne_data = combined_data['teledyne_data']
             if isinstance(teledyne_data, dict):
-                flow_1 = teledyne_data.get('Flow_1')
-                flow_2 = teledyne_data.get('Flow_2')
-                flow_3 = teledyne_data.get('Flow_3')
-                if all(v is not None for v in [flow_1, flow_2, flow_3]):
-                    success &= self.insert_teledyne_data([flow_1, flow_2, flow_3])
+                seperator_flow = teledyne_data.get('Seperator_Flow')
+                magnet_flow = teledyne_data.get('Magnet_Flow')
+                main_flow = teledyne_data.get('Main_Flow')
+                if all(v is not None for v in [seperator_flow, magnet_flow, main_flow]):
+                    success &= self.insert_teledyne_data([seperator_flow, magnet_flow, main_flow])
                 else:
                     logger.error("Missing required teledyne flow values")
                     success = False
@@ -394,102 +398,102 @@ def root():
     """Serve the main plotting interface"""
     return render_template('index.html')
 
-@app.route('/query_db', methods=['GET'])
-def query_db():
-    """Query database for plotting data from respective tables"""
-    try:
-        # Get parameters from request
-        keys = request.args.get('keys', '').split(',')
-        start_time = request.args.get('start_time', '')
-        end_time = request.args.get('end_time', '')
-        table_name = request.args.get('table', None)  # None means all tables
+# @app.route('/query_db', methods=['GET'])
+# def query_db():
+#     """Query database for plotting data from respective tables"""
+#     try:
+#         # Get parameters from request
+#         keys = request.args.get('keys', '').split(',')
+#         start_time = request.args.get('start_time', '')
+#         end_time = request.args.get('end_time', '')
+#         table_name = request.args.get('table', None)  # None means all tables
         
-        # Filter out empty keys
-        keys = [key.strip() for key in keys if key.strip()]
+#         # Filter out empty keys
+#         keys = [key.strip() for key in keys if key.strip()]
         
-        if not keys:
-            return jsonify({"error": "No keys provided"}), 400
+#         if not keys:
+#             return jsonify({"error": "No keys provided"}), 400
         
-        # Get available columns by table
-        columns_by_table = collector.get_available_columns_by_table()
+#         # Get available columns by table
+#         columns_by_table = collector.get_available_columns_by_table()
         
-        # Check which tables contain the requested keys
-        valid_keys_by_table = {}
-        invalid_keys = []
+#         # Check which tables contain the requested keys
+#         valid_keys_by_table = {}
+#         invalid_keys = []
         
-        for key in keys:
-            key_found = False
-            for table, table_columns in columns_by_table.items():
-                if key in table_columns:
-                    if table not in valid_keys_by_table:
-                        valid_keys_by_table[table] = []
-                    valid_keys_by_table[table].append(key)
-                    key_found = True
-                    break
+#         for key in keys:
+#             key_found = False
+#             for table, table_columns in columns_by_table.items():
+#                 if key in table_columns:
+#                     if table not in valid_keys_by_table:
+#                         valid_keys_by_table[table] = []
+#                     valid_keys_by_table[table].append(key)
+#                     key_found = True
+#                     break
             
-            if not key_found:
-                invalid_keys.append(key)
+#             if not key_found:
+#                 invalid_keys.append(key)
         
-        if invalid_keys:
-            logger.warning(f"Requested columns not found in any table: {invalid_keys}")
+#         if invalid_keys:
+#             logger.warning(f"Requested columns not found in any table: {invalid_keys}")
         
-        if not valid_keys_by_table:
-            return jsonify({"error": "No valid columns provided", "invalid_keys": invalid_keys}), 400
+#         if not valid_keys_by_table:
+#             return jsonify({"error": "No valid columns provided", "invalid_keys": invalid_keys}), 400
         
-        # Get data from tables that contain the requested keys
-        data_by_table = collector.get_data_by_time_range(
-            start_time=start_time, 
-            end_time=end_time, 
-            table_name=table_name
-        )
+#         # Get data from tables that contain the requested keys
+#         data_by_table = collector.get_data_by_time_range(
+#             start_time=start_time, 
+#             end_time=end_time, 
+#             table_name=table_name
+#         )
         
-        # Filter data to only include tables that have the requested keys
-        filtered_data_by_table = {}
-        for table, table_data in data_by_table.items():
-            if table in valid_keys_by_table:
-                filtered_data_by_table[table] = table_data
+#         # Filter data to only include tables that have the requested keys
+#         filtered_data_by_table = {}
+#         for table, table_data in data_by_table.items():
+#             if table in valid_keys_by_table:
+#                 filtered_data_by_table[table] = table_data
         
-        # Combine data from all relevant tables
-        combined_data = []
-        available_keys = set()
+#         # Combine data from all relevant tables
+#         combined_data = []
+#         available_keys = set()
         
-        for table, table_data in filtered_data_by_table.items():
-            for record in table_data:
-                # Add table prefix to timestamp to avoid conflicts
-                if '"Timestamp"' in record:
-                    record[f'{table}_timestamp'] = record.pop('"Timestamp"')
+#         for table, table_data in filtered_data_by_table.items():
+#             for record in table_data:
+#                 # Add table prefix to timestamp to avoid conflicts
+#                 if '"Timestamp"' in record:
+#                     record[f'{table}_timestamp'] = record.pop('"Timestamp"')
                 
-                # Track available keys
-                available_keys.update(record.keys())
-                combined_data.append(record)
+#                 # Track available keys
+#                 available_keys.update(record.keys())
+#                 combined_data.append(record)
         
-        # Get all valid keys that were actually found in the data
-        all_valid_keys = []
-        for table_keys in valid_keys_by_table.values():
-            all_valid_keys.extend(table_keys)
+#         # Get all valid keys that were actually found in the data
+#         all_valid_keys = []
+#         for table_keys in valid_keys_by_table.values():
+#             all_valid_keys.extend(table_keys)
         
-        # Filter records to only include requested keys that are available
-        final_valid_keys = [key for key in all_valid_keys if key in available_keys]
-        filtered_data = []
-        for record in combined_data:
-            filtered_record = {}
-            for key in final_valid_keys:
-                if key in record:
-                    filtered_record[key] = record[key]
-            if filtered_record:  # Only add if we have some data
-                filtered_data.append(filtered_record)
+#         # Filter records to only include requested keys that are available
+#         final_valid_keys = [key for key in all_valid_keys if key in available_keys]
+#         filtered_data = []
+#         for record in combined_data:
+#             filtered_record = {}
+#             for key in final_valid_keys:
+#                 if key in record:
+#                     filtered_record[key] = record[key]
+#             if filtered_record:  # Only add if we have some data
+#                 filtered_data.append(filtered_record)
         
-        return jsonify({
-            "tables_queried": list(filtered_data_by_table.keys()),
-            "columns": final_valid_keys,
-            "data": filtered_data,
-            "invalid_keys": invalid_keys,
-            "columns_by_table": valid_keys_by_table
-        }), 200
+#         return jsonify({
+#             "tables_queried": list(filtered_data_by_table.keys()),
+#             "columns": final_valid_keys,
+#             "data": filtered_data,
+#             "invalid_keys": invalid_keys,
+#             "columns_by_table": valid_keys_by_table
+#         }), 200
         
-    except Exception as e:
-        logger.error(f"Error querying database: {e}")
-        return jsonify({"error": str(e)}), 500
+#     except Exception as e:
+#         logger.error(f"Error querying database: {e}")
+#         return jsonify({"error": str(e)}), 500
 
 @app.route('/receive_hmi_data', methods=['POST'])
 def receive_hmi_data():
