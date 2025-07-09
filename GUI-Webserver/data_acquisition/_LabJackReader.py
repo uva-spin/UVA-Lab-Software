@@ -22,7 +22,6 @@ class LabJackReader:
         self.running = False
         self.thread = None
         self.device = None
-        self.last_known_values = [None, None, None]  # Store last known good values
         self.avg_pressure1 = None
         self.avg_pressure2 = None
         self.avg_pressure3 = None
@@ -181,6 +180,9 @@ class LabJackReader:
                     logger.info(f"Data written to queue, average R2 - Pressure 1: {avg_pressure1}, Pressure 2: {avg_pressure2}, Pressure 3: {avg_pressure3}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
+            # Don't sleep here, let the data_stream method handle the delay
+
+
 
     def data_stream(self):
         """Read data from LabJack"""
@@ -197,9 +199,8 @@ class LabJackReader:
         try:
             logger.info(f"Getting latest Pressure data from queue")
             print(f"DEBUG: Pressure data queue size: {self.data_queue.qsize()}")
-            print(f"DEBUG: Pressure data queue: {self.data_queue.queue}")
-            self.last_known_values = self.data_queue.get_nowait()
-            return self.last_known_values
+            print(f"DEBUG: Pressure data queue: {self.data_queue.get_nowait()}")
+            return self.data_queue.get_nowait()
         except queue.Empty:
-            logger.info("No new data in queue. Returning last known values...")
-            return self.last_known_values
+            logger.warning("No data in queue. Returning None values instead...")
+            return [None] * 3
