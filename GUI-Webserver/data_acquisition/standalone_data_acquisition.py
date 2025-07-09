@@ -367,33 +367,6 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
     
     return success
 
-# def save_to_local_csv(data, csv_data):
-#     """Save data to local CSV file as backup"""
-#     try:
-#         timestamp = get_current_est_time()
-#         filename = os.path.join(LOCAL_CSV_DIR, f"hmi_data_{timestamp}.csv")
-        
-#         # Check if file exists to determine if we need to write headers
-#         file_exists = os.path.exists(filename)
-        
-#         with open(filename, 'a', newline='') as csvfile:
-#             writer = csv.writer(csvfile)
-            
-#             if not file_exists:
-#                 # Write headers
-#                 header_row = ['timestamp (EST)'] + labels + teledyne_labels + Pressure_labels
-#                 writer.writerow(header_row)
-            
-#             # Write data row
-#             data_row = [timestamp] + csv_data
-#             writer.writerow(data_row)
-        
-#         logger.debug(f"Data saved to local CSV: {filename}")
-#         return True
-        
-#     except Exception as e:
-#         logger.error(f"Error saving to local CSV: {e}")
-#         return False
 
 def main():
     """Main data acquisition loop"""
@@ -465,65 +438,6 @@ def main():
                 
                 if not db_success:
                     logger.warning("Some data failed to insert into database \n")
-                
-                # Create combined data for CSV backup
-                # combined_data = {
-                #     'timestamp': get_current_est_time(),
-                #     'modbus_data': modbus_data,
-                #     'teledyne_data': teledyne_data,
-                #     'labjack_data': labjack_data
-                # }
-                
-                # Create CSV data for backup
-                # csv_data = modbus_data.copy()
-                
-                ### This is all for csv backing up, don't worry about it for now.
-
-                # if teledyne_data:
-                #     # Convert teledyne timestamp to EST if it exists
-                #     teledyne_timestamp = teledyne_data.get('Timestamp')
-                #     if teledyne_timestamp:
-                #         try:
-                #             # Parse the timestamp and convert to EST
-                #             teledyne_dt = datetime.fromisoformat(teledyne_timestamp)
-                #             teledyne_timestamp = utc_to_est_str(teledyne_dt)
-                #         except ValueError:
-                #             logger.warning(f"Could not parse teledyne timestamp: {teledyne_timestamp}")
-                    
-                #     csv_data.extend([
-                #         teledyne_timestamp or '',
-                #         teledyne_data.get('flow_1', ''),
-                #         teledyne_data.get('flow_2', ''),
-                #         teledyne_data.get('flow_3', '')
-                #     ])
-                # else:
-                #     csv_data.extend(['', '', '', ''])
-                
-                # if labjack_data:
-                #     # Convert labjack timestamp to EST if it exists
-                #     labjack_timestamp = labjack_data.get('Timestamp')
-                #     if labjack_timestamp:
-                #         try:
-                #             # Parse the timestamp and convert to EST
-                #             labjack_dt = datetime.fromisoformat(labjack_timestamp)
-                #             labjack_timestamp = utc_to_est_str(labjack_dt)
-                #         except ValueError:
-                #             logger.warning(f"Could not parse labjack timestamp: {labjack_timestamp}")
-                    
-                #     csv_data.extend([
-                #         labjack_timestamp or '',
-                #         labjack_data.get('Pressure_1', '')
-                #     ])
-                # else:
-                #     csv_data.extend(['', ''])
-                
-
-                ### Dont' worry about this right now (only teledyne needs to be saved as csv, for now...)
-                # # Always save locally as backup
-                # csv_success = save_to_local_csv(combined_data, csv_data)
-                
-                # if not csv_success:
-                #     logger.warning("Failed to save CSV backup")
                 
                 # Wait before next reading
                 time.sleep(SLEEP_INTERVAL)

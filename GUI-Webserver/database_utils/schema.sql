@@ -1,6 +1,3 @@
--- Modified schema to preserve existing data
--- Use CREATE TABLE IF NOT EXISTS instead of DROP TABLE
-
 CREATE TABLE IF NOT EXISTS HMI (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
 
