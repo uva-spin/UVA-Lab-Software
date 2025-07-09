@@ -196,9 +196,8 @@ class LabJackReader:
         """Get the latest data from the data queue"""
         try:
             logger.info(f"Getting latest Pressure data from queue")
-            print(f"DEBUG: Pressure data queue size: {self.data_queue.qsize()}")
             print(f"DEBUG: Pressure data queue: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}")
             return [self.data_queue[0], self.data_queue[1], self.data_queue[2]]
-        except queue.Empty:
-            logger.warning("No data in queue. Returning None values instead...")
+        except Exception as e:
+            logger.error(f"Error getting latest labjack data: {e}")
             return [None] * 3
