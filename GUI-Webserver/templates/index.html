@@ -169,13 +169,13 @@
                     backgroundOpacity: 0,
                     labelBoxBorderColor: 'transparent',
                     show: true,
+                    container: $('#legend-container'),
                     // noColumns: 1,
                     // margin: [10, 10],
                     // Add legend color support for dark mode:
                     labelFormatter: function(label, series) {
                         return '<span style="color: ' + (isDarkMode ? '#ffffff' : '#333333') + '">' + label + '</span>';
                     }
-
                 },
                 grid: {
                     hoverable: true,
@@ -763,6 +763,7 @@
                 <h2 id="chart-title">Select Data Entries</h2>
             </div>
             <div id="chart" class="chart-container"></div>
+            <div id="legend-container" class="legend-container"></div>
         </section>
 
         <!-- Data Selection Panel -->
