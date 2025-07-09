@@ -1,5 +1,4 @@
 import os
-import queue
 import threading
 import time
 import logging
@@ -14,7 +13,7 @@ class TeledyneDataReader:
         self.csv_path = csv_path
         self.check_interval = check_interval
         self.last_position = 0
-        self.data_queue = queue.Queue()
+        self.data_queue = [None, None, None]
         self.running = False
         self.thread = None
         
@@ -35,10 +34,8 @@ class TeledyneDataReader:
         """Get the latest teledyne data"""
         try:
             # Try to get latest data from queue
-            data1 = self.data_queue.get_nowait()
-            data2 = self.data_queue.get_nowait()
-            data3 = self.data_queue.get_nowait()
-            return [data1, data2, data3]
+            print(f"DEBUG: Teledyne data queue: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}")
+            return [self.data_queue[0], self.data_queue[1], self.data_queue[2]]
         except queue.Empty:
             # Return the last known data or None values if no data yet
             return [None] * 3
@@ -98,9 +95,9 @@ class TeledyneDataReader:
                                         except queue.Empty:
                                             break
                                             
-                                    self.data_queue.put(flow_values[0])
-                                    self.data_queue.put(flow_values[1])
-                                    self.data_queue.put(flow_values[2])
+                                    self.data_queue[0] = flow_values[0]
+                                    self.data_queue[1] = flow_values[1]
+                                    self.data_queue[2] = flow_values[2]
                                     logger.debug(f"New teledyne data: {timestamp}, {flow_values[0]}, {flow_values[1]}, {flow_values[2]}")
                                     
                                 except (ValueError, IndexError) as e:
