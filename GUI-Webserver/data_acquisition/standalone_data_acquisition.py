@@ -282,8 +282,8 @@ def insert_hmi_data(data):
 
 def insert_teledyne_data(flow_data):
     """Insert Teledyne data into the flow_rates table"""
-    if len(flow_data) != len(teledyne_labels):
-        logger.error(f"Expected {len(teledyne_labels)} flow values, got {len(flow_data)}")
+    if len(flow_data) != 3:
+        logger.error(f"Expected 3 flow values, got {len(flow_data)}")
         return False
         
     conn = sqlite3.connect(DATABASE_PATH)
@@ -367,8 +367,8 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
             logger.warning("Missing LabJack pressure value. Inserting None values instead...")
             pressure_1 = pressure_2 = pressure_3 = None
             insert_labjack_data([pressure_1, pressure_2, pressure_3])
-
-    print(f"Successfully inserted data to database!")
+    else:
+        print(f"DEBUG: Successfully inserted data to database!")
     
     return success
 
