@@ -21,6 +21,9 @@ from _LabJackReader import LabJackReader
 import pytz
 import argparse
 
+# Global args variable for command line arguments
+args = None
+
 # Configure timezone
 EST = pytz.timezone('America/New_York')
 
@@ -382,6 +385,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
 
 def main():
     """Main data acquisition loop"""
+    global args
     parser = argparse.ArgumentParser(description='Data Acquisition System')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
     args = parser.parse_args()
