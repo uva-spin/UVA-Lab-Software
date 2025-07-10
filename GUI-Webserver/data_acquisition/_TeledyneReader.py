@@ -3,8 +3,11 @@ import threading
 import time
 import logging
 import numpy as np
+from pyModbusTCP.client import ModbusClient
+
 
 logger = logging.getLogger(__name__)
+
 
 class TeledyneDataReader:
     """Thread-safe class to read teledyne flow data in real-time"""
@@ -14,8 +17,54 @@ class TeledyneDataReader:
         self.check_interval = check_interval
         self.last_position = 0
         self.data_queue = [None, None, None]
-        self.running = False
+        self.running = False    
         self.thread = None
+        self.TELEDYNE_THCD_401_TCP_PORT = 101
+        self.TELEDYNE_THCD_401_TCP_IP = "192.168.1.180"
+        self.TELEDYNE_THCD_401_TCP_UNIT_ID = 1
+
+
+    def _read_integer_registers(self):
+        """Read integer registers from Modbus TCP server"""
+        try:
+            client = ModbusClient(host=self.TELEDYNE_THCD_401_TCP_IP, port=self.TELEDYNE_THCD_401_TCP_PORT, unit_id=1)
+            int_regs = client.read_holding_registers(0, 3)
+            if int_regs:
+                int_values = self._get_list_2comp(int_regs, 16)
+                logger.info(f'Successfully read integer values: {int_values[:3]}... ({len(int_values)} values)')
+                return int_values
+            else:
+                logger.warning(f"Failed to read integer registers from {self.TELEDYNE_THCD_401_TCP_IP}:{self.TELEDYNE_THCD_401_TCP_PORT}")
+                return None
+        except Exception as e:
+            logger.error(f"Error reading integer registers from Teledyne THCD-401: {e}")
+            return None
+        
+    def _read_float_registers(self):
+        """Read float registers from Modbus TCP server"""
+        try:
+            client = ModbusClient(host=self.TELEDYNE_THCD_401_TCP_IP, port=self.TELEDYNE_THCD_401_TCP_PORT, unit_id=1)
+            float_regs = client.read_holding_registers(3, 3)
+            if float_regs:
+                float_values = self._get_list_2comp(float_regs, 16)
+                logger.info(f'Successfully read float values: {float_values[:3]}... ({len(float_values)} values)')
+                return float_values
+            else:
+                logger.warning(f"Failed to read float registers from {self.TELEDYNE_THCD_401_TCP_IP}:{self.TELEDYNE_THCD_401_TCP_PORT}")
+                return None
+        except Exception as e:
+            logger.error(f"Error reading float registers from Teledyne THCD-401: {e}")
+            return None
+        
+    def _get_list_2comp(self, regs, bits=16):
+        """Convert list of integer values to 2's complement"""
+        converted = []
+        max_value = 2 ** bits
+        for reg in regs:
+            if reg >= max_value:
+                reg = reg - (2 ** bits)
+            converted.append(reg)
+        return converted
         
     def start(self):
         """Start the teledyne data reading thread"""
@@ -111,3 +160,6 @@ class TeledyneDataReader:
                 logger.error(f"Error monitoring teledyne file: {e}")
                 
             time.sleep(self.check_interval)
+
+
+    
