@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UVA Polarized Target Group Lab 036 System Panel</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flot@4.2.6/dist/es5/jquery.flot.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <script src="js/script.js"></script>
+
+    <script>
+        // Global variables
+        let hours = 1;
+        let minutes = 0;
+        let seconds = 0;
+        let updateTime = 5;
+        let remainingTime = null;
+        let timerInterval = null;
+        let selectedKeys = [];
+        let isDarkMode = false;
+        let availableColumns = [];
+
+        // Theme management
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            const isDark = html.getAttribute('data-theme') === 'dark';
+            
+            if (isDark) {
+                html.setAttribute('data-theme', 'light');
+                themeIcon.className = 'fas fa-moon';
+                isDarkMode = false;
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                themeIcon.className = 'fas fa-sun';
+                isDarkMode = true;
+            }
+            
+            updateChartTheme();
+        }
+
+        // Update chart theme based on current mode
+        function updateChartTheme() {
+            if (selectedKeys.length === 0) {
+                updateEmptyChartDisplay();
+            }
+        }
+
+        // Dynamic RGB gradient animation for empty chart
+        function updateEmptyChartDisplay() {
+            const chartContainer = document.getElementById('chart');
+            chartContainer.innerHTML = `
+                <div class="empty-chart-container">
+                    <div class="gradient-text">
+                        <span class="swirling-text">Select Data Entries</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Generate evenly spaced time ticks based on time range
+        function generateTimeTicks(minTime, maxTime, numTicks = 10) {
+            const timeRange = maxTime - minTime;
+            const interval = timeRange / (numTicks - 1);
+            
+            const ticks = [];
+            for (let i = 0; i < numTicks; i++) {
+                const tickTime = minTime + (i * interval);
+                const date = new Date(tickTime);
+                
+                // Format based on time range
+                let timeFormat;
+                if (timeRange > 24 * 60 * 60 * 1000) { // > 1 day
+                    timeFormat = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                } else if (timeRange > 60 * 60 * 1000) { // > 1 hour
+                    timeFormat = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                } else if (timeRange > 60 * 1000) { // > 1 minute
+                    timeFormat = date.toLocaleTimeString([], {minute: '2-digit', second: '2-digit'});
+                } else { // < 1 minute
+                    timeFormat = date.toLocaleTimeString([], {second: '2-digit', fractionalSecondDigits: 3});
+                }
+                
+                ticks.push([tickTime, timeFormat]);
+            }
+            
+            return ticks;
+        }
+
+        // Function to update the plot
+        async function updatePlot(data, selectedColumns) {
+            console.log('Updating plot with data:', data);
+            console.log('Selected columns:', selectedColumns);
+
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                console.warn('No data available for plotting');
+                const chartContainer = document.getElementById('chart');
+                chartContainer.innerHTML = `
+                    <div class="error-container">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>No data available for the selected time range.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Create timestamps array and ensure they're properly parsed
+            const timestamps = data.map(point => {
+                const timestamp = typeof point.timestamp === 'string' ? 
+                    Date.parse(point.timestamp) : 
+                    Number(point.timestamp);
+                return timestamp;
+            });
+
+            const plotData = selectedColumns.map(column => {
+                const values = data.map(point => point[column]);
+                return {
+                    label: column,
+                    data: timestamps.map((t, i) => [t, values[i]]),
+                    points: { show: true, radius: 2 },
+                    lines: { show: true, lineWidth: 1 }
+                };
+            });
+
+            // Get actual timestamps from data for ticks
+            const sortedTimestamps = [...timestamps].sort((a, b) => a - b);
+            const minTime = sortedTimestamps[0];
+            const maxTime = sortedTimestamps[sortedTimestamps.length - 1];
+
+            const options = {
+                xaxis: {
+                    mode: "time",
+                    timezone: "browser",
+                    timeformat: "%H:%M:%S",
+                    min: minTime,
+                    max: maxTime,
+                    ticks: generateTimeTicks(minTime, maxTime, 10),
+                    tickLength: 5,
+                    axisLabel: 'Time (EST)',
+                    axisLabelUseCanvas: true,
+                    axisLabelFontSizePixels: 12,
+                    axisLabelFontFamily: 'Inter, sans-serif',
+                    color: isDarkMode ? '#ffffff' : '#333333',
+                    font: {
+                        color: isDarkMode ? '#ffffff' : '#333333'
+                    },
+                    tickColor: isDarkMode ? '#ffffff' : '#333333',
+                },
+                yaxis: {
+                    axisLabel: 'Value',
+                    axisLabelUseCanvas: true,
+                    color: isDarkMode ? '#ffffff' : '#333333',
+                    font: {
+                        color: isDarkMode ? '#ffffff' : '#333333'
+                    },
+                    tickColor: isDarkMode ? '#ffffff' : '#333333',
+                    tickFormatter: function(val, axis) {
+                        return val.toFixed(2);
+                    }
+                },
+                legend: {
+                    position: 'ne',
+                    backgroundOpacity: 0,
+                    labelBoxBorderColor: 'transparent',
+                    show: true,
+                    noColumns: 1,
+                    margin: [10, 10],
+                    labelFormatter: function(label) {
+                        return label;  
+                    }
+                },
+                grid: {
+                    hoverable: true,
+                    clickable: true,
+                    borderWidth: 1,
+                    color: isDarkMode ? '#444444' : '#dddddd',
+                    backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff'
+                },
+                tooltip: true,
+                tooltipOpts: {
+                    content: "%s: %y.2",
+                    xDateFormat: "%Y-%m-%d %H:%M:%S",
+                    defaultTheme: !isDarkMode
+                }
+            };
+
+            $('#chart').empty();
+            if (selectedColumns.length > 0) {
+                try {
+                    $.plot($('#chart'), plotData, options);
+
+                    // Add hover event for tooltips
+                    $("#chart").bind("plothover", function (event, pos, item) {
+                        if (item) {
+                            const x = new Date(item.datapoint[0]).toLocaleTimeString();
+                            const y = item.datapoint[1].toFixed(2);
+                            const series = item.series.label;
+                            
+                            $("#tooltip").remove();
+                            showTooltip(item.pageX, item.pageY,
+                                `${series}<br>${x}<br>${y}`);
+                        } else {
+                            $("#tooltip").remove();
+                        }
+                    });
+
+                } catch (error) {
+                    console.error('Error plotting data:', error);
+                    const chartContainer = document.getElementById('chart');
+                    chartContainer.innerHTML = `
+                        <div class="error-container">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Error plotting data: ${error.message}</p>
+                        </div>
+                    `;
+                }
+            } else {
+                updateEmptyChartDisplay();
+            }
+
+            // Update chart title
+            const titleElement = document.getElementById('chart-title');
+            if (selectedColumns.length === 1) {
+                titleElement.textContent = `${selectedColumns[0]} vs. Time`;
+            } else if (selectedColumns.length === 0) {
+                titleElement.textContent = 'No Data Selected';
+            } else {
+                titleElement.textContent = `Multiple Signals vs. Time`;
+            }
+        }
+
+        // Helper function to show tooltips
+        function showTooltip(x, y, contents) {
+            $('<div id="tooltip">' + contents + '</div>').css({
+                position: 'absolute',
+                display: 'none',
+                top: y + 5,
+                left: x + 5,
+                border: '1px solid ' + (isDarkMode ? '#666' : '#ddd'),
+                padding: '2px',
+                'background-color': isDarkMode ? '#333' : '#fff',
+                color: isDarkMode ? '#fff' : '#333',
+                'font-size': '12px',
+                'border-radius': '3px',
+                'box-shadow': '0 2px 4px rgba(0,0,0,0.1)',
+                'pointer-events': 'none',
+                'z-index': 1000
+            }).appendTo("body").fadeIn(200);
+        }
+
+        async function fetchDataFromDB(selectedKeys) {
+            // Calculate total milliseconds and time range
+            const totalMilliseconds = (hours * 3600 + minutes * 60 + seconds) * 1000;
+            const now = new Date();
+            const start = new Date(now.getTime() - totalMilliseconds); 
+            
+            // Format timestamps in YYYY-MM-DD HH:mm:ss format
+            const startTimeStr = start.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(',', '');
+
+            const endTimeStr = now.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(',', '');
+            
+            console.log('Fetching data for time range:', {
+                hours,
+                minutes,
+                seconds,
+                totalMilliseconds,
+                startTime: startTimeStr,
+                endTime: endTimeStr,
+                humanReadable: `${hours}h ${minutes}m ${seconds}s`
+            });
+            console.log('Selected keys:', selectedKeys);
+
+            const params = new URLSearchParams();
+            params.append('keys', selectedKeys.join(','));
+            params.append('start_time', startTimeStr);
+            params.append('end_time', endTimeStr);
+            
+            try {
+                const response = await fetch(`/recent_data?${params.toString()}`);
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error:', errorText);
+                    throw new Error('Failed to fetch data from server');
+                }
+
+                const result = await response.json();
+                console.log('Received data points:', result.data ? result.data.length : 0);
+                if (result.data && result.data.length > 0) {
+                    console.log('Time range of received data:',
+                        'from', new Date(result.data[0].timestamp).toISOString(),
+                        'to', new Date(result.data[result.data.length - 1].timestamp).toISOString()
+                    );
+                }
+                
+                return {
+                    data: result.data || [],
+                    availableKeys: result.available_keys || [],
+                    missingKeys: result.missing_keys || []
+                };
+            } catch (err) {
+                console.error('Error fetching from server:', err);
+                throw new Error('Error obtaining data from database. Retrying...');
+            }
+        }
+
+        async function fetchAvailableColumns() {
+            try {
+                const response = await fetch('/available_columns');
+                if (!response.ok) throw new Error('Failed to fetch available columns');
+                
+                const result = await response.json();
+                console.log('Available columns response:', result);
+                
+                if (result.columns && result.columns.length > 0) {
+                    return result.columns;
+                } else {
+                    console.warn('No columns available in database');
+                    return [];
+                }
+            } catch (err) {
+                console.error('Error fetching available columns:', err);
+                return [];
+            }
+        }
+
+        async function updateFromDB() {
+            const selectedKeys = Array.from(
+                document.querySelectorAll('input[type="checkbox"]:checked')
+            ).map(cb => cb.dataset.key);
+
+            if (selectedKeys.length === 0) {
+                updateEmptyChartDisplay();
+                document.getElementById('chart-title').textContent = 'No Data Selected';
+                return;
+            }
+
+            try {
+                const { data, missingKeys } = await fetchDataFromDB(selectedKeys);
+                
+                if (missingKeys && missingKeys.length > 0) {
+                    console.warn('Missing data for keys:', missingKeys);
+                }
+
+                await updatePlot(data, selectedKeys);
+                
+            } catch (error) {
+                console.error('Error updating from database:', error);
+                const chartContainer = document.getElementById('chart');
+                chartContainer.innerHTML = `
+                    <div class="error-container">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error fetching data: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function refreshUpdatetime() {
+            const display = document.getElementById('countdown');
+            display.textContent = remainingTime;
+
+            if (remainingTime > 0) {
+                remainingTime--;
+            } else {
+                startCountdownFromServer();
+            }
+        }
+
+        function updateLastUpdatedTime() {
+            const now = new Date();
+            const formatted = now.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+
+            document.getElementById('last-updated').textContent = `Last updated: ${formatted}`;
+        }
+
+        async function startCountdownFromServer() {
+            remainingTime = updateTime;
+
+            if (timerInterval) clearInterval(timerInterval);
+            refreshUpdatetime();
+            timerInterval = setInterval(refreshUpdatetime, 1000);
+
+            await updateFromDB();
+            updateLastUpdatedTime();
+        }
+
+        // Shutdown server function
+        async function shutdownServer() {
+            if (confirm('Are you sure you want to shutdown the server? This action cannot be undone.')) {
+                const button = event.target.closest('button');
+                const removeLoading = Utils.addLoadingState(button);
+                
+                try {
+                    const response = await fetch('/shutdown', { method: 'POST' });
+                    if (response.ok) {
+                        Utils.showToast('Server shutdown initiated. The page will close shortly.', 'success');
+                        setTimeout(() => {
+                            window.close();
+                        }, 2000);
+                    } else {
+                        Utils.showToast('Failed to shutdown server. Please try again.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error shutting down server:', error);
+                    Utils.showToast('Error shutting down server. Please check the console for details.', 'error');
+                } finally {
+                    removeLoading();
+                }
+            }
+        }
+
+        // Floating Action Button functions
+        function toggleFabMenu() {
+            const fabMenu = document.querySelector('.fab-menu');
+            const fab = document.querySelector('.fab');
+            fabMenu.classList.toggle('active');
+            fab.classList.toggle('active');
+        }
+
+        function selectAllData() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            handleCheckboxChange();
+            Utils.showToast('All data entries selected!', 'success');
+        }
+
+        function clearAllData() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            handleCheckboxChange();
+            Utils.showToast('All data entries cleared!', 'info');
+        }
+
+        function refreshData() {
+            updateFromDB();
+            Utils.showToast('Data refreshed!', 'success');
+        }
+
+        // Function to create data selection grid from available columns
+        function createDataSelectionGrid(columns) {
+            const grid = document.getElementById('sidepanel-grid');
+            grid.innerHTML = ''; // Clear existing content
+
+            if (columns.length === 0) {
+                grid.innerHTML = `
+                    <div class="error-container">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>No data columns available. Please check if the database is properly configured and contains data.</p>
+                        <button onclick="checkDatabaseStatus()" class="btn btn-primary">
+                            <i class="fas fa-database"></i> Check Database Status
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group columns by type for better organization
+            const columnGroups = {
+                'Flow Controllers': columns.filter(col => col.includes('fc')),
+                'Pressure Transducers': columns.filter(col => col.includes('pt')),
+                'Temperature Indicators': columns.filter(col => col.includes('ti')),
+                'Level Indicators': columns.filter(col => col.includes('lit')),
+                'Purity Sensors': columns.filter(col => col.includes('purity')),
+                'Analyzers': columns.filter(col => col.includes('ait')),
+                'Channel Data': columns.filter(col => col.startsWith('ch')),
+                'Flow Monitors': columns.filter(col => col.includes('Flow')),
+                'Pressure Sensors': columns.filter(col => col.includes('Pressure')),
+            };
+
+            // Create sections for each group
+            Object.entries(columnGroups).forEach(([groupName, groupColumns]) => {
+                if (groupColumns.length === 0) return;
+
+                const section = document.createElement('div');
+                section.className = 'dropdown-section';
+
+                const header = document.createElement('div');
+                header.className = 'dropdown-header';
+                header.innerHTML = `
+                    <span class="dropdown-title">
+                        <i class="fas fa-chevron-right"></i>
+                        ${groupName}
+                    </span>
+                    <span class="dropdown-count">${groupColumns.length}</span>
+                `;
+                header.onclick = () => toggleDropdown(section);
+
+                const content = document.createElement('div');
+                content.className = 'dropdown-content';
+
+                groupColumns.forEach(columnName => {
+                    const item = document.createElement('div');
+                    item.className = 'dropdown-item';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    const id = `${groupName}-${columnName}`.toLowerCase().replace(/\s+/g, '-');
+                    checkbox.id = id;
+                    checkbox.dataset.key = columnName;
+
+                    const label = document.createElement('label');
+                    label.htmlFor = id;
+                    label.textContent = columnName;
+
+                    item.appendChild(checkbox);
+                    item.appendChild(label);
+                    content.appendChild(item);
+                });
+
+                section.appendChild(header);
+                section.appendChild(content);
+                grid.appendChild(section);
+            });
+
+            // Setup checkbox event listeners
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', handleCheckboxChange);
+            });
+        }
+
+        // Function to toggle dropdown sections
+        function toggleDropdown(section) {
+            const header = section.querySelector('.dropdown-header');
+            const content = section.querySelector('.dropdown-content');
+            const icon = header.querySelector('.fas');
+            
+            if (content.style.display === 'none' || !content.style.display) {
+                content.style.display = 'block';
+                icon.className = 'fas fa-chevron-down';
+                section.classList.add('expanded');
+            } else {
+                content.style.display = 'none';
+                icon.className = 'fas fa-chevron-right';
+                section.classList.remove('expanded');
+            }
+        }
+
+        // Function to update selected data display
+        function updateSelectedDataDisplay() {
+            const selectedKeys = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.dataset.key);
+            
+            const display = document.getElementById('selected-data-display');
+            
+            if (selectedKeys.length === 0) {
+                display.innerHTML = `
+                    <div class="no-data-selected">
+                        <i class="fas fa-info-circle"></i>
+                        <p>No data selected. Click "Select Data" to choose data entries.</p>
+                    </div>
+                `;
+            } else {
+                display.innerHTML = `
+                    <div class="selected-data-list">
+                        <h4>Selected Data (${selectedKeys.length}):</h4>
+                        <div class="selected-items">
+                            ${selectedKeys.map(key => `
+                                <div class="selected-item">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>${key}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Side panel functions
+        function openNav() {
+            document.getElementById("SidePanel").classList.add("open");
+        }
+
+        function closeNav() {
+            document.getElementById("SidePanel").classList.remove("open");
+        }
+
+        // Close side panel when clicking outside
+        document.addEventListener('click', function(event) {
+            const sidepanel = document.getElementById('SidePanel');
+            const openbtn = document.querySelector('.openbtn');
+            
+            if (sidepanel.classList.contains('open') && 
+                !sidepanel.contains(event.target) && 
+                !openbtn.contains(event.target)) {
+                closeNav();
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Show loading state for data selection
+            const grid = document.getElementById('sidepanel-grid');
+            grid.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>Loading available data columns...</p>
+                </div>
+            `;
+
+            try {
+                // Fetch available columns from database
+                availableColumns = await fetchAvailableColumns();
+                
+                if (availableColumns.length === 0) {
+                    grid.innerHTML = `
+                        <div class="error-container">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>No data columns available. Please check if the database is properly configured.</p>
+                        </div>
+                    `;
+                } else {
+                    // Create the data selection grid
+                    createDataSelectionGrid(availableColumns);
+                }
+
+                // Initialize selected data display
+                updateSelectedDataDisplay();
+
+                // Start the auto-update cycle
+                startCountdownFromServer();
+                updateEmptyChartDisplay();
+
+            } catch (error) {
+                console.error('Error loading available columns:', error);
+                grid.innerHTML = `
+                    <div class="error-container">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error loading available columns. Please refresh the page.</p>
+                    </div>
+                `;
+            }
+        });
+
+        async function testDatabase() {
+            try {
+                const response = await fetch('/test_db');
+                if (!response.ok) throw new Error('Failed to test database');
+                
+                const result = await response.json();
+                console.log('Database test result:', result);
+                
+                if (result.total_records === 0) {
+                    alert('No data found in database. Please check if data sources are sending data.');
+                } else {
+                    alert(`Database contains ${result.total_records} records from sources: ${result.data_sources.join(', ')}`);
+                }
+                
+                return result;
+            } catch (err) {
+                console.error('Error testing database:', err);
+                alert('Error testing database: ' + err.message);
+                return null;
+            }
+        }
+
+        async function checkDatabaseStatus() {
+            try {
+                const response = await fetch('/db_status');
+                const result = await response.json();
+                
+                console.log('Database status:', result);
+                
+                if (result.status === 'ok') {
+                    alert(`Database Status:\n- Table exists: ${result.table_exists}\n- Total columns: ${result.total_columns}\n- Total records: ${result.total_records}\n- Has data: ${result.has_data}\n\nColumns: ${result.columns.join(', ')}`);
+                } else {
+                    alert(`Database Error: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error checking database status:', error);
+                alert('Error checking database status. Check console for details.');
+            }
+        }
+    </script>
+
+    <!-- Add CSS for warning message -->
+    <style>
+        .warning-message {
+            background-color: var(--warning-bg, #fff3cd);
+            color: var(--warning-text, #856404);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .warning-message i {
+            color: var(--warning-icon, #856404);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        [data-theme='dark'] .warning-message {
+            background-color: var(--warning-bg-dark, #2c2a1c);
+            color: var(--warning-text-dark, #ffd866);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header Banner -->
+    <header class="header-banner">
+        <div class="banner-content">
+            <div class="banner-title">
+                <!-- <i class="fas fa-atom"></i> -->
+                <span>UVA Polarized Target Group Lab 036 System Panel</span>
+            </div>
+            <div class="banner-controls">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                    <i id="theme-icon" class="fas fa-moon"></i>
+                </button>
+                <button class="shutdown-btn" onclick="shutdownServer()" title="Shutdown Server">
+                    <i class="fas fa-power-off"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <button class="openbtn" onclick="openNav()">&#9776; Data Selection</button>
+
+    <div id="SidePanel" class="sidepanel">
+        <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+        <div class="sidepanel-header">
+            <h3><i class="fas fa-database"></i> Data Selection</h3>
+        </div>
+        <div class="sidepanel-content" id="sidepanel-grid"></div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Control Panel -->
+        <section class="control-panel">
+            <div class="panel-header">
+                <h2><i class="fas fa-sliders-h"></i> Control Panel</h2>
+            </div>
+
+            <form id="refresh-form" class="control-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hours">Hours</label>
+                        <input type="number" id="hours" name="hours" min="0" max="24" value="1" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="minutes">Minutes</label>
+                        <input type="number" id="minutes" name="minutes" min="0" max="59" value="0" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="seconds">Seconds</label>
+                        <input type="number" id="seconds" name="seconds" min="0" max="59" value="0" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="update_every">Update Interval (s)</label>
+                        <input type="number" id="update_every" name="update_every" min="1" max="300" value="5" step="1">
+                    </div>
+                </div>
+            </form>
+        </section>
+        <section class="chart-section">
+            <div class="chart-header">
+                <h2 id="chart-title">Select Data Entries</h2>
+            </div>
+            <div id="chart" class="chart-container"></div>
+        </section>
+    </main>
+    <script>
+        // Form handling
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('refresh-form');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const submitBtn = form.querySelector('.submit-btn');
+                const removeLoading = Utils.addLoadingState(submitBtn);
+
+                try {
+                    // Get values directly from the form
+                    const formHours = parseInt(document.getElementById('hours').value) || 0;
+                    const formMinutes = parseInt(document.getElementById('minutes').value) || 0;
+                    const formSeconds = parseInt(document.getElementById('seconds').value) || 0;
+                    const formUpdateTime = parseInt(document.getElementById('update_every').value) || 1;
+
+                    // Update global variables
+                    hours = formHours;
+                    minutes = formMinutes;
+                    seconds = formSeconds;
+                    updateTime = formUpdateTime;
+
+                    console.log('Form values updated:', { hours, minutes, seconds, updateTime });
+
+                    // Get currently selected keys
+                    const selectedKeys = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+                        .map(cb => cb.dataset.key);
+
+                    if (selectedKeys.length > 0) {
+                        // Force an immediate data update
+                        await updateFromDB();
+                    }
+
+                    // Restart the countdown with new update interval
+                    await startCountdownFromServer();
+                    
+                    Utils.showToast('Settings applied successfully!', 'success');
+                } catch (error) {
+                    console.error('Error applying settings:', error);
+                    Utils.showToast('Error applying settings. Please try again.', 'error');
+                } finally {
+                    removeLoading();
+                }
+            });
+        });
+
+        // Checkbox change handler
+        async function handleCheckboxChange() {
+            selectedKeys = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.dataset.key);
+
+            if (selectedKeys.length === 0) {
+                updateEmptyChartDisplay();
+                document.getElementById('chart-title').textContent = 'Select Data Entries';
+                return;
+            }
+
+            const { data: dbData } = await fetchDataFromDB(selectedKeys);
+            await updatePlot(dbData, selectedKeys);
+        }
+    </script>
+</body>
+</html>
