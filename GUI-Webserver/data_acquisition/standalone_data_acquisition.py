@@ -108,7 +108,8 @@ Pressure_labels = [
     "Root_Exhaust_Pressure",
     "Buffer_Pressure",
     "Magnet_Pressure",
-    "Purifier_Inlet_Pressure"
+    "Purifier_Inlet_Pressure",
+    "Fridge_Vapor_Pressure"
 ]
 
 # Global teledyne reader instance
@@ -249,7 +250,7 @@ def read_labjack_data():
     global labjack_reader
     
     if labjack_reader is None:
-        return [None] * 4  # Return None for 4 pressure values
+        return [None] * 5  # Return None for 4 pressure values
         
     return labjack_reader.get_latest_data()
 
@@ -311,9 +312,9 @@ def insert_labjack_data(pressure_data):
     
     try:
         cursor.execute('''
-            INSERT INTO Pressures (Root_Exhaust_Pressure, Buffer_Pressure, Magnet_Pressure, Purifier_Inlet_Pressure, "Timestamp") 
-            VALUES (?, ?, ?, ?, ?)
-        ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], get_current_est_time()))
+            INSERT INTO Pressures (Root_Exhausted_Pressure, Buffer_Pressure, Magnet_Pressure, Purifier_Inlet_Pressure, Fridge_Vapor_Pressure, "Timestamp") 
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], get_current_est_time()))
         
         conn.commit()
         if args.debug:
@@ -365,17 +366,17 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
         buffer_pressure = labjack_data[1]
         magnet_pressure = labjack_data[2]
         purifier_inlet_pressure = labjack_data[3]
-
+        fridge_vapor_pressure = labjack_data[4]
         if args.debug:
-            print(f"DEBUG:Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}")
+            print(f"DEBUG:Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}")
         if root_exhaust_pressure is not None:
-            if not insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure]):
+            if not insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure]):
                 success = False
                 logger.error("Failed to insert LabJack data")
         else:
             logger.warning("Missing LabJack pressure value. Inserting None values instead...")
-            root_exhaust_pressure = buffer_pressure = magnet_pressure = purifier_inlet_pressure = None
-            insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure])
+            root_exhaust_pressure = buffer_pressure = magnet_pressure = purifier_inlet_pressure = fridge_vapor_pressure = None
+            insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure])
     else:
         if args.debug:
             print(f"DEBUG: Successfully inserted data to database!")

@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS Pressures (
   Buffer_Pressure FLOAT NOT NULL,
   Magnet_Pressure FLOAT NOT NULL,
   Purifier_Inlet_Pressure FLOAT NOT NULL,
+  Fridge_Vapor_Pressure FLOAT NOT NULL,
   "Timestamp" TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 

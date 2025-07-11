@@ -24,7 +24,7 @@ class LabJackReader:
         self.avg_Buffer_Pressure = None
         self.avg_Magnet_Pressure = None
         self.avg_Purifier_Inlet_Pressure = None
-        self.avg_Nanometer_Flow = None
+        self.avg_Fridge_Vapor_Pressure = None
 
     def start(self):
         """Start the labjack data reading thread"""
@@ -102,7 +102,7 @@ class LabJackReader:
                 Buffer_Pressure = np.zeros(MAX_REQUESTS)
                 Magnet_Pressure = np.zeros(MAX_REQUESTS)
                 Purifier_Inlet_Pressure = np.zeros(MAX_REQUESTS)
-                Nanometer_Flow = np.zeros(MAX_REQUESTS)
+                Fridge_Vapor_Pressure = np.zeros(MAX_REQUESTS)
 
                 for i, r in enumerate(self.device.streamData()):
                     if not self.running:
@@ -145,10 +145,10 @@ class LabJackReader:
                         else:
                             logger.warning(f"No data for Magnet Pressure Transducer at {datetime.now()}")
 
-                        if self._check_data(r["AIN4"]): ### Nanometer Flow
-                            vOut_Nanometer_Flow = sum(r["AIN4"]) / len(r["AIN4"])
+                        if self._check_data(r["AIN4"]): ### Fridge Vapor Pressure
+                            vOut_Fridge_Vapor_Pressure = sum(r["AIN4"]) / len(r["AIN4"])
                         else:
-                            logger.warning(f"No data for Flow 1 at {datetime.now()}")
+                            logger.warning(f"No data for Fridge Vapor Pressure at {datetime.now()}")
                             
 
                         dataCount += 1
@@ -158,7 +158,7 @@ class LabJackReader:
                         Buffer_Pressure[i] = vOut_Buffer_Pressure
                         Magnet_Pressure[i] = vOut_Magnet_Pressure
                         Purifier_Inlet_Pressure[i] = vOut_Purifier_Inlet_Pressure
-                        Nanometer_Flow[i] = vOut_Nanometer_Flow
+                        Fridge_Vapor_Pressure[i] = vOut_Fridge_Vapor_Pressure
 
                         logger.info(f"Data being written from Labjack...")
                     else:
@@ -177,13 +177,13 @@ class LabJackReader:
                     self.avg_Buffer_Pressure = np.average(Buffer_Pressure)
                     self.avg_Magnet_Pressure = np.average(Magnet_Pressure)
                     self.avg_Purifier_Inlet_Pressure = np.average(Purifier_Inlet_Pressure)
-                    self.avg_Nanometer_Flow = np.average(Nanometer_Flow)
+                    self.avg_Fridge_Vapor_Pressure = np.average(Fridge_Vapor_Pressure)
                     self.data_queue[0] = self.avg_Root_Exhausted_Pressure
                     self.data_queue[1] = self.avg_Buffer_Pressure
                     self.data_queue[2] = self.avg_Magnet_Pressure
                     self.data_queue[3] = self.avg_Purifier_Inlet_Pressure
-                    self.data_queue[4] = self.avg_Nanometer_Flow
-                    logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_Root_Exhausted_Pressure}, Pressure 2: {self.avg_Buffer_Pressure}, Pressure 3: {self.avg_Magnet_Pressure}, Pressure 4: {self.avg_Purifier_Inlet_Pressure}, Flow: {self.avg_Nanometer_Flow}")
+                    self.data_queue[4] = self.avg_Fridge_Vapor_Pressure
+                    logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_Root_Exhausted_Pressure}, Pressure 2: {self.avg_Buffer_Pressure}, Pressure 3: {self.avg_Magnet_Pressure}, Pressure 4: {self.avg_Purifier_Inlet_Pressure}, Fridge Vapor Pressure: {self.avg_Fridge_Vapor_Pressure}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay
