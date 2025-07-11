@@ -8,6 +8,7 @@ import signal
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import requests
 from flask import Flask, request, jsonify, render_template
 import logging
 import pytz
