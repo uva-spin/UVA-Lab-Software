@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 class LabJackReader:
 
-    def __init__(self, csv_path, check_interval=1):
-        self.csv_path = csv_path
+    def __init__(self, check_interval=1):
         self.check_interval = check_interval
         self.last_position = 0
         self.data_queue = [None, None, None, None]
@@ -25,6 +24,7 @@ class LabJackReader:
         self.avg_pressure2 = None
         self.avg_pressure3 = None
         self.avg_pressure4 = None
+
     def start(self):
         """Start the labjack data reading thread"""
         try:
@@ -72,8 +72,8 @@ class LabJackReader:
             return False
         return True
 
-    def _monitor_file(self):
-        """Monitor the CSV file for new data"""
+    def _monitor_labjack(self):
+        """Monitor the LabJack for new data and write to queue"""
         if not self.device:
             logger.error("LabJackReader: Device not initialized")
             return
@@ -84,16 +84,9 @@ class LabJackReader:
         SCAN_FREQUENCY = 5000
 
         try:
-            if not os.path.exists(self.csv_path):
-                logger.warning(f"LabJackReader: CSV file not found: {self.csv_path}. Creating file...")
-                with open(self.csv_path, 'w') as file:
-                    file.write("Timestamp,Pressure_1,Pressure_2,Pressure_3\n")
-                self.last_position = 0
-                return
-
             logger.info("Configuring U3 stream")
-            # Configure stream for 4 channels: AIN0, AIN1, AIN2, AIN3
-            self.device.streamConfig(NumChannels=4, PChannels=[0, 1, 2, 3], NChannels=[31, 31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
+            # Configure stream for 4 channels: AIN0, AIN1, AIN2, AIN3, 
+            self.device.streamConfig(NumChannels=5, PChannels=[0, 1, 2, 3, 4], NChannels=[31, 31, 31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
 
             try:
                 self.device.streamStart()
@@ -107,6 +100,7 @@ class LabJackReader:
                 data_R2_pressure2 = np.zeros(MAX_REQUESTS)
                 data_R2_pressure3 = np.zeros(MAX_REQUESTS)
                 data_R2_pressure4 = np.zeros(MAX_REQUESTS)
+                data_R2_pressure5 = np.zeros(MAX_REQUESTS)
                 for i, r in enumerate(self.device.streamData()):
                     if not self.running:
                         break
@@ -158,6 +152,14 @@ class LabJackReader:
                             R2_pressure4 = None
                             logger.warning(f"No data for Magnet Pressure Transducer at {datetime.now()}")
 
+                        if self._check_data(r["FIO0"]): ### Flow 1
+                            vOut_flow1 = sum(r["FIO0"]) / len(r["FIO0"])
+                            R2_flow1 = R1*(1/((vIn/vOut_flow1)-1))
+                        else:
+                            R2_flow1 = None
+                            logger.warning(f"No data for Flow 1 at {datetime.now()}")
+                            
+
                         dataCount += 1
                         packetCount += r['numPackets']
 
@@ -198,10 +200,10 @@ class LabJackReader:
         """Read data from LabJack"""
         while self.running:
             try:
-                self._monitor_file()
+                self._monitor_labjack()
                 time.sleep(self.check_interval)
             except Exception as e:
-                logger.error(f"Error in data stream: {e}")
+                logger.error(f"Error in data stream: {e}")      
                 time.sleep(self.check_interval)
 
     def get_latest_data(self):

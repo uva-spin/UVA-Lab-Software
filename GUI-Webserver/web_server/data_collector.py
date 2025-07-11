@@ -495,82 +495,82 @@ def root():
 #         logger.error(f"Error querying database: {e}")
 #         return jsonify({"error": str(e)}), 500
 
-@app.route('/receive_hmi_data', methods=['POST'])
-def receive_hmi_data():
-    """Endpoint to receive HMI data from HMI_TCP_Server.py"""
-    try:
-        data = request.get_json()
-        if data and isinstance(data, list):
-            success = collector.insert_hmi_data(data)
-            if success:
-                return jsonify({"status": "success", "message": "HMI data received and stored"}), 200
-            else:
-                return jsonify({"status": "error", "message": "Failed to store HMI data"}), 500
-        else:
-            return jsonify({"status": "error", "message": "Invalid data format"}), 400
-    except Exception as e:
-        logger.error(f"Error receiving HMI data: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+# @app.route('/receive_hmi_data', methods=['POST'])
+# def receive_hmi_data():
+#     """Endpoint to receive HMI data"""
+#     try:
+#         data = request.get_json()
+#         if data and isinstance(data, list):
+#             success = collector.insert_hmi_data(data)
+#             if success:
+#                 return jsonify({"status": "success", "message": "HMI data received and stored"}), 200
+#             else:
+#                 return jsonify({"status": "error", "message": "Failed to store HMI data"}), 500
+#         else:
+#             return jsonify({"status": "error", "message": "Invalid data format"}), 400
+#     except Exception as e:
+#         logger.error(f"Error receiving HMI data: {e}")
+#         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/receive_labjack_data', methods=['POST'])
-def receive_labjack_data():
-    """Endpoint to receive LabJack data"""
-    try:
-        data = request.get_json()
-        if data and isinstance(data, (int, float)):
-            success = collector.insert_labjack_data(data)
-            if success:
-                return jsonify({"status": "success", "message": "LabJack data received and stored"}), 200
-            else:
-                return jsonify({"status": "error", "message": "Failed to store LabJack data"}), 500
-        else:
-            return jsonify({"status": "error", "message": "Invalid data format - expected number"}), 400
-    except Exception as e:
-        logger.error(f"Error receiving LabJack data: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+# @app.route('/receive_labjack_data', methods=['POST'])
+# def receive_labjack_data():
+#     """Endpoint to receive LabJack data"""
+#     try:
+#         data = request.get_json()
+#         if data and isinstance(data, (int, float)):
+#             success = collector.insert_labjack_data(data)
+#             if success:
+#                 return jsonify({"status": "success", "message": "LabJack data received and stored"}), 200
+#             else:
+#                 return jsonify({"status": "error", "message": "Failed to store LabJack data"}), 500
+#         else:
+#             return jsonify({"status": "error", "message": "Invalid data format - expected number"}), 400
+#     except Exception as e:
+#         logger.error(f"Error receiving LabJack data: {e}")
+#         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/receive_teledyne_data', methods=['POST'])
-def receive_teledyne_data():
-    """Endpoint to receive Teledyne data"""
-    try:
-        data = request.get_json()
-        if data and isinstance(data, list) and len(data) == 3:
-            success = collector.insert_teledyne_data(data)
-            if success:
-                return jsonify({"status": "success", "message": "Teledyne data received and stored"}), 200
-            else:
-                return jsonify({"status": "error", "message": "Failed to store Teledyne data"}), 500
-        else:
-            return jsonify({"status": "error", "message": "Invalid data format - expected list of 3 values"}), 400
-    except Exception as e:
-        logger.error(f"Error receiving Teledyne data: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+# @app.route('/receive_teledyne_data', methods=['POST'])
+# def receive_teledyne_data():
+#     """Endpoint to receive Teledyne data"""
+#     try:
+#         data = request.get_json()
+#         if data and isinstance(data, list) and len(data) == 3:
+#             success = collector.insert_teledyne_data(data)
+#             if success:
+#                 return jsonify({"status": "success", "message": "Teledyne data received and stored"}), 200
+#             else:
+#                 return jsonify({"status": "error", "message": "Failed to store Teledyne data"}), 500
+#         else:
+#             return jsonify({"status": "error", "message": "Invalid data format - expected list of 3 values"}), 400
+#     except Exception as e:
+#         logger.error(f"Error receiving Teledyne data: {e}")
+#         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/data', methods=['POST'])
-def receive_data():
-    """Endpoint to receive combined data from data acquisition devices"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"status": "error", "message": "No data received"}), 400
+# @app.route('/data', methods=['POST'])
+# def receive_data():
+#     """Endpoint to receive combined data from data acquisition devices"""
+#     try:
+#         data = request.get_json()
+#         if not data:
+#             return jsonify({"status": "error", "message": "No data received"}), 400
             
-        # Handle combined data format
-        if isinstance(data, dict):
-            success = collector.insert_combined_data(data)
-            if success:
-                return jsonify({"status": "success", "message": "Combined data received and stored"}), 200
-            else:
-                return jsonify({"status": "error", "message": "Failed to store combined data"}), 500
-        else:
-            return jsonify({"status": "error", "message": "Invalid data format - expected dict"}), 400
-    except Exception as e:
-        logger.error(f"Error receiving data: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+#         # Handle combined data format
+#         if isinstance(data, dict):
+#             success = collector.insert_combined_data(data)
+#             if success:
+#                 return jsonify({"status": "success", "message": "Combined data received and stored"}), 200
+#             else:
+#                 return jsonify({"status": "error", "message": "Failed to store combined data"}), 500
+#         else:
+#             return jsonify({"status": "error", "message": "Invalid data format - expected dict"}), 400
+#     except Exception as e:
+#         logger.error(f"Error receiving data: {e}")
+#         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()}), 200
+# @app.route('/health', methods=['GET'])
+# def health_check():
+#     """Health check endpoint"""
+#     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()}), 200
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown_server():
@@ -587,8 +587,8 @@ def shutdown_server():
     threading.Thread(target=delayed_shutdown, daemon=True).start()
     return jsonify({"status": "shutdown_initiated", "message": "Server shutting down gracefully"}), 200
 
-@app.route('/recent_data', methods=['GET'])
-def get_recent_data():
+@app.route('/query_db', methods=['GET'])
+def query_db():
     """Get recent data from the database based on timestamp"""
     try:
         # Get parameters from request
@@ -707,7 +707,7 @@ def get_recent_data():
         logger.exception("Full traceback:")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/available_columns', methods=['GET'])
+@app.route('/get_available_columns', methods=['GET'])
 def get_available_columns():
     """Get list of available columns from all tables"""
     try:

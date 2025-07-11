@@ -20,7 +20,6 @@
         let hours = 1;
         let minutes = 0;
         let seconds = 0;
-        let updateTime = 5;
         let remainingTime = null;
         let timerInterval = null;
         let selectedKeys = [];
@@ -302,7 +301,7 @@
             params.append('end_time', endTimeStr);
             
             try {
-                const response = await fetch(`/recent_data?${params.toString()}`);
+                const response = await fetch(`/query_db?${params.toString()}`);
                 console.log('Response status:', response.status);
                 
                 if (!response.ok) {
@@ -333,7 +332,7 @@
 
         async function fetchAvailableColumns() {
             try {
-                const response = await fetch('/available_columns');
+                const response = await fetch('/get_available_columns');
                 if (!response.ok) throw new Error('Failed to fetch available columns');
                 
                 const result = await response.json();
@@ -597,27 +596,27 @@
             }
         });
 
-        async function testDatabase() {
-            try {
-                const response = await fetch('/test_db');
-                if (!response.ok) throw new Error('Failed to test database');
+        // async function testDatabase() {
+        //     try {
+        //         const response = await fetch('/test_db');
+        //         if (!response.ok) throw new Error('Failed to test database');
                 
-                const result = await response.json();
-                console.log('Database test result:', result);
+        //         const result = await response.json();
+        //         console.log('Database test result:', result);
                 
-                if (result.total_records === 0) {
-                    alert('No data found in database. Please check if data sources are sending data.');
-                } else {
-                    alert(`Database contains ${result.total_records} records from sources: ${result.data_sources.join(', ')}`);
-                }
+        //         if (result.total_records === 0) {
+        //             alert('No data found in database. Please check if data sources are sending data.');
+        //         } else {
+        //             alert(`Database contains ${result.total_records} records from sources: ${result.data_sources.join(', ')}`);
+        //         }
                 
-                return result;
-            } catch (err) {
-                console.error('Error testing database:', err);
-                alert('Error testing database: ' + err.message);
-                return null;
-            }
-        }
+        //         return result;
+        //     } catch (err) {
+        //         console.error('Error testing database:', err);
+        //         alert('Error testing database: ' + err.message);
+        //         return null;
+        //     }
+        // }
 
         async function checkDatabaseStatus() {
             try {
@@ -637,18 +636,6 @@
             }
         }
 
-        // // Helper function to generate time ticks for Plotly
-        // function generateTimeTicks(minTime, maxTime, numTicks) {
-        //     const ticks = [];
-        //     const timeDiff = maxTime - minTime;
-        //     const step = timeDiff / (numTicks - 1); // Ensure at least one tick
-
-        //     for (let i = 0; i < numTicks; i++) {
-        //         const time = minTime + (i * step);
-        //         ticks.push([time, new Date(time).toLocaleTimeString()]);
-        //     }
-        //     return ticks;
-        // }
     </script>
 
     <!-- Add CSS for warning message -->
@@ -736,9 +723,6 @@
                 <div class="form-row">
                     <button type="submit" class="submit-btn">
                         <i class="fas fa-sync-alt"></i> Apply Settings
-                    </button>
-                    <button type="button" class="test-btn" onclick="testDatabase()">
-                        <i class="fas fa-database"></i> Test Database
                     </button>
                     <div class="countdown-display">
                         <span>Auto-update in: </span>
