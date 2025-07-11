@@ -376,7 +376,6 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
             print(f"DEBUG:Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}")
         insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure])
         success = True
-        # logger.info("DEBUG: Successfully inserted LabJack data")
     else:
         success = False
         logger.error("Failed to insert LabJack data")
