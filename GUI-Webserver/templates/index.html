@@ -496,18 +496,13 @@
             // Group columns by type for better organization
             const columnGroups = {
                 'Flow Controllers': columns.filter(col => col.includes('fc')),
-                'Pressure Transmitters': columns.filter(col => col.includes('pt')),
+                'QT Pressures Indicators': columns.filter(col => col.includes('pt')),
                 'Temperature Indicators': columns.filter(col => col.includes('ti')),
                 'Level Indicators': columns.filter(col => col.includes('lit')),
                 'Purity Sensors': columns.filter(col => col.includes('purity')),
                 'Analyzers': columns.filter(col => col.includes('ait')),
-                'R Values': columns.filter(col => col.includes('r2')),
-                'Channel Data': columns.filter(col => col.startsWith('ch')),
-                'Other': columns.filter(col => 
-                    !col.includes('fc') && !col.includes('pt') && !col.includes('ti') && 
-                    !col.includes('lit') && !col.includes('purity') && !col.includes('ait') && 
-                    !col.includes('r2') && !col.startsWith('ch')
-                )
+                'Flow Meters': columns.filter(col => col.includes('Flow')),
+                'Fridge Section Pressures': columns.filter(col => col.includes(['Fridge_Vapor_Pressure', 'Purifier_Inlet_Pressure', 'Buffer_Pressure', 'Magnet_Pressure', 'Root_Exhaust_Pressure']))
             };
 
             // Create sections for each group
