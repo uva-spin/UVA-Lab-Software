@@ -312,7 +312,7 @@ def insert_labjack_data(pressure_data):
     
     try:
         cursor.execute('''
-            INSERT INTO Pressures (Root_Exhausted_Pressure, Buffer_Pressure, Magnet_Pressure, Purifier_Inlet_Pressure, Fridge_Vapor_Pressure, "Timestamp") 
+            INSERT INTO Pressures (Root_Exhaust_Pressure, Buffer_Pressure, Magnet_Pressure, Purifier_Inlet_Pressure, Fridge_Vapor_Pressure, "Timestamp") 
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], get_current_est_time()))
         
@@ -338,7 +338,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
         # if not insert_hmi_data(modbus_data):
         #     success = False
         success = True
-        logger.info("DEBUG: Successfully inserted HMI data")
+        # logger.info("DEBUG: Successfully inserted HMI data")
     else:
         success = False
         logger.error("Failed to insert HMI data")
@@ -376,7 +376,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
             print(f"DEBUG:Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}")
         insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure])
         success = True
-        logger.info("DEBUG: Successfully inserted LabJack data")
+        # logger.info("DEBUG: Successfully inserted LabJack data")
     else:
         success = False
         logger.error("Failed to insert LabJack data")
