@@ -33,8 +33,8 @@ class LabJackReader:
             self.device = u3.U3()
             self.device.configU3()
             self.device.getCalibrationData()
-            # Configure FIO0, FIO1, and FIO2 as analog inputs
-            self.device.configIO(FIOAnalog=7)  # 7 = 111 in binary, enables FIO0, FIO1, FIO2 as analog
+            # Configure FIO0-FIO4 as analog inputs
+            self.device.configIO(FIOAnalog=31)  # 31 = 11111 in binary, enables FIO0-FIO4 as analog
             logger.info("LabJackReader: Device initialized")
             
             self.running = True
@@ -97,14 +97,6 @@ class LabJackReader:
                 missed = 0
                 dataCount = 0
                 packetCount = 0
-                vIn = 10
-                R1 = 100
-                
-                # data_R2_pressure1 = np.zeros(MAX_REQUESTS)
-                # data_R2_pressure2 = np.zeros(MAX_REQUESTS)
-                # data_R2_pressure3 = np.zeros(MAX_REQUESTS)
-                # data_R2_pressure4 = np.zeros(MAX_REQUESTS)
-                # data_R2_pressure5 = np.zeros(MAX_REQUESTS)
 
                 Root_Exhausted_Pressure = np.zeros(MAX_REQUESTS)
                 Buffer_Pressure = np.zeros(MAX_REQUESTS)
@@ -133,56 +125,42 @@ class LabJackReader:
                         # Process AIN0 (Pressure 1)
                         if self._check_data(r["AIN0"]): ### Root Exhaust Pressure
                             vOut_Root_Exhausted_Pressure = sum(r["AIN0"]) / len(r["AIN0"])
-                            # R2_pressure1 = R1*(1/((vIn/vOut_pressure1)-1))
                         else:
-                            R2_pressure1 = None
                             logger.warning(f"No data for Root Exhaust Pressure Transducer at {datetime.now()}")
 
                         # Process AIN1 (Pressure 2)
                         if self._check_data(r["AIN1"]): ### Buffer Pressure
                             vOut_Buffer_Pressure = sum(r["AIN1"]) / len(r["AIN1"])
-                            # R2_pressure2 = R1*(1/((vIn/vOut_pressure2)-1))
                         else:
-                            R2_pressure2 = None
                             logger.warning(f"No data for Buffer Pressure Transducer at {datetime.now()}")
 
                         # Process AIN2 (Pressure 3)
                         if self._check_data(r["AIN2"]): ### Magnet Pressure
                             vOut_Magnet_Pressure = sum(r["AIN2"]) / len(r["AIN2"])
-                            # R2_pressure3 = R1*(1/((vIn/vOut_pressure3)-1))
                         else:
-                            R2_pressure3 = None
                             logger.warning(f"No data for Magnet Pressure Transducer at {datetime.now()}")
 
                         if self._check_data(r["AIN3"]): ### Purifier Inlet Pressure
                             vOut_Purifier_Inlet_Pressure = sum(r["AIN3"]) / len(r["AIN3"])
-                            # R2_pressure4 = R1*(1/((vIn/vOut_pressure4)-1))
                         else:
-                            R2_pressure4 = None
                             logger.warning(f"No data for Magnet Pressure Transducer at {datetime.now()}")
 
-                        if self._check_data(r["FIO4"]): ### Nanometer s
-                            vOut_Nanometer_Flow = sum(r["FIO4"]) / len(r["FIO4"])
-                            # R2_flow1 = R1*(1/((vIn/vOut_flow1)-1))
+                        if self._check_data(r["AIN4"]): ### Nanometer Flow
+                            vOut_Nanometer_Flow = sum(r["AIN4"]) / len(r["AIN4"])
                         else:
-                            R2_flow1 = None
                             logger.warning(f"No data for Flow 1 at {datetime.now()}")
                             
 
                         dataCount += 1
                         packetCount += r['numPackets']
 
-                        # data_R2_pressure1[i] = R2_pressure1
-                        # data_R2_pressure2[i] = R2_pressure2
-                        # data_R2_pressure3[i] = R2_pressure3
-                        # data_R2_pressure4[i] = R2_pressure4
                         Root_Exhausted_Pressure[i] = vOut_Root_Exhausted_Pressure
                         Buffer_Pressure[i] = vOut_Buffer_Pressure
                         Magnet_Pressure[i] = vOut_Magnet_Pressure
                         Purifier_Inlet_Pressure[i] = vOut_Purifier_Inlet_Pressure
                         Nanometer_Flow[i] = vOut_Nanometer_Flow
 
-                        logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_pressure1}, Pressure 2: {self.avg_pressure2}, Pressure 3: {self.avg_pressure3}, Pressure 4: {self.avg_pressure4}")
+                        logger.info(f"Data being written from Labjack...")
                     else:
                         logger.warning(f"No data at {datetime.now()}")
 
@@ -226,7 +204,7 @@ class LabJackReader:
         """Get the latest data from the data queue"""
         try:
             logger.info(f"Getting latest Pressure data from queue")
-            print(f"DEBUG: Pressure data: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}, {self.data_queue[3]}")
+            print(f"DEBUG: Pressure data: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}, {self.data_queue[3]}, {self.data_queue[4]}")
             return [self.data_queue[0], self.data_queue[1], self.data_queue[2], self.data_queue[3], self.data_queue[4]]
         except Exception as e:
             logger.error(f"Error getting latest labjack data: {e}")
