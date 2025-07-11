@@ -57,7 +57,7 @@ def convert_frontend_timestamp_to_db_format(timestamp_str):
         return timestamp_str
 
 class DataCollector:
-    def __init__(self, db_path=f"DATABASE_PATH"):
+    def __init__(self, db_path=f"/var/www/spin/instance/flaskr.sqlite"):
         self.db_path = db_path
 
         print(f"Database path: {self.db_path}")
