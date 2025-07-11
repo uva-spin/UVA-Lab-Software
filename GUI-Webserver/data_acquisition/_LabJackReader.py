@@ -16,14 +16,15 @@ class LabJackReader:
     def __init__(self, check_interval=1):
         self.check_interval = check_interval
         self.last_position = 0
-        self.data_queue = [None, None, None, None]
+        self.data_queue = [None, None, None, None, None]
         self.running = False
         self.thread = None
         self.device = None
-        self.avg_pressure1 = None
-        self.avg_pressure2 = None
-        self.avg_pressure3 = None
-        self.avg_pressure4 = None
+        self.avg_Root_Exhausted_Pressure = None
+        self.avg_Buffer_Pressure = None
+        self.avg_Magnet_Pressure = None
+        self.avg_Purifier_Inlet_Pressure = None
+        self.avg_Nanometer_Flow = None
 
     def start(self):
         """Start the labjack data reading thread"""
@@ -226,7 +227,7 @@ class LabJackReader:
         try:
             logger.info(f"Getting latest Pressure data from queue")
             print(f"DEBUG: Pressure data: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}, {self.data_queue[3]}")
-            return [self.data_queue[0], self.data_queue[1], self.data_queue[2], self.data_queue[3]]
+            return [self.data_queue[0], self.data_queue[1], self.data_queue[2], self.data_queue[3], self.data_queue[4]]
         except Exception as e:
             logger.error(f"Error getting latest labjack data: {e}")
-            return [None] * 4
+            return [None] * 5

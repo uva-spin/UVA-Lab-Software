@@ -442,7 +442,7 @@ def main():
     
     # Start labjack data reader
     try:
-        labjack_reader = LabJackReader(LABJACK_CSV_PATH, LABJACK_CHECK_INTERVAL)
+        labjack_reader = LabJackReader(LABJACK_CHECK_INTERVAL)
         labjack_reader.start()
         if args.debug:
             logger.info("DEBUG: LabJack data reader started")
