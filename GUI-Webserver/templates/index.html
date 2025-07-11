@@ -596,28 +596,6 @@
             }
         });
 
-        // async function testDatabase() {
-        //     try {
-        //         const response = await fetch('/test_db');
-        //         if (!response.ok) throw new Error('Failed to test database');
-                
-        //         const result = await response.json();
-        //         console.log('Database test result:', result);
-                
-        //         if (result.total_records === 0) {
-        //             alert('No data found in database. Please check if data sources are sending data.');
-        //         } else {
-        //             alert(`Database contains ${result.total_records} records from sources: ${result.data_sources.join(', ')}`);
-        //         }
-                
-        //         return result;
-        //     } catch (err) {
-        //         console.error('Error testing database:', err);
-        //         alert('Error testing database: ' + err.message);
-        //         return null;
-        //     }
-        // }
-
         async function checkDatabaseStatus() {
             try {
                 const response = await fetch('/db_status');

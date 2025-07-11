@@ -96,11 +96,21 @@ class LabJackReader:
                 missed = 0
                 dataCount = 0
                 packetCount = 0
-                data_R2_pressure1 = np.zeros(MAX_REQUESTS)
-                data_R2_pressure2 = np.zeros(MAX_REQUESTS)
-                data_R2_pressure3 = np.zeros(MAX_REQUESTS)
-                data_R2_pressure4 = np.zeros(MAX_REQUESTS)
-                data_R2_pressure5 = np.zeros(MAX_REQUESTS)
+                vIn = 10
+                R1 = 100
+                
+                # data_R2_pressure1 = np.zeros(MAX_REQUESTS)
+                # data_R2_pressure2 = np.zeros(MAX_REQUESTS)
+                # data_R2_pressure3 = np.zeros(MAX_REQUESTS)
+                # data_R2_pressure4 = np.zeros(MAX_REQUESTS)
+                # data_R2_pressure5 = np.zeros(MAX_REQUESTS)
+
+                Root_Exhausted_Pressure = np.zeros(MAX_REQUESTS)
+                Buffer_Pressure = np.zeros(MAX_REQUESTS)
+                Magnet_Pressure = np.zeros(MAX_REQUESTS)
+                Purifier_Inlet_Pressure = np.zeros(MAX_REQUESTS)
+                Nanometer_Flow = np.zeros(MAX_REQUESTS)
+
                 for i, r in enumerate(self.device.streamData()):
                     if not self.running:
                         break
@@ -121,40 +131,38 @@ class LabJackReader:
 
                         # Process AIN0 (Pressure 1)
                         if self._check_data(r["AIN0"]): ### Root Exhaust Pressure
-                            vOut_pressure1 = sum(r["AIN0"]) / len(r["AIN0"])
-                            vIn = 10
-                            R1 = 100
-                            R2_pressure1 = R1*(1/((vIn/vOut_pressure1)-1))
+                            vOut_Root_Exhausted_Pressure = sum(r["AIN0"]) / len(r["AIN0"])
+                            # R2_pressure1 = R1*(1/((vIn/vOut_pressure1)-1))
                         else:
                             R2_pressure1 = None
                             logger.warning(f"No data for Root Exhaust Pressure Transducer at {datetime.now()}")
 
                         # Process AIN1 (Pressure 2)
                         if self._check_data(r["AIN1"]): ### Buffer Pressure
-                            vOut_pressure2 = sum(r["AIN1"]) / len(r["AIN1"])
-                            R2_pressure2 = R1*(1/((vIn/vOut_pressure2)-1))
+                            vOut_Buffer_Pressure = sum(r["AIN1"]) / len(r["AIN1"])
+                            # R2_pressure2 = R1*(1/((vIn/vOut_pressure2)-1))
                         else:
                             R2_pressure2 = None
                             logger.warning(f"No data for Buffer Pressure Transducer at {datetime.now()}")
 
                         # Process AIN2 (Pressure 3)
                         if self._check_data(r["AIN2"]): ### Magnet Pressure
-                            vOut_pressure3 = sum(r["AIN2"]) / len(r["AIN2"])
-                            R2_pressure3 = R1*(1/((vIn/vOut_pressure3)-1))
+                            vOut_Magnet_Pressure = sum(r["AIN2"]) / len(r["AIN2"])
+                            # R2_pressure3 = R1*(1/((vIn/vOut_pressure3)-1))
                         else:
                             R2_pressure3 = None
                             logger.warning(f"No data for Magnet Pressure Transducer at {datetime.now()}")
 
                         if self._check_data(r["AIN3"]): ### Purifier Inlet Pressure
-                            vOut_pressure4 = sum(r["AIN3"]) / len(r["AIN3"])
-                            R2_pressure4 = R1*(1/((vIn/vOut_pressure4)-1))
+                            vOut_Purifier_Inlet_Pressure = sum(r["AIN3"]) / len(r["AIN3"])
+                            # R2_pressure4 = R1*(1/((vIn/vOut_pressure4)-1))
                         else:
                             R2_pressure4 = None
                             logger.warning(f"No data for Magnet Pressure Transducer at {datetime.now()}")
 
-                        if self._check_data(r["FIO0"]): ### Flow 1
-                            vOut_flow1 = sum(r["FIO0"]) / len(r["FIO0"])
-                            R2_flow1 = R1*(1/((vIn/vOut_flow1)-1))
+                        if self._check_data(r["FIO4"]): ### Nanometer s
+                            vOut_Nanometer_Flow = sum(r["FIO4"]) / len(r["FIO4"])
+                            # R2_flow1 = R1*(1/((vIn/vOut_flow1)-1))
                         else:
                             R2_flow1 = None
                             logger.warning(f"No data for Flow 1 at {datetime.now()}")
@@ -163,10 +171,15 @@ class LabJackReader:
                         dataCount += 1
                         packetCount += r['numPackets']
 
-                        data_R2_pressure1[i] = R2_pressure1
-                        data_R2_pressure2[i] = R2_pressure2
-                        data_R2_pressure3[i] = R2_pressure3
-                        data_R2_pressure4[i] = R2_pressure4
+                        # data_R2_pressure1[i] = R2_pressure1
+                        # data_R2_pressure2[i] = R2_pressure2
+                        # data_R2_pressure3[i] = R2_pressure3
+                        # data_R2_pressure4[i] = R2_pressure4
+                        Root_Exhausted_Pressure[i] = vOut_Root_Exhausted_Pressure
+                        Buffer_Pressure[i] = vOut_Buffer_Pressure
+                        Magnet_Pressure[i] = vOut_Magnet_Pressure
+                        Purifier_Inlet_Pressure[i] = vOut_Purifier_Inlet_Pressure
+                        Nanometer_Flow[i] = vOut_Nanometer_Flow
 
                         logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_pressure1}, Pressure 2: {self.avg_pressure2}, Pressure 3: {self.avg_pressure3}, Pressure 4: {self.avg_pressure4}")
                     else:
@@ -181,15 +194,17 @@ class LabJackReader:
                     logger.error(f"Error stopping stream: {e}")
 
                 if dataCount > 0:
-                    self.avg_pressure1 = np.average(data_R2_pressure1)
-                    self.avg_pressure2 = np.average(data_R2_pressure2)
-                    self.avg_pressure3 = np.average(data_R2_pressure3)
-                    self.avg_pressure4 = np.average(data_R2_pressure4)
-                    self.data_queue[0] = self.avg_pressure1
-                    self.data_queue[1] = self.avg_pressure2
-                    self.data_queue[2] = self.avg_pressure3
-                    self.data_queue[3] = self.avg_pressure4
-                    logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_pressure1}, Pressure 2: {self.avg_pressure2}, Pressure 3: {self.avg_pressure3}, Pressure 4: {self.avg_pressure4}")
+                    self.avg_Root_Exhausted_Pressure = np.average(Root_Exhausted_Pressure)
+                    self.avg_Buffer_Pressure = np.average(Buffer_Pressure)
+                    self.avg_Magnet_Pressure = np.average(Magnet_Pressure)
+                    self.avg_Purifier_Inlet_Pressure = np.average(Purifier_Inlet_Pressure)
+                    self.avg_Nanometer_Flow = np.average(Nanometer_Flow)
+                    self.data_queue[0] = self.avg_Root_Exhausted_Pressure
+                    self.data_queue[1] = self.avg_Buffer_Pressure
+                    self.data_queue[2] = self.avg_Magnet_Pressure
+                    self.data_queue[3] = self.avg_Purifier_Inlet_Pressure
+                    self.data_queue[4] = self.avg_Nanometer_Flow
+                    logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_Root_Exhausted_Pressure}, Pressure 2: {self.avg_Buffer_Pressure}, Pressure 3: {self.avg_Magnet_Pressure}, Pressure 4: {self.avg_Purifier_Inlet_Pressure}, Flow: {self.avg_Nanometer_Flow}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay
