@@ -8,7 +8,6 @@ import signal
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import requests
 from flask import Flask, request, jsonify, render_template
 import logging
 import pytz
@@ -58,7 +57,7 @@ def convert_frontend_timestamp_to_db_format(timestamp_str):
         return timestamp_str
 
 class DataCollector:
-    def __init__(self, db_path=f"/var/www/spin/instance/flaskr.sqlite"):
+    def __init__(self, db_path=f"instance/flaskr.sqlite"):
         self.db_path = db_path
 
         print(f"Database path: {self.db_path}")
