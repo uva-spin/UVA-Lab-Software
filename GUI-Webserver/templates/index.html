@@ -326,7 +326,7 @@
                 };
             } catch (err) {
                 console.error('Error fetching from server:', err);
-                console.error('Error obtaining data from database. Retrying...');
+                throw new Error('Error obtaining data from database. Retrying...');
             }
         }
 
@@ -678,7 +678,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="hours">Hours</label>
-                        <input type="number" id="hours" name="hours" min="0" value="1" step="1">
+                        <input type="number" id="hours" name="hours" min="0" max="24" value="1" step="1">
                     </div>
                     <div class="form-group">
                         <label for="minutes">Minutes</label>
