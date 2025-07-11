@@ -159,8 +159,6 @@ class LabJackReader:
                         Magnet_Pressure[i] = vOut_Magnet_Pressure
                         Purifier_Inlet_Pressure[i] = vOut_Purifier_Inlet_Pressure
                         Fridge_Vapor_Pressure[i] = vOut_Fridge_Vapor_Pressure
-
-                        logger.info(f"Data being written from Labjack...")
                     else:
                         logger.warning(f"No data at {datetime.now()}")
 
@@ -183,7 +181,7 @@ class LabJackReader:
                     self.data_queue[2] = self.avg_Magnet_Pressure
                     self.data_queue[3] = self.avg_Purifier_Inlet_Pressure
                     self.data_queue[4] = self.avg_Fridge_Vapor_Pressure
-                    logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_Root_Exhausted_Pressure}, Pressure 2: {self.avg_Buffer_Pressure}, Pressure 3: {self.avg_Magnet_Pressure}, Pressure 4: {self.avg_Purifier_Inlet_Pressure}, Fridge Vapor Pressure: {self.avg_Fridge_Vapor_Pressure}")
+                    # logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_Root_Exhausted_Pressure}, Pressure 2: {self.avg_Buffer_Pressure}, Pressure 3: {self.avg_Magnet_Pressure}, Pressure 4: {self.avg_Purifier_Inlet_Pressure}, Fridge Vapor Pressure: {self.avg_Fridge_Vapor_Pressure}")
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay
@@ -203,8 +201,8 @@ class LabJackReader:
     def get_latest_data(self):
         """Get the latest data from the data queue"""
         try:
-            logger.info(f"Getting latest Pressure data from queue")
-            print(f"DEBUG: Pressure data: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}, {self.data_queue[3]}, {self.data_queue[4]}")
+            # logger.info(f"Getting latest Pressure data from queue")
+            # print(f"DEBUG: Pressure data: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}, {self.data_queue[3]}, {self.data_queue[4]}")
             return [self.data_queue[0], self.data_queue[1], self.data_queue[2], self.data_queue[3], self.data_queue[4]]
         except Exception as e:
             logger.error(f"Error getting latest labjack data: {e}")
