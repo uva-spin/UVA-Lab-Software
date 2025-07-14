@@ -10,6 +10,8 @@ FORMAT = ('%(asctime)-15s %(threadName)-15s '
           '%(levelname)-8s %(module)-15s:%(lineno)-8s %(message)s')
 logging.basicConfig(format=FORMAT)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 
 class TeledyneDataReader:    
@@ -32,8 +34,9 @@ class TeledyneDataReader:
         client.connect()                               # connect to device
 
         int_regs = client.read_holding_registers(0, 1, unit=2)
-        logger.debug(int_regs)
+        logger.debug(f"Modbus connection: {int_regs}")
         client.close()
+        
         if int_regs:
             int_values = self._get_list_2comp(int_regs, 16)
             logger.info(f'Successfully read integer values: {int_values[:3]}... ({len(int_values)} values)')
