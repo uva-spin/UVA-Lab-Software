@@ -3,7 +3,7 @@ import threading
 import time
 import logging
 import numpy as np
-from pyModbusTCP.client import ModbusClient
+from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 import socket
 
 logger = logging.getLogger(__name__)
@@ -22,36 +22,21 @@ class TeledyneDataReader:
         self.socket = None
 
 
-    def _read_integer_registers(self):
+    def _modbus_connection(self):
         """Read integer registers from Modbus TCP server"""
-        try:
-            client = ModbusClient(host=self.TELEDYNE_THCD_401_TCP_IP, port=self.TELEDYNE_THCD_401_TCP_PORT, unit_id=self.TELEDYNE_THCD_401_TCP_UNIT_ID)
-            int_regs = client.read_holding_registers(0, 3)
-            if int_regs:
-                int_values = self._get_list_2comp(int_regs, 16)
-                logger.info(f'Successfully read integer values: {int_values[:3]}... ({len(int_values)} values)')
-                return int_values
-            else:
-                logger.warning(f"Failed to read integer registers from {self.TELEDYNE_THCD_401_TCP_IP}:{self.TELEDYNE_THCD_401_TCP_PORT}")
-                return None
-        except Exception as e:
-            logger.error(f"Error reading integer registers from Teledyne THCD-401: {e}")
-            return None
-        
-    def _read_float_registers(self):
-        """Read float registers from Modbus TCP server"""
-        try:
-            client = ModbusClient(host=self.TELEDYNE_THCD_401_TCP_IP, port=self.TELEDYNE_THCD_401_TCP_PORT, unit_id=self.TELEDYNE_THCD_401_TCP_UNIT_ID)
-            float_regs = client.read_holding_registers(3, 3)
-            if float_regs:
-                float_values = self._get_list_2comp(float_regs, 16)
-                logger.info(f'Successfully read float values: {float_values[:3]}... ({len(float_values)} values)')
-                return float_values
-            else:
-                logger.warning(f"Failed to read float registers from {self.TELEDYNE_THCD_401_TCP_IP}:{self.TELEDYNE_THCD_401_TCP_PORT}")
-                return None
-        except Exception as e:
-            logger.error(f"Error reading float registers from Teledyne THCD-401: {e}")
+
+        client = ModbusClient(host=self.TELEDYNE_THCD_401_TCP_IP, port=self.TELEDYNE_THCD_401_TCP_PORT)
+        client.connect()                               # connect to device
+
+        int_regs = client.read_holding_registers(0, 1, unit=2)
+        logger.debug(int_regs)
+        client.close()
+        if int_regs:
+            int_values = self._get_list_2comp(int_regs, 16)
+            logger.info(f'Successfully read integer values: {int_values[:3]}... ({len(int_values)} values)')
+            return int_values
+        else:
+            logger.warning(f"Failed to read integer registers from {self.TELEDYNE_THCD_401_TCP_IP}:{self.TELEDYNE_THCD_401_TCP_PORT}")
             return None
         
     def _socket_connection(self):
