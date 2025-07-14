@@ -29,12 +29,10 @@ class LabJackReader:
     def start(self):
         """Start the labjack data reading thread"""
         try:
-            # Initialize device once
             self.device = u3.U3()
             self.device.configU3()
             self.device.getCalibrationData()
-            # Configure FIO0-FIO4 as analog inputs
-            self.device.configIO(FIOAnalog=31)  # 31 = 11111 in binary, enables FIO0-FIO4 as analog
+            self.device.configIO(FIOAnalog=31)  
             logger.info("LabJackReader: Device initialized")
             
             self.running = True
@@ -86,7 +84,7 @@ class LabJackReader:
 
         try:
             logger.info("Configuring U3 stream")
-            # Configure stream for 4 channels: AIN0, AIN1, AIN2, AIN3, 
+
             self.device.streamConfig(NumChannels=5, PChannels=[0, 1, 2, 3, 4], NChannels=[31, 31, 31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
 
             try:
