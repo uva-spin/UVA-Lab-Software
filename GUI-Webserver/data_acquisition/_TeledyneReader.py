@@ -6,6 +6,9 @@ import numpy as np
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 import socket
 
+FORMAT = ('%(asctime)-15s %(threadName)-15s '
+          '%(levelname)-8s %(module)-15s:%(lineno)-8s %(message)s')
+logging.basicConfig(format=FORMAT)
 logger = logging.getLogger(__name__)
 
 
