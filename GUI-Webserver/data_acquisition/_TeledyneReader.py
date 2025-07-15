@@ -79,6 +79,46 @@ class TeledyneDataReader:
         except Exception:
             return False
 
+    def _decode_data(self, data, context=""):
+        """Decode data from various formats to ASCII"""
+        if not data:
+            return None
+            
+        logger.debug(f"Raw data {context}: {data}")
+        logger.debug(f"Raw data as hex {context}: {data.hex()}")
+        
+        # Try different decoding approaches
+        ascii_data = None
+        
+        # Method 1: Direct ASCII decode
+        try:
+            ascii_data = data.decode('ascii', errors='ignore')
+            logger.debug(f"Direct ASCII decode {context}: {ascii_data}")
+        except Exception as e:
+            logger.warning(f"Direct ASCII decode failed {context}: {e}")
+        
+        # Method 2: If direct decode doesn't work, try treating as hex string
+        if not ascii_data or not ascii_data.strip():
+            try:
+                # Check if data looks like hex string
+                hex_string = data.hex()
+                # Try to decode as if it's a hex representation of ASCII
+                ascii_data = bytes.fromhex(hex_string).decode('ascii', errors='ignore')
+                logger.debug(f"Hex to ASCII decode {context}: {ascii_data}")
+            except Exception as e:
+                logger.warning(f"Hex to ASCII decode failed {context}: {e}")
+                # Fallback to original data
+                try:
+                    ascii_data = data.decode('ascii', errors='ignore')
+                except:
+                    ascii_data = None
+        
+        if not ascii_data:
+            logger.error(f"Failed to decode data in any format {context}")
+            return None
+            
+        return ascii_data
+
     def _read_data_persistent(self):
         """Read data from Teledyne device using persistent TCP connection"""
         try:
@@ -103,8 +143,10 @@ class TeledyneDataReader:
                 logger.debug("No data received from device, connection still active")
                 return [None, None, None]
 
-            ascii_data = data.decode('ascii', errors='ignore')
-            logger.debug(f"Received ASCII data: {ascii_data}")
+            # Decode the data using the helper method
+            ascii_data = self._decode_data(data, "from persistent connection")
+            if not ascii_data:
+                return [None, None, None]
 
             match = re.search(r'READ:([^\r\n]*)', ascii_data)
             if not match:
@@ -173,9 +215,10 @@ class TeledyneDataReader:
                 try:
                     data = self.socket.recv(1024)
                     if data:
-                        ascii_data = data.decode('ascii', errors='ignore')
-                        logger.debug(f"Response to {command}: {ascii_data}")
-                        return ascii_data
+                        # Decode the response data using the helper method
+                        ascii_data = self._decode_data(data, f"response to {command}")
+                        if ascii_data:
+                            return ascii_data
                 except socket.error as e:
                     if e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK:
                         logger.debug(f"No response to {command} command")
