@@ -119,7 +119,7 @@
 
             function getColumnUnits(column) {
 
-                if (column.includes('fridge_vapor_pressure')) {
+                if (column.includes('fridge_vapor_pressure') || column.includes('root_exhausted_pressure') || column.includes('buffer_pressure')) {
                     return ' (torr)';
                 } else if (column.includes('ti') || column.includes('temperature')) {
                     return ' (K)';

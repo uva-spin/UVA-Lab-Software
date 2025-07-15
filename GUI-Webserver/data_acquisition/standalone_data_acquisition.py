@@ -196,7 +196,7 @@ def _read_HMI():
             float_values.append(struct.unpack(">f", raw)[0])  # Convert to float
         
         # Round float values to 2 decimal places
-        rounded_float_values = [round(value, 2) for value in float_values]
+        rounded_float_values = [round(value, 10) for value in float_values]
         logger.info(f"Processed {len(rounded_float_values)} float values")
         
         # Log each value with its corresponding label
