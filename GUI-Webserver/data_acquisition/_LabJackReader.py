@@ -26,6 +26,12 @@ class LabJackReader:
         self.avg_Purifier_Inlet_Pressure = None
         self.avg_Fridge_Vapor_Pressure = None
 
+        self.ROOT_EXHAUST_SCALE_FACTOR = 0.7928388747 # PSI
+        self.BUFFER_SCALE_FACTOR = 1 #PSI
+        self.MAGNET_SCALE_FACTOR = 1 #PSI
+        self.PURIFIER_INLET_SCALE_FACTOR = 1 #PSI
+        self.FRIDGE_VAPOR_SCALE_FACTOR = 52.55102041 # Roughly in Torr
+
     def start(self):
         """Start the labjack data reading thread"""
         try:
@@ -174,12 +180,11 @@ class LabJackReader:
                     self.avg_Magnet_Pressure = np.average(Magnet_Pressure)
                     self.avg_Purifier_Inlet_Pressure = np.average(Purifier_Inlet_Pressure)
                     self.avg_Fridge_Vapor_Pressure = np.average(Fridge_Vapor_Pressure)
-                    self.data_queue[0] = self.avg_Root_Exhausted_Pressure
-                    self.data_queue[1] = self.avg_Buffer_Pressure
-                    self.data_queue[2] = self.avg_Magnet_Pressure
-                    self.data_queue[3] = self.avg_Purifier_Inlet_Pressure
-                    self.data_queue[4] = self.avg_Fridge_Vapor_Pressure
-                    # logger.info(f"Data written to queue, average R2 - Pressure 1: {self.avg_Root_Exhausted_Pressure}, Pressure 2: {self.avg_Buffer_Pressure}, Pressure 3: {self.avg_Magnet_Pressure}, Pressure 4: {self.avg_Purifier_Inlet_Pressure}, Fridge Vapor Pressure: {self.avg_Fridge_Vapor_Pressure}")
+                    self.data_queue[0] = self.ROOT_EXHAUST_SCALE_FACTOR * self.avg_Root_Exhausted_Pressure
+                    self.data_queue[1] = self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure
+                    self.data_queue[2] = self.MAGNET_SCALE_FACTOR * self.avg_Magnet_Pressure
+                    self.data_queue[3] = self.PURIFIER_INLET_SCALE_FACTOR * self.avg_Purifier_Inlet_Pressure
+                    self.data_queue[4] = self.FRIDGE_VAPOR_SCALE_FACTOR * self.avg_Fridge_Vapor_Pressure
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay

@@ -117,10 +117,30 @@
                 return timestamp;
             });
 
+            function getColumnUnits(column) {
+
+                if (column.includes('fridge_vapor_pressure')) {
+                    return ' (torr)';
+                } else if (column.includes('ti') || column.includes('temperature')) {
+                    return ' (K)';
+                } else if (column.includes('pt') || column.includes('pressure')) {
+                    return ' (psi)';
+                } else if (column.includes('fc') || column.includes('flow')) {
+                    return ' (slm)';
+                } else if (column.includes('lit') || column.includes('level')) {
+                    return ' (%)';
+                } else if (column.includes('ait') || column.includes('analyzer')) {
+                    return ' (Mol %)';
+                } else {
+                    return ''; // No units for unknown columns
+                }
+            }
+
             const plotData = selectedColumns.map(column => {
                 const values = data.map(point => point[column]);
+                const units = getColumnUnits(column);
                 return {
-                    label: column,
+                    label: column + units,
                     data: timestamps.map((t, i) => [t, values[i]]),
                     points: { show: true, radius: 2 },
                     lines: { show: false, lineWidth: 1 }
@@ -499,10 +519,9 @@
                 'QT Pressures Indicators': columns.filter(col => col.includes('pt')),
                 'Temperature Indicators': columns.filter(col => col.includes('ti')),
                 'Level Indicators': columns.filter(col => col.includes('lit')),
-                'Purity Sensors': columns.filter(col => col.includes('purity')),
-                'Analyzers': columns.filter(col => col.includes('ait')),
+                'Purity Meter': columns.filter(col => col.includes('ait')),
                 'Flow Meters': columns.filter(col => col.includes('flow')),
-                'Fridge Section Pressures': columns.filter(col => col.includes('pressure'))
+                'Fridge Section Pressures': columns.filter(col => col.includes('pressure')),
             };
 
             // Create sections for each group

@@ -83,8 +83,6 @@ labels = [
     "PT502.AI.Value",
     "PT503.AI.Value",
     "PT504.AI.Value",
-    'Purity Meter_DB."Purity Downstream"',
-    'Purity Meter_DB."Purity Upstream"',
     "AIT501.AI.Value",
     "TI501.AI.Value",
     "TI502.AI.Value",
@@ -259,15 +257,34 @@ def insert_hmi_data(data):
         
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
+
+    fc501_ai = data[0]
+    fc501_out = data[1]
+    fc502_ai = data[2]
+    fc502_out = data[3]
+    lit501_ai = data[4]
+    pt501_ai = data[5]
+    pt502_ai = data[6]
+    pt503_ai = data[7]
+    pt504_ai = data[8]
+    ait501_ai = data[11]
+    ti501_ai = data[12]
+    ti502_ai = data[13]
+    ti503_ai = data[14]
+    ti504_ai = data[15]
+    ti505_ai = data[16]
+    ti523_ai = data[17]
+
+    # Exclue pruity upstream and downstream
     
     try:
         cursor.execute('''
             INSERT INTO HMI (
                 fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
-                purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                pt501_ai, pt502_ai, pt503_ai, pt504_ai,
+                ait501_ai, ti501_ai, ti502_ai, ti503_ai,
                 ti504_ai, ti505_ai, ti523_ai, "Timestamp"
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', data + [get_current_est_time()])
         
         conn.commit()

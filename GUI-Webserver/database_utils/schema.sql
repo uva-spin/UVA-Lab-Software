@@ -10,8 +10,6 @@ CREATE TABLE IF NOT EXISTS HMI (
   pt502_ai FLOAT NOT NULL,
   pt503_ai FLOAT NOT NULL,
   pt504_ai FLOAT NOT NULL,
-  purity_downstream FLOAT NOT NULL,
-  purity_upstream FLOAT NOT NULL,
   ait501_ai FLOAT NOT NULL,
   ti501_ai FLOAT NOT NULL,
   ti502_ai FLOAT NOT NULL,
