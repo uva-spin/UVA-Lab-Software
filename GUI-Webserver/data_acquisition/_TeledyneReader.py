@@ -25,20 +25,48 @@ class TeledyneDataReader:
         self.TELEDYNE_THCD_401_TCP_IP = "172.29.36.192"
         self.TELEDYNE_THCD_401_TCP_UNIT_ID = 2
         self.socket = None
+        self.connection_lock = threading.Lock()
 
 
-    def _tcp_connection(self):
-        """Read data from Teledyne device using raw TCP socket and extract first three numbers after READ:"""
+    def _ensure_connection(self):
+        """Ensure we have a valid TCP connection, reconnect if needed"""
+        with self.connection_lock:
+            try:
+                if self.socket is None:
+                    logger.info("Creating new TCP connection to Teledyne device")
+                    self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    self.socket.settimeout(5)
+                    self.socket.connect((self.TELEDYNE_THCD_401_TCP_IP, self.TELEDYNE_THCD_401_TCP_PORT))
+                    logger.info("Successfully connected to Teledyne device")
+                return True
+            except Exception as e:
+                logger.error(f"Error establishing TCP connection: {e}")
+                self._close_connection()
+                return False
+
+    def _close_connection(self):
+        """Close the TCP connection safely"""
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5)
-            sock.connect((self.TELEDYNE_THCD_401_TCP_IP, self.TELEDYNE_THCD_401_TCP_PORT))
+            if self.socket:
+                self.socket.close()
+                logger.info("Closed TCP connection to Teledyne device")
+        except Exception as e:
+            logger.warning(f"Error closing connection: {e}")
+        finally:
+            self.socket = None
 
-            data = sock.recv(1024)
-            sock.close()
+    def _read_data_persistent(self):
+        """Read data from Teledyne device using persistent TCP connection"""
+        try:
+            if not self._ensure_connection():
+                return [None, None, None]
 
+            # Read data from the persistent connection
+            data = self.socket.recv(1024)
+            
             if not data:
-                logger.warning("No data received from device")
+                logger.warning("No data received from device, reconnecting...")
+                self._close_connection()
                 return [None, None, None]
 
             ascii_data = data.decode('ascii', errors='ignore')
@@ -72,27 +100,26 @@ class TeledyneDataReader:
             logger.info(f"Successfully parsed values: {floats}")
             return floats
 
-        except Exception as e:
-            logger.error(f"Error in TCP connection: {e}")
+        except socket.timeout:
+            logger.warning("Socket timeout, reconnecting...")
+            self._close_connection()
             return [None, None, None]
+        except Exception as e:
+            logger.error(f"Error reading data from persistent connection: {e}")
+            self._close_connection()
+            return [None, None, None]
+
+    def _tcp_connection(self):
+        """Legacy method - now uses persistent connection"""
+        return self._read_data_persistent()
         
     def _socket_connection(self):
         """Connect to the Teledyne THCD-401 socket"""
-        try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect((self.TELEDYNE_THCD_401_TCP_IP, self.TELEDYNE_THCD_401_TCP_PORT))
-        except Exception as e:
-            logger.error(f"Error connecting to Teledyne THCD-401: {e}")
-            return None
+        return self._ensure_connection()
         
     def _socket_read(self):
         """Read data from the Teledyne THCD-401 socket"""
-        try:
-            data = self.socket.recv(1024)
-            return data
-        except Exception as e:
-            logger.error(f"Error reading data from Teledyne THCD-401: {e}")
-            return None
+        return self._read_data_persistent()
         
     def start(self):
         """Start the teledyne data reading thread"""
@@ -106,12 +133,14 @@ class TeledyneDataReader:
         self.running = False
         if self.thread:
             self.thread.join(timeout=2)
+        self._close_connection()
+        logger.info("Stopped teledyne data monitoring")
             
     def get_latest_data(self):
         """Get the latest teledyne data from TCP connection"""
         try:
-            # Read directly from TCP connection
-            values = self._tcp_connection()
+            # Read directly from persistent TCP connection
+            values = self._read_data_persistent()
             if values:
                 self.data_queue = values
                 logger.debug(f"Updated teledyne data queue: {self.data_queue}")
@@ -125,8 +154,8 @@ class TeledyneDataReader:
         
         while self.running:
             try:
-                # Read data from TCP connection
-                values = self._tcp_connection()
+                # Read data from persistent TCP connection
+                values = self._read_data_persistent()
                 if values:
                     self.data_queue = values
                     logger.debug(f"Updated teledyne data queue: {self.data_queue}")

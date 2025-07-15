@@ -84,7 +84,10 @@
                     // For ranges under 1 hour, always include AM/PM to avoid confusion
                     timeFormat = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
                 } else { // < 1 minute
-                    timeFormat = date.toLocaleTimeString([], {second: '2-digit', fractionalSecondDigits: 3});
+                    // For very short time ranges, show seconds with milliseconds
+                    const seconds = date.getSeconds().toString().padStart(2, '0');
+                    const milliseconds = date.getMilliseconds().toString().padStart(3, '0');
+                    timeFormat = `${seconds}.${milliseconds}`;
                 }
                 
                 ticks.push([tickTime, timeFormat]);
