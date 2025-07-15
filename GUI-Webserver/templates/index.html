@@ -81,7 +81,8 @@
                 } else if (timeRange > 60 * 60 * 1000) { // > 1 hour
                     timeFormat = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                 } else if (timeRange > 60 * 1000) { // > 1 minute
-                    timeFormat = date.toLocaleTimeString([], {minute: '2-digit', second: '2-digit'});
+                    // For ranges under 1 hour, always include AM/PM to avoid confusion
+                    timeFormat = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
                 } else { // < 1 minute
                     timeFormat = date.toLocaleTimeString([], {second: '2-digit', fractionalSecondDigits: 3});
                 }
@@ -180,7 +181,7 @@
                     },
                     tickColor: isDarkMode ? '#ffffff' : '#333333',
                     tickFormatter: function(val, axis) {
-                        return val.toFixed(2);
+                        return val.toFixed(3);
                     }
                 },
                 legend: {
@@ -203,7 +204,7 @@
                 },
                 tooltip: true,
                 tooltipOpts: {
-                    content: "%s: %y.2",
+                    content: "%s: %y.3",
                     xDateFormat: "%Y-%m-%d %H:%M:%S",
                     defaultTheme: !isDarkMode
                 }
@@ -218,7 +219,7 @@
                     $("#chart").bind("plothover", function (event, pos, item) {
                         if (item) {
                             const x = new Date(item.datapoint[0]).toLocaleTimeString();
-                            const y = item.datapoint[1].toFixed(2);
+                            const y = item.datapoint[1].toFixed(3);
                             const series = item.series.label;
                             
                             $("#tooltip").remove();
