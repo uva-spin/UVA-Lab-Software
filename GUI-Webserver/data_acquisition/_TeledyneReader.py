@@ -17,7 +17,7 @@ logger.setLevel(logging.DEBUG)
 
 
 class TeledyneDataReader:    
-    def __init__(self, check_interval=1):
+    def __init__(self, check_interval=5):
         self.check_interval = check_interval
         self.data_queue = [None, None, None]
         self.running = False    
@@ -25,6 +25,8 @@ class TeledyneDataReader:
         self.TELEDYNE_THCD_401_TCP_PORT = 101
         self.TELEDYNE_THCD_401_TCP_IP = "172.29.36.192"
         self.TELEDYNE_THCD_401_TCP_UNIT_ID = 2
+        self.last_connection_time = 0
+        self.min_connection_interval = 2.0  # Minimum 2 seconds between connections
 
     def _decode_data(self, data, context=""):
         """Decode data from various formats to ASCII"""
@@ -70,6 +72,14 @@ class TeledyneDataReader:
         
     def _tcp_connection(self):
         """Read data from Teledyne device using raw TCP socket and extract first three numbers after READ:"""
+        # Throttle connections to avoid overwhelming the device
+        current_time = time.time()
+        time_since_last = current_time - self.last_connection_time
+        if time_since_last < self.min_connection_interval:
+            sleep_time = self.min_connection_interval - time_since_last
+            logger.debug(f"Throttling connection, waiting {sleep_time:.2f} seconds")
+            time.sleep(sleep_time)
+        
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(5)
@@ -79,6 +89,9 @@ class TeledyneDataReader:
             sock.send(b"READ\r\n")
             data = sock.recv(1024)
             sock.close()
+            
+            # Update last connection time
+            self.last_connection_time = time.time()
 
             if not data:
                 logger.warning("No data received from device")
@@ -148,19 +161,39 @@ class TeledyneDataReader:
     def get_latest_data(self):
         """Get the latest teledyne data from TCP connection"""
         try:
+            # Check if we have recent data to avoid unnecessary connections
+            current_time = time.time()
+            if (hasattr(self, 'last_successful_data_time') and 
+                current_time - self.last_successful_data_time < self.min_connection_interval):
+                logger.debug("Using cached data to avoid overwhelming device")
+                return self.data_queue
+            
             # Use the simple TCP connection approach
             values = self._tcp_connection()
             
             if values and not all(v is None for v in values):
                 self.data_queue = values
+                self.last_successful_data_time = current_time
                 logger.debug(f"Updated teledyne data queue: {self.data_queue}")
             return self.data_queue
         except Exception as e:
             logger.error(f"Error getting latest teledyne data: {e}")
             return [None] * 3
             
+    def set_connection_interval(self, interval):
+        """Set the minimum interval between connections to avoid overwhelming the device"""
+        self.min_connection_interval = max(1.0, interval)  # Minimum 1 second
+        logger.info(f"Set minimum connection interval to {self.min_connection_interval} seconds")
+        
+    def set_check_interval(self, interval):
+        """Set the check interval for the monitoring thread"""
+        self.check_interval = max(2.0, interval)  # Minimum 2 seconds
+        logger.info(f"Set check interval to {self.check_interval} seconds")
+            
     def _monitor_tcp(self):
         """Monitor the TCP connection for new data"""
+        consecutive_failures = 0
+        max_consecutive_failures = 3
         
         while self.running:
             try:
@@ -169,12 +202,27 @@ class TeledyneDataReader:
                 
                 if values and not all(v is None for v in values):
                     self.data_queue = values
+                    consecutive_failures = 0  # Reset failure counter on success
                     logger.debug(f"Updated teledyne data queue: {self.data_queue}")
                 else:
-                    logger.debug("No valid data received from TCP connection")
+                    consecutive_failures += 1
+                    logger.debug(f"No valid data received from TCP connection (failure #{consecutive_failures})")
+                    
+                    # If we have too many consecutive failures, increase the interval
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.warning(f"Too many consecutive failures ({consecutive_failures}), increasing check interval")
+                        time.sleep(self.check_interval * 2)  # Double the wait time
+                        continue
                     
             except Exception as e:
+                consecutive_failures += 1
                 logger.error(f"Error monitoring teledyne TCP: {e}")
+                
+                # If we have too many consecutive failures, increase the interval
+                if consecutive_failures >= max_consecutive_failures:
+                    logger.warning(f"Too many consecutive failures ({consecutive_failures}), increasing check interval")
+                    time.sleep(self.check_interval * 2)  # Double the wait time
+                    continue
                 
             time.sleep(self.check_interval)
 
