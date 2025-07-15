@@ -17,7 +17,6 @@ logger.setLevel(logging.DEBUG)
 class TeledyneDataReader:    
     def __init__(self, check_interval=1):
         self.check_interval = check_interval
-        self.last_position = 0
         self.data_queue = [None, None, None]
         self.running = False    
         self.thread = None
@@ -28,7 +27,7 @@ class TeledyneDataReader:
 
 
     def _modbus_connection(self):
-        """Read integer registers from Modbus TCP server"""
+        """Read integer registers from Modbus TCP server and convert to ASCII"""
 
         client = ModbusClient(host=self.TELEDYNE_THCD_401_TCP_IP, port=self.TELEDYNE_THCD_401_TCP_PORT)
         client.connect()                               # connect to device
@@ -37,13 +36,45 @@ class TeledyneDataReader:
         logger.debug(f"Modbus connection: {int_regs}")
         client.close()
         
-        if int_regs:
-            int_values = self._get_list_2comp(int_regs, 16)
-            logger.info(f'Successfully read integer values: {int_values[:3]}... ({len(int_values)} values)')
-            return int_values
+        if not int_regs.isError():
+            # Convert hex registers to ASCII/UTF-8 string
+            hex_string = ''
+            for reg in int_regs.registers:
+                # Convert 16-bit register to hex and then to ASCII
+                hex_val = format(reg & 0xFFFF, '04x')  # Ensure 4 hex digits
+                hex_string += hex_val
+            
+            # Convert hex string to ASCII/UTF-8
+            try:
+                ascii_string = bytes.fromhex(hex_string).decode('ascii', errors='ignore')
+                logger.debug(f"Converted ASCII string: {ascii_string}")
+                
+                # Parse the data values after "READ:"
+                if "READ:" in ascii_string:
+                    read_part = ascii_string.split("READ:")[1]
+                    # Split by comma and take first 3 values
+                    values = read_part.split(',')[:3]
+                    
+                    # Convert to float, handling any non-numeric values
+                    parsed_values = []
+                    for val in values:
+                        try:
+                            parsed_values.append(float(val.strip()))
+                        except (ValueError, TypeError):
+                            parsed_values.append(None)
+                    
+                    logger.info(f'Successfully parsed values: {parsed_values}')
+                    return parsed_values
+                else:
+                    logger.warning("No 'READ:' found in ASCII string")
+                    return [None] * 3
+                    
+            except Exception as e:
+                logger.error(f"Error converting hex to ASCII: {e}")
+                return [None] * 3
         else:
             logger.warning(f"Failed to read integer registers from {self.TELEDYNE_THCD_401_TCP_IP}:{self.TELEDYNE_THCD_401_TCP_PORT}")
-            return None
+            return [None] * 3
         
     def _socket_connection(self):
         """Connect to the Teledyne THCD-401 socket"""
@@ -76,9 +107,9 @@ class TeledyneDataReader:
     def start(self):
         """Start the teledyne data reading thread"""
         self.running = True
-        self.thread = threading.Thread(target=self._monitor_file, daemon=True)
+        self.thread = threading.Thread(target=self._monitor_modbus, daemon=True)
         self.thread.start()
-        logger.info(f"Started teledyne data monitoring for {self.csv_path}")
+        logger.info("Started teledyne data monitoring via Modbus")
         
     def stop(self):
         """Stop the teledyne data reading thread"""
@@ -87,74 +118,33 @@ class TeledyneDataReader:
             self.thread.join(timeout=2)
             
     def get_latest_data(self):
-        """Get the latest teledyne data"""
+        """Get the latest teledyne data from Modbus connection"""
         try:
-            print(f"DEBUG: Teledyne data queue: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}")
-            return [self.data_queue[0], self.data_queue[1], self.data_queue[2]]
+            # Read directly from Modbus connection
+            values = self._modbus_connection()
+            if values:
+                self.data_queue = values
+                logger.debug(f"Updated teledyne data queue: {self.data_queue}")
+            return self.data_queue
         except Exception as e:
             logger.error(f"Error getting latest teledyne data: {e}")
             return [None] * 3
             
-    def _monitor_file(self):
-        """Monitor the CSV file for new data"""
-        header_skipped = False  
+    def _monitor_modbus(self):
+        """Monitor the Modbus connection for new data"""
         
         while self.running:
             try:
-                if os.path.exists(self.csv_path):
-                    with open(self.csv_path, 'r') as file:
-                        file.seek(self.last_position)
-                        
-                        new_lines = file.readlines()
-                        
-                        if new_lines:
-                            self.last_position = file.tell()
-                            
-                            for line in new_lines:
-                                line = line.strip()
-                                if not line:
-                                    continue
-                                    
-                                if not header_skipped:
-                                    if line.lower().startswith('timestamp') or ',' in line and any(x.lower() in line.lower() for x in ['flow', 'time']):
-                                        header_skipped = True
-                                        continue
-                                
-                                try:
-                                    data = line.split(',')
-                                    timestamp = data[0].strip()
-                                    flow_values = []
-                                    
-                                    for val in data[1:3]:
-                                        try:
-                                            flow_values.append(float(val.strip()))
-                                        except (ValueError, TypeError):
-                                            flow_values.append(None)
-
-                                    if all(val is None for val in flow_values):
-                                        logger.warning("All flow values are None. Returning None values...")
-                                        return [None] * 3
-                                    
-                                    self.data_queue[0] = flow_values[0] ### Seperator Flow 
-                                    self.data_queue[1] = flow_values[1] ### Magnet Flow 
-                                    self.data_queue[2] = flow_values[2] ### Main Flow 
-                                    
-                                    logger.debug(f"New teledyne data: {timestamp}, {flow_values[0]}, {flow_values[1]}, {flow_values[2]}")
-                                    
-                                except (ValueError, IndexError) as e:
-                                    logger.warning(f"Error parsing teledyne data line: {line}, error: {e}")
-                                    continue  
-
+                # Read data from Modbus connection
+                values = self._modbus_connection()
+                if values:
+                    self.data_queue = values
+                    logger.debug(f"Updated teledyne data queue: {self.data_queue}")
                 else:
-                    logger.warning(f"Teledyne CSV file not found: {self.csv_path}. Creating file...")
-                    with open(self.csv_path, 'w') as file:
-                        file.write("Timestamp,Flow_1,Flow_2,Flow_3\n")
-                    self.last_position = 0
-                    header_skipped = True  
-                    continue
+                    logger.warning("Failed to read data from Modbus connection")
                     
             except Exception as e:
-                logger.error(f"Error monitoring teledyne file: {e}")
+                logger.error(f"Error monitoring teledyne Modbus: {e}")
                 
             time.sleep(self.check_interval)
 
