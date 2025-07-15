@@ -403,8 +403,6 @@ def main():
         logger.info("DEBUG: Debug mode enabled")
         logger.info(f"DEBUG: Database path: {DATABASE_PATH}")
         logger.info(f"DEBUG: Sleep interval: {SLEEP_INTERVAL} seconds")
-        logger.info(f"DEBUG: Teledyne CSV path: {TELEDYNE_CSV_PATH}")
-        logger.info(f"DEBUG: LabJack CSV path: {LABJACK_CSV_PATH}")
         logger.info(f"DEBUG: PLC IP: {PLC_IP}")
         logger.info(f"DEBUG: Unit ID: {UNIT_ID}")
         logger.info(f"DEBUG: Integer Port: {INT_PORT}")
@@ -430,7 +428,7 @@ def main():
     
     # Start teledyne data reader
     try:
-        teledyne_reader = TeledyneDataReader(TELEDYNE_CSV_PATH, TELEDYNE_CHECK_INTERVAL)
+        teledyne_reader = TeledyneDataReader(TELEDYNE_CHECK_INTERVAL)
         teledyne_reader.start()
         if args.debug:
             logger.info("DEBUG: Teledyne data reader started")
