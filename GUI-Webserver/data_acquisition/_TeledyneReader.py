@@ -53,17 +53,23 @@ class TeledyneDataReader:
                 return [None, None, None]
 
             read_section = match.group(1)
-            # Find all numbers (float or int, including negative and scientific notation)
-            numbers = re.findall(r'[-+]?\d*\.\d+|[-+]?\d+', read_section)
-            logger.debug(f"Extracted numbers: {numbers}")
+            # Split by comma and take the first 3 values
+            values = read_section.split(',')[:3]
+            logger.debug(f"First 3 values after READ:: {values}")
 
-            # Take the first three numbers, convert to float, fill with None if less than 3
+            # Convert to float, handling non-numeric values like !RANGE!
             floats = []
-            for n in numbers[:3]:
+            for val in values:
+                val = val.strip()
                 try:
-                    floats.append(float(n))
-                except Exception:
+                    # Try to convert to float
+                    floats.append(float(val))
+                except (ValueError, TypeError):
+                    # If conversion fails (like !RANGE!), set to None
+                    logger.debug(f"Could not convert '{val}' to float, setting to None")
                     floats.append(None)
+            
+            # Ensure we always have exactly 3 values
             while len(floats) < 3:
                 floats.append(None)
 
