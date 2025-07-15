@@ -237,8 +237,8 @@ def read_teledyne_data():
     """Read latest teledyne flow data"""
     global teledyne_reader
     
-    if teledyne_reader is None:
-        return [None] * 3  # Return None for 3 flow values
+    # if teledyne_reader is None:
+    #     return [None] * 3  # Return None for 3 flow values
         
     return teledyne_reader.get_latest_data()
 
@@ -266,7 +266,7 @@ def insert_hmi_data(data):
                 fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
                 pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
                 purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                ti504_ai, ti505_ai, ti523_ai, timestamp
+                ti504_ai, ti505_ai, ti523_ai, "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', data + [get_current_est_time()])
         
@@ -288,7 +288,7 @@ def insert_teledyne_data(flow_data):
     
     try:
         cursor.execute('''
-            INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, timestamp) 
+            INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, "Timestamp") 
             VALUES (?, ?, ?, ?)
         ''', flow_data + [get_current_est_time()])
         
@@ -309,7 +309,7 @@ def insert_labjack_data(pressure_data):
     
     try:
         cursor.execute('''
-            INSERT INTO Pressures (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, timestamp) 
+            INSERT INTO Pressures (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, "Timestamp") 
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], get_current_est_time()))
         
@@ -347,7 +347,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
         seperator_flow = teledyne_data[0]
         magnet_flow = teledyne_data[1]
         main_flow = teledyne_data[2]
-        if all(v is not None for v in [seperator_flow, magnet_flow, main_flow]):
+        if any(v is not None for v in [seperator_flow, magnet_flow, main_flow]):
             if not insert_teledyne_data([seperator_flow, magnet_flow, main_flow]):
                 success = False
                 logger.error("Failed to insert Teledyne data")

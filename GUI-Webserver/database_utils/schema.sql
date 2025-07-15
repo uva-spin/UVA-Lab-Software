@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS HMI (
   ti505_ai FLOAT NOT NULL,
   ti523_ai FLOAT NOT NULL,
 
-  timestamp TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS Pressures (
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS Pressures (
   magnet_pressure FLOAT,
   purifier_inlet_pressure FLOAT,
   fridge_vapor_pressure FLOAT,
-  timestamp TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS Flow_Rates (
@@ -38,5 +38,5 @@ CREATE TABLE IF NOT EXISTS Flow_Rates (
   seperator_flow FLOAT,
   magnet_flow FLOAT,
   main_flow FLOAT,
-  timestamp TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
