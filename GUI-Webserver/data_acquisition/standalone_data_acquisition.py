@@ -69,9 +69,7 @@ except ImportError:
     LOG_FILE = "data_acquisition.log"
     TWIST_PATH = "//twist.phys.virginia.edu/www/spin"  
     DATABASE_DIR = f"{TWIST_PATH}/instance"
-    TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"
     TELEDYNE_CHECK_INTERVAL = 1  # Check for new data every second
-    LABJACK_CSV_PATH = f"{TWIST_PATH}/monitoring/labjack_pressure.csv"
     LABJACK_CHECK_INTERVAL = 1  # Check for new data every second
 
 # Define the labels for the float values
@@ -98,7 +96,6 @@ labels = [
 
 # Define labels for teledyne flow data
 teledyne_labels = [
-    "teledyne_timestamp",
     "Seperator_Flow",
     "Magnet_Flow", 
     "Main_Flow"
@@ -269,7 +266,7 @@ def insert_hmi_data(data):
                 fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
                 pt501_ai, pt502_ai, pt503_ai, pt504_ai, purity_downstream,
                 purity_upstream, ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                ti504_ai, ti505_ai, ti523_ai, "Timestamp"
+                ti504_ai, ti505_ai, ti523_ai, timestamp
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', data + [get_current_est_time()])
         
@@ -291,7 +288,7 @@ def insert_teledyne_data(flow_data):
     
     try:
         cursor.execute('''
-            INSERT INTO Flow_Rates (Seperator_Flow, Magnet_Flow, Main_Flow, "Timestamp") 
+            INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, timestamp) 
             VALUES (?, ?, ?, ?)
         ''', flow_data + [get_current_est_time()])
         
@@ -312,7 +309,7 @@ def insert_labjack_data(pressure_data):
     
     try:
         cursor.execute('''
-            INSERT INTO Pressures (Root_Exhaust_Pressure, Buffer_Pressure, Magnet_Pressure, Purifier_Inlet_Pressure, Fridge_Vapor_Pressure, "Timestamp") 
+            INSERT INTO Pressures (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, timestamp) 
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], get_current_est_time()))
         

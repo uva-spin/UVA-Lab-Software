@@ -34,8 +34,6 @@ class TeledyneDataReader:
             sock.settimeout(5)
             sock.connect((self.TELEDYNE_THCD_401_TCP_IP, self.TELEDYNE_THCD_401_TCP_PORT))
 
-            # Send a command if needed, or just try to read
-            sock.send(b"READ\r\n")
             data = sock.recv(1024)
             sock.close()
 
@@ -46,7 +44,6 @@ class TeledyneDataReader:
             ascii_data = data.decode('ascii', errors='ignore')
             logger.debug(f"Received ASCII data: {ascii_data}")
 
-            # Find the READ: section
             match = re.search(r'READ:([^\r\n]*)', ascii_data)
             if not match:
                 logger.warning("No 'READ:' found in received data")
@@ -69,7 +66,6 @@ class TeledyneDataReader:
                     logger.debug(f"Could not convert '{val}' to float, setting to None")
                     floats.append(None)
             
-            # Ensure we always have exactly 3 values
             while len(floats) < 3:
                 floats.append(None)
 
@@ -97,16 +93,6 @@ class TeledyneDataReader:
         except Exception as e:
             logger.error(f"Error reading data from Teledyne THCD-401: {e}")
             return None
-        
-    def _get_list_2comp(self, regs, bits=16):
-        """Convert list of integer values to 2's complement"""
-        converted = []
-        max_value = 2 ** bits
-        for reg in regs:
-            if reg >= max_value:
-                reg = reg - (2 ** bits)
-            converted.append(reg)
-        return converted
         
     def start(self):
         """Start the teledyne data reading thread"""
