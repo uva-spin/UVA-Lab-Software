@@ -69,7 +69,7 @@ except ImportError:
     LOG_FILE = "data_acquisition.log"
     TWIST_PATH = "//twist.phys.virginia.edu/www/spin"  
     DATABASE_DIR = f"{TWIST_PATH}/instance"
-    TELEDYNE_CHECK_INTERVAL = 1  # Check for new data every second
+    TELEDYNE_CHECK_INTERVAL = 10  # Check for new data every second
     LABJACK_CHECK_INTERVAL = 1  # Check for new data every second
 
 # Define the labels for the float values
