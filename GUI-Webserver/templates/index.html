@@ -111,9 +111,9 @@
 
             // Create timestamps array and ensure they're properly parsed
             const timestamps = data.map(point => {
-                const timestamp = typeof point.timestamp === 'string' ? 
-                    Date.parse(point.timestamp) : 
-                    Number(point.timestamp);
+                const timestamp = typeof point.Timestamp === 'string' ? 
+                    Date.parse(point.Timestamp) : 
+                    Number(point.Timestamp);
                 return timestamp;
             });
 
@@ -314,8 +314,8 @@
                 console.log('Received data points:', result.data ? result.data.length : 0);
                 if (result.data && result.data.length > 0) {
                     console.log('Time range of received data:',
-                        'from', new Date(result.data[0].timestamp).toISOString(),
-                        'to', new Date(result.data[result.data.length - 1].timestamp).toISOString()
+                        'from', new Date(result.data[0].Timestamp).toISOString(),
+                        'to', new Date(result.data[result.data.length - 1].Timestamp).toISOString()
                     );
                 }
                 
