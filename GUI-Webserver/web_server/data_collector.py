@@ -117,7 +117,7 @@ class DataCollector:
                 columns = [col[1] for col in table_info]
                 
                 # Check if 'Timestamp' column exists
-                has_timestamp_column = 'timestamp' in columns
+                has_timestamp_column = '"Timestamp"' in columns
                 
                 where_clause = ""
                 params = []
@@ -125,12 +125,12 @@ class DataCollector:
                 
                 if has_timestamp_column:
                     if start_time and end_time:
-                        where_clause = 'WHERE timestamp BETWEEN ? AND ?'
+                        where_clause = 'WHERE "Timestamp" BETWEEN ? AND ?'
                         params = [start_time, end_time]
-                    order_clause = 'ORDER BY timestamp ASC'
+                    order_clause = 'ORDER BY "Timestamp" ASC'
                 else:
                     # If no Timestamp column, just get all data
-                    order_clause = "ORDER BY id ASC"
+                    order_clause = "ORDER BY id, 'Timestamp' ASC"
                 
                 query = f"SELECT * FROM {table} {where_clause} {order_clause}"
                 logger.debug(f"Executing query: {query} with params: {params}")
@@ -184,7 +184,7 @@ class DataCollector:
                 for col in table_info:
                     col_name = col[1]
                     # Exclude metadata columns
-                    if col_name not in ['id', 'timestamp']:
+                    if col_name not in ['id', '"Timestamp"']:
                         available_columns.append(col_name)
                 
                 columns_by_table[table_name] = available_columns
@@ -276,12 +276,12 @@ def query_db():
             logger.info(f"Found keys {table_keys} in table {table}")
             
             # Build the query for this table
-            columns_str = ', '.join(['timestamp'] + table_keys)
+            columns_str = ', '.join(['"Timestamp"'] + table_keys)
             query = f"""
                 SELECT {columns_str}
                 FROM {table}
-                WHERE timestamp >= ? AND timestamp <= ?
-                ORDER BY timestamp ASC
+                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
+                ORDER BY "Timestamp" ASC
             """
             logger.info(f"DB start time: {db_start_time}")
             logger.info(f"DB end time: {db_end_time}")
@@ -299,7 +299,7 @@ def query_db():
                     timestamp = row[0]
                     
                     if timestamp not in all_data:
-                        all_data[timestamp] = {'timestamp': timestamp}
+                        all_data[timestamp] = {'Timestamp': timestamp}
                     
                     # Add data for each key
                     for i, key in enumerate(table_keys, 1):
@@ -317,7 +317,7 @@ def query_db():
         
         # Convert dictionary to list and sort by timestamp
         data = list(all_data.values())
-        data.sort(key=lambda x: x['timestamp'])
+        data.sort(key=lambda x: x['Timestamp'])
         
         # Log results
         if available_keys:
@@ -449,7 +449,7 @@ def test_db():
                 data_sources.append(table_name)
                 
             # Get latest record timestamp
-            cursor.execute(f"SELECT timestamp FROM {table_name} ORDER BY timestamp DESC LIMIT 1")
+            cursor.execute(f"SELECT Timestamp FROM {table_name} ORDER BY Timestamp DESC LIMIT 1")
             latest = cursor.fetchone()
             if latest:
                 logger.info(f"Latest record in {table_name}: {latest[0]}")

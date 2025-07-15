@@ -25,11 +25,11 @@ CREATE TABLE IF NOT EXISTS HMI (
 
 CREATE TABLE IF NOT EXISTS Pressures (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  root_exhaust_pressure FLOAT NOT NULL,
-  buffer_pressure FLOAT NOT NULL,
-  magnet_pressure FLOAT NOT NULL,
-  purifier_inlet_pressure FLOAT NOT NULL,
-  fridge_vapor_pressure FLOAT NOT NULL,
+  root_exhaust_pressure FLOAT,
+  buffer_pressure FLOAT,
+  magnet_pressure FLOAT,
+  purifier_inlet_pressure FLOAT,
+  fridge_vapor_pressure FLOAT,
   timestamp TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
