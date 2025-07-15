@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 import socket
+import re
 
 FORMAT = ('%(asctime)-15s %(threadName)-15s '
           '%(levelname)-8s %(module)-15s:%(lineno)-8s %(message)s')
@@ -26,55 +27,52 @@ class TeledyneDataReader:
         self.socket = None
 
 
-    def _modbus_connection(self):
-        """Read integer registers from Modbus TCP server and convert to ASCII"""
+    def _tcp_connection(self):
+        """Read data from Teledyne device using raw TCP socket and extract first three numbers after READ:"""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            sock.connect((self.TELEDYNE_THCD_401_TCP_IP, self.TELEDYNE_THCD_401_TCP_PORT))
 
-        client = ModbusClient(host=self.TELEDYNE_THCD_401_TCP_IP, port=self.TELEDYNE_THCD_401_TCP_PORT)
-        client.connect()                               # connect to device
+            # Send a command if needed, or just try to read
+            sock.send(b"READ\r\n")
+            data = sock.recv(1024)
+            sock.close()
 
-        int_regs = client.read_holding_registers(0, 1, unit=2)
-        logger.debug(f"Modbus connection: {int_regs}")
-        client.close()
-        
-        if not int_regs.isError():
-            # Convert hex registers to ASCII/UTF-8 string
-            hex_string = ''
-            for reg in int_regs.registers:
-                # Convert 16-bit register to hex and then to ASCII
-                hex_val = format(reg & 0xFFFF, '04x')  # Ensure 4 hex digits
-                hex_string += hex_val
-            
-            # Convert hex string to ASCII/UTF-8
-            try:
-                ascii_string = bytes.fromhex(hex_string).decode('ascii', errors='ignore')
-                logger.debug(f"Converted ASCII string: {ascii_string}")
-                
-                # Parse the data values after "READ:"
-                if "READ:" in ascii_string:
-                    read_part = ascii_string.split("READ:")[1]
-                    # Split by comma and take first 3 values
-                    values = read_part.split(',')[:3]
-                    
-                    # Convert to float, handling any non-numeric values
-                    parsed_values = []
-                    for val in values:
-                        try:
-                            parsed_values.append(float(val.strip()))
-                        except (ValueError, TypeError):
-                            parsed_values.append(None)
-                    
-                    logger.info(f'Successfully parsed values: {parsed_values}')
-                    return parsed_values
-                else:
-                    logger.warning("No 'READ:' found in ASCII string")
-                    return [None] * 3
-                    
-            except Exception as e:
-                logger.error(f"Error converting hex to ASCII: {e}")
-                return [None] * 3
-        else:
-            logger.warning(f"Failed to read integer registers from {self.TELEDYNE_THCD_401_TCP_IP}:{self.TELEDYNE_THCD_401_TCP_PORT}")
-            return [None] * 3
+            if not data:
+                logger.warning("No data received from device")
+                return [None, None, None]
+
+            ascii_data = data.decode('ascii', errors='ignore')
+            logger.debug(f"Received ASCII data: {ascii_data}")
+
+            # Find the READ: section
+            match = re.search(r'READ:([^\r\n]*)', ascii_data)
+            if not match:
+                logger.warning("No 'READ:' found in received data")
+                return [None, None, None]
+
+            read_section = match.group(1)
+            # Find all numbers (float or int, including negative and scientific notation)
+            numbers = re.findall(r'[-+]?\d*\.\d+|[-+]?\d+', read_section)
+            logger.debug(f"Extracted numbers: {numbers}")
+
+            # Take the first three numbers, convert to float, fill with None if less than 3
+            floats = []
+            for n in numbers[:3]:
+                try:
+                    floats.append(float(n))
+                except Exception:
+                    floats.append(None)
+            while len(floats) < 3:
+                floats.append(None)
+
+            logger.info(f"Successfully parsed values: {floats}")
+            return floats
+
+        except Exception as e:
+            logger.error(f"Error in TCP connection: {e}")
+            return [None, None, None]
         
     def _socket_connection(self):
         """Connect to the Teledyne THCD-401 socket"""
@@ -107,9 +105,9 @@ class TeledyneDataReader:
     def start(self):
         """Start the teledyne data reading thread"""
         self.running = True
-        self.thread = threading.Thread(target=self._monitor_modbus, daemon=True)
+        self.thread = threading.Thread(target=self._monitor_tcp, daemon=True)
         self.thread.start()
-        logger.info("Started teledyne data monitoring via Modbus")
+        logger.info("Started teledyne data monitoring via TCP")
         
     def stop(self):
         """Stop the teledyne data reading thread"""
@@ -118,10 +116,10 @@ class TeledyneDataReader:
             self.thread.join(timeout=2)
             
     def get_latest_data(self):
-        """Get the latest teledyne data from Modbus connection"""
+        """Get the latest teledyne data from TCP connection"""
         try:
-            # Read directly from Modbus connection
-            values = self._modbus_connection()
+            # Read directly from TCP connection
+            values = self._tcp_connection()
             if values:
                 self.data_queue = values
                 logger.debug(f"Updated teledyne data queue: {self.data_queue}")
@@ -130,21 +128,21 @@ class TeledyneDataReader:
             logger.error(f"Error getting latest teledyne data: {e}")
             return [None] * 3
             
-    def _monitor_modbus(self):
-        """Monitor the Modbus connection for new data"""
+    def _monitor_tcp(self):
+        """Monitor the TCP connection for new data"""
         
         while self.running:
             try:
-                # Read data from Modbus connection
-                values = self._modbus_connection()
+                # Read data from TCP connection
+                values = self._tcp_connection()
                 if values:
                     self.data_queue = values
                     logger.debug(f"Updated teledyne data queue: {self.data_queue}")
                 else:
-                    logger.warning("Failed to read data from Modbus connection")
+                    logger.warning("Failed to read data from TCP connection")
                     
             except Exception as e:
-                logger.error(f"Error monitoring teledyne Modbus: {e}")
+                logger.error(f"Error monitoring teledyne TCP: {e}")
                 
             time.sleep(self.check_interval)
 
