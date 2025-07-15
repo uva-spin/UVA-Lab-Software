@@ -285,7 +285,7 @@ def insert_hmi_data(data):
                 ait501_ai, ti501_ai, ti502_ai, ti503_ai,
                 ti504_ai, ti505_ai, ti523_ai, "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', data + [get_current_est_time()])
+        ''', (fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai, get_current_est_time()))
         
         conn.commit()
         if args.debug:
