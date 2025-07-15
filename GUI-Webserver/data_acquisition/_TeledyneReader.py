@@ -61,12 +61,16 @@ class TeledyneDataReader:
             if not self._ensure_connection():
                 return [None, None, None]
 
-            # Read data from the persistent connection
+            # Keep the socket open and wait for data
+            # Set a longer timeout to wait for data
+            self.socket.settimeout(10)
+            
+            # Try to read data from the persistent connection
             data = self.socket.recv(1024)
             
             if not data:
-                logger.warning("No data received from device, reconnecting...")
-                self._close_connection()
+                logger.warning("No data received from device, connection may be idle")
+                # Don't close connection, just return None values
                 return [None, None, None]
 
             ascii_data = data.decode('ascii', errors='ignore')
@@ -101,14 +105,53 @@ class TeledyneDataReader:
             return floats
 
         except socket.timeout:
-            logger.warning("Socket timeout, reconnecting...")
-            self._close_connection()
+            logger.debug("Socket timeout - no data available yet, keeping connection open")
+            # Don't close connection on timeout, just return None values
             return [None, None, None]
         except Exception as e:
             logger.error(f"Error reading data from persistent connection: {e}")
             self._close_connection()
             return [None, None, None]
 
+    def _send_command(self, command):
+        """Send a command to the Teledyne device"""
+        try:
+            if not self._ensure_connection():
+                return False
+            
+            # Send command with proper termination
+            command_bytes = (command + '\r\n').encode('ascii')
+            self.socket.send(command_bytes)
+            logger.debug(f"Sent command: {command}")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending command '{command}': {e}")
+            self._close_connection()
+            return False
+
+    def _request_data(self):
+        """Request data from the Teledyne device"""
+        # Try common commands that might trigger data output
+        commands = ['READ', 'DATA', 'MEASURE', 'STATUS']
+        for command in commands:
+            if self._send_command(command):
+                time.sleep(0.1)  # Small delay to allow device to respond
+                # Try to read response
+                try:
+                    self.socket.settimeout(2)
+                    data = self.socket.recv(1024)
+                    if data:
+                        ascii_data = data.decode('ascii', errors='ignore')
+                        logger.debug(f"Response to {command}: {ascii_data}")
+                        return ascii_data
+                except socket.timeout:
+                    logger.debug(f"No response to {command} command")
+                    continue
+                except Exception as e:
+                    logger.error(f"Error reading response to {command}: {e}")
+                    continue
+        return None
+        
     def _tcp_connection(self):
         """Legacy method - now uses persistent connection"""
         return self._read_data_persistent()
@@ -139,9 +182,31 @@ class TeledyneDataReader:
     def get_latest_data(self):
         """Get the latest teledyne data from TCP connection"""
         try:
-            # Read directly from persistent TCP connection
+            # First try to read any available data
             values = self._read_data_persistent()
-            if values:
+            
+            # If no data available, try requesting it
+            if not values or all(v is None for v in values):
+                logger.debug("No data available, trying to request data from device")
+                response = self._request_data()
+                if response:
+                    # Parse the response
+                    match = re.search(r'READ:([^\r\n]*)', response)
+                    if match:
+                        read_section = match.group(1)
+                        values = read_section.split(',')[:3]
+                        floats = []
+                        for val in values:
+                            val = val.strip()
+                            try:
+                                floats.append(float(val))
+                            except (ValueError, TypeError):
+                                floats.append(None)
+                        while len(floats) < 3:
+                            floats.append(None)
+                        values = floats
+            
+            if values and not all(v is None for v in values):
                 self.data_queue = values
                 logger.debug(f"Updated teledyne data queue: {self.data_queue}")
             return self.data_queue
@@ -154,13 +219,35 @@ class TeledyneDataReader:
         
         while self.running:
             try:
-                # Read data from persistent TCP connection
+                # Use the same logic as get_latest_data
                 values = self._read_data_persistent()
-                if values:
+                
+                # If no data available, try requesting it
+                if not values or all(v is None for v in values):
+                    logger.debug("No data available in monitor, trying to request data from device")
+                    response = self._request_data()
+                    if response:
+                        # Parse the response
+                        match = re.search(r'READ:([^\r\n]*)', response)
+                        if match:
+                            read_section = match.group(1)
+                            values = read_section.split(',')[:3]
+                            floats = []
+                            for val in values:
+                                val = val.strip()
+                                try:
+                                    floats.append(float(val))
+                                except (ValueError, TypeError):
+                                    floats.append(None)
+                            while len(floats) < 3:
+                                floats.append(None)
+                            values = floats
+                
+                if values and not all(v is None for v in values):
                     self.data_queue = values
                     logger.debug(f"Updated teledyne data queue: {self.data_queue}")
                 else:
-                    logger.warning("Failed to read data from TCP connection")
+                    logger.debug("No valid data received from TCP connection")
                     
             except Exception as e:
                 logger.error(f"Error monitoring teledyne TCP: {e}")
