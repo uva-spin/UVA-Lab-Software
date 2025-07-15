@@ -184,7 +184,7 @@ class LabJackReader:
                     self.avg_Purifier_Inlet_Pressure = np.average(Purifier_Inlet_Pressure)
                     self.avg_Fridge_Vapor_Pressure = np.average(Fridge_Vapor_Pressure)
                     self.data_queue[0] = self.psi_to_torr(self.ROOT_EXHAUST_SCALE_FACTOR * self.avg_Root_Exhausted_Pressure) ## In Torr
-                    self.data_queue[1] = self.psi_to_torr(self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure) ## In Torr
+                    self.data_queue[1] = self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure ## In Torr
                     self.data_queue[2] = self.MAGNET_SCALE_FACTOR * self.avg_Magnet_Pressure ## In PSI
                     self.data_queue[3] = self.PURIFIER_INLET_SCALE_FACTOR * self.avg_Purifier_Inlet_Pressure ## In PSI
                     self.data_queue[4] = self.FRIDGE_VAPOR_SCALE_FACTOR * self.avg_Fridge_Vapor_Pressure ## In Torr

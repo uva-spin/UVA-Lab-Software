@@ -123,7 +123,7 @@
                     return ' (torr)';
                 } else if (column.includes('ti') || column.includes('temperature')) {
                     return ' (K)';
-                } else if (column.includes('pt') || column.includes('pressure')) {
+                } else if (column.includes('pt') || column.includes('magnet_pressure') || column.includes('purifier_inlet_pressure')) {
                     return ' (psi)';
                 } else if (column.includes('fc') || column.includes('flow')) {
                     return ' (slm)';
