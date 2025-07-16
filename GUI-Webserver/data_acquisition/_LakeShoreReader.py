@@ -68,35 +68,54 @@ class LakeShoreReader:
             return []
 
     def _read_data(self):
+        logger.info("Starting data reading thread")
         while self.running:
             try:
                 self.serialPort.write(b'SRDG?\r\n')
                 
                 raw_data = self.serialPort.readline()
+                logger.debug(f"Raw data received: {raw_data}")
                 
                 if raw_data:
                     cleaned_data = self._clean_and_convert_data(raw_data)
+                    logger.debug(f"Cleaned data: {cleaned_data}")
                     
                     if cleaned_data:
                         self.data_queue = cleaned_data
-                        logger.debug(f"Received data: {cleaned_data}")
+                        logger.info(f"Updated data queue: {cleaned_data}")
                     else:
-                        logger.warning("No valid data received")
+                        logger.warning("No valid data received after cleaning")
+                else:
+                    logger.warning("No raw data received from device")
                 
                 time.sleep(0.1)
                 
             except Exception as e:
                 logger.error(f"Error reading data: {e}")
                 time.sleep(1)
+        
+        logger.info("Data reading thread stopped")
 
     def data_stream(self):
+        if not self.running:
+            logger.error("Cannot start data stream - device not started")
+            return
+        
+        if self.thread and self.thread.is_alive():
+            logger.warning("Data stream already running")
+            return
+            
         self.thread = threading.Thread(target=self._read_data)
         self.thread.start()
+        logger.info("Data stream started")
 
     def get_latest_data(self):
-        if self.thread and self.thread.is_alive():
+        # Check if we have any data, regardless of thread status
+        if self.data_queue and any(x is not None for x in self.data_queue):
             return self.data_queue
-        return None
+        else:
+            logger.debug("No data available in queue")
+            return None
 
     def get_formatted_data(self):
         """
