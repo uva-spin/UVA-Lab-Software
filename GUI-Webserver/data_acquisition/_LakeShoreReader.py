@@ -16,7 +16,7 @@ class LakeShoreReader:
         self.serialPort = None
         self.running = False
         self.thread = None
-        self.data_queue = [None, None, None]
+        self.data_queue = [None] * 8
 
     def start(self):
         self.serialPort = serial.Serial(
@@ -50,6 +50,8 @@ class LakeShoreReader:
             values = raw_string.strip().split(',')
             cleaned_values = []
             
+            logger.debug(f"Raw string: '{raw_string}', split values: {values}")
+            
             for value in values:
                 clean_value = value.strip()
                 if clean_value:
@@ -61,6 +63,7 @@ class LakeShoreReader:
                         # If not a number, keep as string
                         cleaned_values.append(clean_value)
             
+            logger.debug(f"Cleaned values: {cleaned_values}")
             return cleaned_values
             
         except Exception as e:
@@ -83,8 +86,10 @@ class LakeShoreReader:
                     if cleaned_data:
                         self.data_queue = cleaned_data
                         logger.info(f"Updated data queue: {cleaned_data}")
+                        logger.debug(f"Data queue type: {type(self.data_queue)}, length: {len(self.data_queue)}")
                     else:
                         logger.warning("No valid data received after cleaning")
+                        logger.debug(f"cleaned_data is empty or falsy: {cleaned_data}")
                 else:
                     logger.warning("No raw data received from device")
                 
@@ -111,11 +116,22 @@ class LakeShoreReader:
 
     def get_latest_data(self):
         # Check if we have any data, regardless of thread status
-        if self.data_queue and any(x is not None for x in self.data_queue):
-            return self.data_queue
+        logger.debug(f"get_latest_data called. Queue contents: {self.data_queue}")
+        logger.debug(f"Queue type: {type(self.data_queue)}, length: {len(self.data_queue) if self.data_queue else 0}")
+        
+        # Check if data_queue exists and has content
+        if self.data_queue and len(self.data_queue) > 0:
+            # Check if any element is not None and not an empty string
+            has_valid_data = any(x is not None and x != '' for x in self.data_queue)
+            if has_valid_data:
+                logger.debug(f"Returning data: {self.data_queue}")
+                return self.data_queue
+            else:
+                logger.debug(f"Data queue exists but contains no valid data: {self.data_queue}")
         else:
-            logger.debug("No data available in queue")
-            return None
+            logger.debug(f"Data queue is empty or None: {self.data_queue}")
+        
+        return None
 
     def get_formatted_data(self):
         """
