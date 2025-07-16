@@ -3,6 +3,12 @@
 Standalone Data Acquisition Script
 This script runs on the machine connected to Modbus devices and pipelines data directly to the database.
 Also reads from teledyne_flow.csv and labjack_pressure.csv in real-time.
+
+Usage:
+    python standalone_data_acquisition.py                    # Run with file logging only
+    python standalone_data_acquisition.py --terminal-log     # Show logs in terminal
+    python standalone_data_acquisition.py --debug            # Enable debug mode with file logging
+    python standalone_data_acquisition.py --debug --terminal-log  # Debug mode with terminal output
 """
 
 from pyModbusTCP.client import ModbusClient
@@ -40,14 +46,27 @@ def utc_to_est_str(utc_dt):
     est_dt = utc_dt.astimezone(EST)
     return est_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-logging.basicConfig(
-    level=logging.INFO,  # Change to logging.DEBUG for even more detail
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('data_acquisition.log'),
-        logging.StreamHandler()
-    ]
-)
+# Global variable to control terminal logging
+TERMINAL_LOGGING = False
+
+def setup_logging(terminal_output=False):
+    """Setup logging configuration"""
+    global TERMINAL_LOGGING
+    TERMINAL_LOGGING = terminal_output
+    
+    handlers = [logging.FileHandler('data_acquisition.log')]
+    
+    if terminal_output:
+        handlers.append(logging.StreamHandler())
+    
+    logging.basicConfig(
+        level=logging.INFO,  # Change to logging.DEBUG for even more detail
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=handlers
+    )
+
+# Initialize logging without terminal output by default
+setup_logging(terminal_output=False)
 logger = logging.getLogger(__name__)
 
 # Import configuration
@@ -501,7 +520,11 @@ def main():
     global args
     parser = argparse.ArgumentParser(description='Data Acquisition System')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--terminal-log', action='store_true', help='Show log output in terminal')
     args = parser.parse_args()
+
+    # Setup logging with terminal output if requested
+    setup_logging(terminal_output=args.terminal_log)
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
@@ -513,6 +536,13 @@ def main():
         debug_handler.setLevel(logging.DEBUG)
         debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
         logger.addHandler(debug_handler)
+        
+        # If terminal logging is enabled, also add debug output to terminal
+        if args.terminal_log:
+            debug_terminal_handler = logging.StreamHandler()
+            debug_terminal_handler.setLevel(logging.DEBUG)
+            debug_terminal_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
+            logger.addHandler(debug_terminal_handler)
 
     if args.debug:
         logger.info("Starting Data Acquisition System with Direct Database Pipeline")
