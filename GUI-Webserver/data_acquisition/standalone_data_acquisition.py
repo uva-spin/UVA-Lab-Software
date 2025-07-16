@@ -18,6 +18,7 @@ import threading
 import sqlite3
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
+from _LakeShoreReader import LakeShoreReader
 import pytz
 import argparse
 
@@ -71,6 +72,7 @@ except ImportError:
     DATABASE_DIR = f"{TWIST_PATH}/instance"
     TELEDYNE_CHECK_INTERVAL = 10  # Check for new data every second
     LABJACK_CHECK_INTERVAL = 1  # Check for new data every second
+    LAKESHORE_CHECK_INTERVAL = 1  # Check for new data every second
 
 # Define the labels for the float values
 labels = [
@@ -113,10 +115,9 @@ teledyne_reader = None
 # Global labjack reader instance
 labjack_reader = None
 
-def ensure_data_directory():
-    """Ensure the data directory exists"""
-    os.makedirs(LOCAL_CSV_DIR, exist_ok=True)
-    logger.info(f"Data directory ready: {LOCAL_CSV_DIR}")
+# Global lakeshore readers instance
+lakeshore_reader_target_stick = None
+lakeshore_reader_fridge_temp = None
 
 def ensure_database_directory():
     """Ensure the database directory exists"""
@@ -249,6 +250,26 @@ def read_labjack_data():
         
     return labjack_reader.get_latest_data()
 
+def read_lakeshore_data_target_stick():
+    """Read latest lakeshore data from target stick"""
+    global lakeshore_reader_target_stick
+
+    if lakeshore_reader_target_stick is None:
+        return [None] * 8  # Return None for 8 lakeshore values
+        
+    
+    return lakeshore_reader_target_stick.get_latest_data()
+
+def read_lakeshore_data_fridge_temp():
+    """Read latest lakeshore data from fridge temperature"""
+    global lakeshore_reader_fridge_temp
+
+    if lakeshore_reader_fridge_temp is None:
+        return [None] * 8  # Return None for 8 lakeshore values
+    
+    return lakeshore_reader_fridge_temp.get_latest_data()
+
+
 def insert_hmi_data(data):
     """Insert HMI data into the hmi table"""
     if len(data) != 18:
@@ -340,7 +361,66 @@ def insert_labjack_data(pressure_data):
     finally:
         conn.close()
 
-def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
+def insert_lakeshore_data_target_stick(data):
+    """Insert Lakeshore data into the lakeshore_target_stick table"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO Lakeshore_Target_Stick (
+                "buffle_top_temperature",
+                "buffle_bottom_temperature",
+                "seperator_top_temperature",
+                "seperator_bottom_temperature",
+                "heat_exchanger_top_temperature",
+                "heat_exchanger_bottom_temperature",
+                "annealing_plate_bar_temperature",
+                "annealing_plate_top_temperature",
+                "Timestamp"
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
+        
+        conn.commit()
+        if args.debug:
+            logger.info(f"DEBUG: Inserted Lakeshore data: {data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting Lakeshore data: {e}")
+        return False
+    finally:
+        conn.close()
+
+def insert_lakeshore_data_fridge_temp(data):
+    """Insert Lakeshore data into the lakeshore_fridge_temp table"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO Lakeshore_Fridge_Temp (
+                "target_top_up_temperature",
+                "target_top_up_center_temperature",
+                "target_top_down_temperature",
+                "target_bottom_up_temperature",
+                "target_bottom_down_temperature",
+                "target_top_cernox_temperature",
+                "target_bottom_cernox_temperature",
+                "Timestamp"
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
+
+        conn.commit()
+        if args.debug:
+            logger.info(f"DEBUG: Inserted Lakeshore data: {data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting Lakeshore data: {e}")
+        return False
+    finally:
+        conn.close()
+
+def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick):
     """Pipeline data directly to the database"""
     success = True
     
@@ -394,6 +474,25 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data):
         success = False
         logger.error("Failed to insert LabJack data")
     
+    # Insert Lakeshore data
+    if args.debug:
+        print("DEBUG: Attempting to insert Target Stick Data")
+    if lakeshore_data_target_stick is not None:
+        insert_lakeshore_data_target_stick(lakeshore_data_target_stick)
+        success = True
+    else:
+        success = False
+        logger.error("Failed to insert Target Stick Data")
+
+    # if args.debug:
+    #     print("DEBUG: Attemping to insert Fridge Temp Data")
+    # if lakeshore_data_fridge_temp is not None:
+    #     insert_lakeshore_data_fridge_temp(lakeshore_data_fridge_temp) 
+    #     success = True
+    # else:
+    #     success = False
+    #     logger.error("Failed to insert Fridge Temp Data")
+    
     return success
 
 
@@ -429,10 +528,6 @@ def main():
         logger.info(f"DEBUG: Teledyne labels: {teledyne_labels}")
         logger.info(f"DEBUG: Pressure labels: {Pressure_labels}")
         logger.info(f"DEBUG: Max consecutive failures: {MAX_CONSECUTIVE_FAILURES}")
-
-    
-    # Ensure data directory exists
-    ensure_data_directory()
     
     # Setup database
     if args.debug:
@@ -443,7 +538,6 @@ def main():
         logger.error(f"Failed to setup database: {e}")
         return
     
-    # Start teledyne data reader
     try:
         teledyne_reader = TeledyneDataReader(TELEDYNE_CHECK_INTERVAL)
         teledyne_reader.start()
@@ -461,8 +555,28 @@ def main():
     except Exception as e:
         logger.error(f"Error starting labjack data reader: {e}")
     
-    consecutive_failures = 0
-    max_consecutive_failures = MAX_CONSECUTIVE_FAILURES
+    # Start lakeshore data readers
+
+      ### Wait for RS232 cables ####
+
+
+    # try:
+    #     lakeshore_reader_fridge_temp = LakeShoreReader(port="COM5")
+    #     lakeshore_reader_fridge_temp.start()
+    #     if args.debug:
+    #         logger.info("DEBUG: Lakeshore data reader started")
+    # except Exception as e:
+    #     logger.error(f"Error starting lakeshore data reader: {e}")
+
+  
+
+    try:
+        lakeshore_reader_target_stick = LakeShoreReader(port="COM4")
+        lakeshore_reader_target_stick.start()
+        if args.debug:
+            logger.info("DEBUG: Lakeshore data reader started")
+    except Exception as e:
+        logger.error(f"Error starting lakeshore data reader: {e}")
     
     try:
         while True:
@@ -480,8 +594,12 @@ def main():
                 # Read labjack data
                 labjack_data = read_labjack_data()
                 
+                # Read lakeshore data
+                lakeshore_data_target_stick = read_lakeshore_data_target_stick()
+                # lakeshore_data_fridge_temp = read_lakeshore_data_fridge_temp()
+                
                 # Pipeline data directly to database
-                db_success = pipeline_to_database(modbus_data, teledyne_data, labjack_data)
+                db_success = pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick)
                 
                 if not db_success:
                     logger.warning("Some data failed to insert into database \n")

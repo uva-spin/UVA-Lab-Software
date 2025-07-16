@@ -38,3 +38,29 @@ CREATE TABLE IF NOT EXISTS Flow_Rates (
   main_flow FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
+
+CREATE TABLE IF NOT EXISTS Lakeshore_Target_Stick (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  buffle_top_temperature FLOAT,
+  buffle_bottom_temperature FLOAT,
+  seperator_top_temperature FLOAT,
+  seperator_bottom_temperature FLOAT,
+  heat_exchanger_top_temperature FLOAT,
+  heat_exchanger_bottom_temperature FLOAT,
+  annealing_plate_bar_temperature FLOAT,
+  annealing_plate_top_temperature FLOAT,
+  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS Lakeshore_Fridge_Temp (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_top_up_temperature FLOAT,
+  target_top_up_center_temperature FLOAT,
+  target_top_down_temperature FLOAT,
+  target_bottom_up_temperature FLOAT, 
+  target_bottom_up_center_temperature FLOAT,
+  target_bottom_down_temperature FLOAT,
+  target_top_cernox_temperature FLOAT,
+  target_bottom_cernox_temperature FLOAT,
+  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+);
