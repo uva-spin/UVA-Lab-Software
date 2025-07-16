@@ -27,7 +27,7 @@ class LabJackReader:
         self.avg_Fridge_Vapor_Pressure = None
 
         self.ROOT_EXHAUST_SCALE_FACTOR = 0.7928388747 # Torr
-        self.BUFFER_SCALE_FACTOR = -160206.6881 # Torr
+        self.BUFFER_SCALE_FACTOR = 1 #PSI
         self.MAGNET_SCALE_FACTOR = 1 #PSI
         self.PURIFIER_INLET_SCALE_FACTOR = 1 #PSI
         self.FRIDGE_VAPOR_SCALE_FACTOR = 52.55102041 # Roughly in Torr

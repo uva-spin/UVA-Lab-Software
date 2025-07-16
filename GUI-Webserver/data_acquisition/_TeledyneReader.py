@@ -16,7 +16,7 @@ logger.setLevel(logging.DEBUG)
 
 
 class TeledyneDataReader:    
-    def __init__(self, check_interval=10):
+    def __init__(self, check_interval=1):
         self.check_interval = check_interval
         self.data_queue = [None, None, None]
         self.running = False    
@@ -29,13 +29,16 @@ class TeledyneDataReader:
 
     def _tcp_connection(self):
         """Read data from Teledyne device using raw TCP socket and extract first three numbers after READ:"""
+        socket.setdefaulttimeout(1)
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5)
             sock.connect((self.TELEDYNE_THCD_401_TCP_IP, self.TELEDYNE_THCD_401_TCP_PORT))
 
             # Send a command if needed, or just try to read
-            sock.send(b"READ\r\n")
+            ## a: address
+            ## r: read
+            ## \r\n: end of command
+            sock.send(b"ar\r\n")
             data = sock.recv(1024)
             sock.close()
 
@@ -62,7 +65,6 @@ class TeledyneDataReader:
             for val in values:
                 val = val.strip()
                 try:
-                    # Try to convert to float
                     floats.append(float(val))
                 except (ValueError, TypeError):
                     # If conversion fails (like !RANGE!), set to None
@@ -97,16 +99,6 @@ class TeledyneDataReader:
         except Exception as e:
             logger.error(f"Error reading data from Teledyne THCD-401: {e}")
             return None
-        
-    def _get_list_2comp(self, regs, bits=16):
-        """Convert list of integer values to 2's complement"""
-        converted = []
-        max_value = 2 ** bits
-        for reg in regs:
-            if reg >= max_value:
-                reg = reg - (2 ** bits)
-            converted.append(reg)
-        return converted
         
     def start(self):
         """Start the teledyne data reading thread"""
