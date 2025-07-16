@@ -123,11 +123,11 @@
 
             function getColumnUnits(column) {
 
-                if (column.includes('fridge_vapor_pressure') || column.includes('root_exhausted_pressure') || column.includes('buffer_pressure')) {
+                if (column.includes('fridge_vapor_pressure') || column.includes('root_exhausted_pressure')) {
                     return ' (torr)';
                 } else if (column.includes('ti') || column.includes('temperature')) {
                     return ' (K)';
-                } else if (column.includes('pt') || column.includes('magnet_pressure') || column.includes('purifier_inlet_pressure')) {
+                } else if (column.includes('pt') || column.includes('magnet_pressure') || column.includes('purifier_inlet_pressure') || column.includes('buffer_pressure')) {
                     return ' (psi)';
                 } else if (column.includes('fc') || column.includes('flow')) {
                     return ' (slm)';

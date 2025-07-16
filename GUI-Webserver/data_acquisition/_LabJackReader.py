@@ -27,10 +27,12 @@ class LabJackReader:
         self.avg_Fridge_Vapor_Pressure = None
 
         self.ROOT_EXHAUST_SCALE_FACTOR = 0.7928388747 # Torr
-        self.BUFFER_SCALE_FACTOR = 1 #PSI
+        self.BUFFER_SCALE_FACTOR = 17.46031746 #PSI
         self.MAGNET_SCALE_FACTOR = 1 #PSI
         self.PURIFIER_INLET_SCALE_FACTOR = 1 #PSI
         self.FRIDGE_VAPOR_SCALE_FACTOR = 52.55102041 # Roughly in Torr
+
+        self.FRIDGE_VAPOR_SHIFT =  -0.19
 
     def psi_to_torr(self, psi):
         return psi * 51.715 # 1 psi = 51.715 torr
@@ -184,10 +186,10 @@ class LabJackReader:
                     self.avg_Purifier_Inlet_Pressure = np.average(Purifier_Inlet_Pressure)
                     self.avg_Fridge_Vapor_Pressure = np.average(Fridge_Vapor_Pressure)
                     self.data_queue[0] = self.psi_to_torr(self.ROOT_EXHAUST_SCALE_FACTOR * self.avg_Root_Exhausted_Pressure) ## In Torr
-                    self.data_queue[1] = self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure ## In Torr
+                    self.data_queue[1] = self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure ## In PSI
                     self.data_queue[2] = self.MAGNET_SCALE_FACTOR * self.avg_Magnet_Pressure ## In PSI
                     self.data_queue[3] = self.PURIFIER_INLET_SCALE_FACTOR * self.avg_Purifier_Inlet_Pressure ## In PSI
-                    self.data_queue[4] = self.FRIDGE_VAPOR_SCALE_FACTOR * self.avg_Fridge_Vapor_Pressure ## In Torr
+                    self.data_queue[4] = self.FRIDGE_VAPOR_SCALE_FACTOR * self.avg_Fridge_Vapor_Pressure + self.FRIDGE_VAPOR_SHIFT ## In Torr
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay

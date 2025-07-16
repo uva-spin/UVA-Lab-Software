@@ -471,18 +471,8 @@ def main():
                 modbus_data = _read_HMI()
                 
                 if modbus_data is None:
-                    consecutive_failures += 1
-                    logger.warning(f"Failed to read Modbus data (attempt {consecutive_failures})")
-                    
-                    if consecutive_failures >= max_consecutive_failures:
-                        logger.error("Too many consecutive failures, stopping")
-                        break
-                        
-                    time.sleep(SLEEP_INTERVAL)
+                    logger.warning(f"Failed to read Modbus data. Retrying after {SLEEP_INTERVAL} seconds...")
                     continue
-                
-                # Reset failure counter on successful read
-                consecutive_failures = 0
                 
                 # Read teledyne data
                 teledyne_data = read_teledyne_data()
