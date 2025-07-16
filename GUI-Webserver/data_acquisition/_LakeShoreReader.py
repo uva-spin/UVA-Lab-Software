@@ -32,12 +32,21 @@ class LakeShoreReader:
             self.serialPort.close()
 
     def _clean_and_convert_data(self, raw_bytes):
+        """
+        Clean raw bytes before converting to ASCII, then parse the data
+        """
         try:
-
-            raw_bytes = re.sub(r'b\'','',raw_bytes)
+            # First, clean the raw bytes by filtering out control characters
+            cleaned_bytes = b''
+            for byte in raw_bytes:
+                # Keep only printable ASCII characters (32-126) and newline/carriage return
+                if byte in [10, 13] or (32 <= byte <= 126):
+                    cleaned_bytes += bytes([byte])
             
-            raw_string = raw_bytes.decode('ascii')
+            # Now convert cleaned bytes to string
+            raw_string = cleaned_bytes.decode('ascii')
             
+            # Remove any remaining whitespace and split by commas
             values = raw_string.strip().split(',')
             cleaned_values = []
             
@@ -45,9 +54,11 @@ class LakeShoreReader:
                 clean_value = value.strip()
                 if clean_value:
                     try:
+                        # Try to convert to float if it's a number
                         float_val = float(clean_value)
                         cleaned_values.append(float_val)
                     except ValueError:
+                        # If not a number, keep as string
                         cleaned_values.append(clean_value)
             
             return cleaned_values
