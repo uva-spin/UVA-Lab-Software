@@ -6,6 +6,10 @@ import re
 
 logger = logging.getLogger(__name__)
 
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+logger.addHandler(logging.FileHandler('data_logs/lakeshore_debug.log'))
+
 class LakeShoreReader:
     def __init__(self, port="COM4", baudrate=9600, bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE):
         self.port = port
@@ -16,7 +20,7 @@ class LakeShoreReader:
         self.serialPort = None
         self.running = False
         self.thread = None
-        self.data_queue = [None] * 8
+        self.data_queue = [0.0] * 8
 
     def start(self):
         self.serialPort = serial.Serial(
@@ -32,9 +36,7 @@ class LakeShoreReader:
             self.serialPort.close()
 
     def _clean_and_convert_data(self, raw_bytes):
-        """
-        Clean raw bytes before converting to ASCII, then parse the data
-        """
+
         try:
             # First, clean the raw bytes by filtering out control characters
             cleaned_bytes = b''
@@ -87,6 +89,7 @@ class LakeShoreReader:
                         self.data_queue = cleaned_data
                         logger.info(f"Updated data queue: {cleaned_data}")
                         logger.debug(f"Data queue type: {type(self.data_queue)}, length: {len(self.data_queue)}")
+                        logger.debug(f"Data queue contents: {[type(x) for x in self.data_queue]}")
                     else:
                         logger.warning("No valid data received after cleaning")
                         logger.debug(f"cleaned_data is empty or falsy: {cleaned_data}")
@@ -121,8 +124,9 @@ class LakeShoreReader:
         
         # Check if data_queue exists and has content
         if self.data_queue and len(self.data_queue) > 0:
-            # Check if any element is not None and not an empty string
-            has_valid_data = any(x is not None and x != '' for x in self.data_queue)
+            # Check if any element is not None (allow 0.0 as valid data)
+            has_valid_data = any(x is not None for x in self.data_queue)
+            logger.debug(f"Individual values check: {[(i, x, x is not None) for i, x in enumerate(self.data_queue)]}")
             if has_valid_data:
                 logger.debug(f"Returning data: {self.data_queue}")
                 return self.data_queue
@@ -131,7 +135,7 @@ class LakeShoreReader:
         else:
             logger.debug(f"Data queue is empty or None: {self.data_queue}")
         
-        return None
+        return [None] * 8
 
     def get_formatted_data(self):
         """
