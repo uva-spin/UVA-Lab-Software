@@ -529,8 +529,16 @@ def get_recent_data():
         available_keys = []
         missing_keys = []
         
+        # Get all tables, excluding system tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        all_tables = [row[0] for row in cursor.fetchall()]
+        
+        # Filter out system tables
+        system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
+        tables = [table for table in all_tables if table not in system_tables]
+        
         # Check each table for the requested columns
-        for table in ['HMI', 'Pressures', 'Flow_Rates']:  
+        for table in tables:
             cursor.execute(f"PRAGMA table_info({table})")
             columns = [col[1] for col in cursor.fetchall()]
             
