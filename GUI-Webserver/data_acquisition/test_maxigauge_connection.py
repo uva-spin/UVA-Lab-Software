@@ -25,14 +25,20 @@ def test_maxigauge_connection():
         if reader._socket_connection():
             print("✓ Connection established successfully!")
             
-            # Try to read data
-            print("Attempting to read data...")
-            data = reader._socket_read()
-            
-            if data:
-                print(f"✓ Data received: {data}")
+            # Test PRX command specifically
+            print("\nTesting PRX command...")
+            response = reader.send_command('PRX')
+            if response:
+                print(f"✓ PRX command response: {response}")
+                
+                # Try to parse pressure values
+                data = reader._socket_read()
+                if data:
+                    print(f"✓ Parsed pressure values: {data}")
+                else:
+                    print("⚠ No pressure values parsed")
             else:
-                print("⚠ No data received (this might be normal if device is not sending data)")
+                print("✗ No response to PRX command")
                 
         else:
             print("✗ Failed to establish connection")

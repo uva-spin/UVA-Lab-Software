@@ -21,7 +21,6 @@ class MaxiGaugeReader:
         self.check_interval = check_interval
         self.MAXIGAUGE_TCP_IP = "172.29.36.194"
         self.MAXIGAUGE_TCP_PORT = 8000
-        self.MAXIGAUGE_TCP_UNIT_ID = 2
         self.connected = False
         self.last_connection_attempt = 0
         self.connection_retry_interval = 5  # seconds
@@ -69,39 +68,56 @@ class MaxiGaugeReader:
     def _socket_read(self):
         """Read data from the MaxiGauge socket
 
-        Data comes in nice format: 1, %e, 2, %e, 5, %e, 5, %e, 5, %e, 5, %e
-        Just get the %e values and return them as a list
-        If there are no %e values, return None
+        Send PRX command with proper protocol: PRX<CR><LF><ENQ>
+        Response format: Channel,Status,Pressure,Unit,Channel,Status,Pressure,Unit,...
         
         """
         if not self._socket_connection():
             return None
             
         try:
-            self.data = []
-            for i in range(6):
-                self.socket.send(f'PR{i}\r\n'.encode('ascii'))
-                time.sleep(0.1)
-                data = self.socket.recv(1024)
-                if not data:
-                    logger.warning("No data received from MaxiGauge!")
-                    self.connected = False
-                    return None
-                ascii_data = data.decode('ascii', errors='ignore')
-                self.data.append(ascii_data)
+            # Send PRX command with proper protocol: PRX<CR><LF><ENQ>
+            # command = 'PRX\r\n'
+            # logger.debug(f"Sending command: {repr(command)}")
+            self.socket.send(b'PRX\r\n')
+            time.sleep(0.1)
+            self.socket.send(b'\x05')
+    
+            # Read the response
+            data = self.socket.recv(1024)
             if not data:
                 logger.warning("No data received from MaxiGauge!")
                 self.connected = False
                 return None
-            ascii_data = data.decode('ascii', errors='ignore')
-            logger.debug(f"Received ASCII data: {ascii_data}")
-            # Find the %e values
-            values = re.findall(r'%e', ascii_data)
-            logger.debug(f"Found data values: {values}")
-            if not values:
-                logger.warning("No data values found in MaxiGauge data!")
+                
+            ascii_data = data.decode('ascii', errors='ignore').strip()
+            logger.debug(f"Received ASCII data: {repr(ascii_data)}")
+            
+            # Parse the response
+            # Actual format: "3,+1.1000E+03,2,+1.1000E+03,5,+0.0000E+00,..."
+            # Each pair is: channel_number,pressure_value
+            if ascii_data:
+                # Split by commas and extract all pressure values (every 2nd value starting from index 1)
+                parts = ascii_data.split(',')
+                pressure_values = []
+                
+                for i in range(1, len(parts), 2):  # Every 2nd element starting from index 1
+                    if i < len(parts):
+                        try:
+                            pressure_str = parts[i].strip()
+                            if pressure_str:
+                                # Convert to float (including zero values)
+                                pressure_float = float(pressure_str)
+                                pressure_values.append(pressure_float)
+                        except (ValueError, IndexError):
+                            continue
+                
+                logger.debug(f"Extracted pressure values: {pressure_values}")
+                return pressure_values if pressure_values else None
+            else:
+                logger.warning("Empty response from MaxiGauge")
                 return None
-            return values
+                
         except socket.timeout:
             logger.debug("Socket timeout - no data available")
             return None
@@ -134,6 +150,47 @@ class MaxiGaugeReader:
         self.connected = False
         if self.thread:
             self.thread.join(timeout=2)
+
+    def send_command(self, command):
+        """Send a command to the MaxiGauge device with proper protocol
+        
+        Args:
+            command (str): Command to send (e.g., 'PRX', 'TID', etc.)
+            
+        Returns:
+            str: Response from the device or None if error
+        """
+        if not self._socket_connection():
+            return None
+            
+        try:
+            # Add proper protocol: command<CR><LF><ENQ>
+            full_command = f"{command}\r\n\x05"
+            logger.debug(f"Sending command: {repr(full_command)}")
+            
+            # Send command
+            self.socket.send(full_command.encode('ascii'))
+            
+            # Wait for response
+            time.sleep(0.2)
+            
+            # Read response
+            data = self.socket.recv(1024)
+            if data:
+                response = data.decode('ascii', errors='ignore').strip()
+                logger.debug(f"Command response: {repr(response)}")
+                return response
+            else:
+                logger.warning("No response received for command")
+                return None
+                
+        except socket.timeout:
+            logger.debug("Socket timeout when sending command")
+            return None
+        except Exception as e:
+            logger.error(f"Error sending command '{command}': {e}")
+            self.connected = False
+            return None
 
     def get_latest_data(self):
         """Get the latest MaxiGauge data from the TCP connection"""
