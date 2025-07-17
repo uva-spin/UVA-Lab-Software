@@ -95,33 +95,25 @@ class MaxiGaugeReader:
             
             # Parse the response
             # Actual format: "3,+1.1000E+03,2,+1.1000E+03,5,+0.0000E+00,..."
-            # Each pair is: channel_number,pressure_value
+            # Extract only the scientific notation values (pressure readings)
             if ascii_data:
-                # Initialize array for all 6 channels with zeros
-                all_channels = [0.0] * 6
-                
-                # Split by commas and extract channel-pressure pairs
+                # Split by commas and extract all values
                 parts = ascii_data.split(',')
+                pressure_values = []
                 
-                for i in range(0, len(parts), 2):  # Every 2nd element starting from index 0
-                    if i + 1 < len(parts):
+                for part in parts:
+                    part = part.strip()
+                    # Check if the part is in scientific notation (contains 'E' or 'e')
+                    if 'E' in part.upper() or 'e' in part:
                         try:
-                            channel_str = parts[i].strip()
-                            pressure_str = parts[i + 1].strip()
-                            
-                            if channel_str and pressure_str:
-                                # Convert channel number to 0-based index (channels are 1-6)
-                                channel_num = int(channel_str)
-                                if 1 <= channel_num <= 6:
-                                    # Convert pressure to float
-                                    pressure_float = float(pressure_str)
-                                    # Store in correct position (channel_num - 1 for 0-based index)
-                                    all_channels[channel_num - 1] = pressure_float
+                            # Convert scientific notation to float
+                            pressure_float = float(part)
+                            pressure_values.append(pressure_float)
                         except (ValueError, IndexError):
                             continue
                 
-                logger.debug(f"All 6 channels: {all_channels}")
-                return all_channels
+                logger.debug(f"Extracted pressure values: {pressure_values}")
+                return pressure_values if pressure_values else None
             else:
                 logger.warning("Empty response from MaxiGauge")
                 return None
