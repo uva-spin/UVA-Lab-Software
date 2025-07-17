@@ -28,6 +28,12 @@ TELEDYNE_CHECK_INTERVAL = 1  # Check for new teledyne data every second
 # LabJack pressure data settings
 LABJACK_CHECK_INTERVAL = 1  # Check for new labjack data every second
 
+# LakeShore temperature data settings
+LAKESHORE_CHECK_INTERVAL = 1  # Check for new lakeshore data every second
+
+# MaxiGauge pressure data settings
+MAXIGAUGE_CHECK_INTERVAL = 1  # Check for new maxigauge data every second
+
 # Logging settings
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log" 

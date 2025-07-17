@@ -48,7 +48,15 @@ class LakeShoreReader:
             if self.serialPort.is_open:
                 self.running = True
                 logger.info("Serial port opened successfully")
-                return True
+                
+                # Automatically start the data stream
+                if self.data_stream():
+                    logger.info("LakeShore reader started successfully with data stream")
+                    return True
+                else:
+                    logger.error("Failed to start data stream")
+                    self._cleanup()
+                    return False
             else:
                 logger.error("Failed to open serial port")
                 return False
