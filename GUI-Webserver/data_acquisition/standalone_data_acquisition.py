@@ -709,7 +709,7 @@ def main():
         logger.error(f"Error starting lakeshore data reader: {e}")
 
     try:
-        maxigauge_reader = MaxiGaugeReader(check_interval=MAXIGAUGE_CHECK_INTERVAL)
+        maxigauge_reader = MaxiGaugeReader()
         maxigauge_reader.start()
         logger.info("MaxiGauge data reader started")
     except Exception as e:

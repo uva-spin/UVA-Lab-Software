@@ -23,11 +23,9 @@ FLOAT_PORT = 502
 NUM_REG_TO_READ = 36  
 
 # Teledyne flow data settings
-TELEDYNE_CSV_PATH = f"{TWIST_PATH}/monitoring/teledyne_flow.csv"  # Path to teledyne flow CSV file
 TELEDYNE_CHECK_INTERVAL = 1  # Check for new teledyne data every second
 
 # LabJack pressure data settings
-LABJACK_CSV_PATH = f"{TWIST_PATH}/monitoring/labjack_pressure.csv"  # Path to labjack pressure CSV file
 LABJACK_CHECK_INTERVAL = 1  # Check for new labjack data every second
 
 # Logging settings
