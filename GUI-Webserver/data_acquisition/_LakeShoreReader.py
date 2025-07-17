@@ -40,7 +40,7 @@ class LakeShoreReader:
                 port=self.port, 
                 baudrate=self.baudrate, 
                 bytesize=self.bytesize, 
-                parity=serial.PARITY_ODD,  # Add proper parity
+                parity=serial.PARITY_ODD,
                 timeout=self.timeout, 
                 stopbits=self.stopbits
             )
@@ -223,23 +223,6 @@ class LakeShoreReader:
             else:
                 logger.debug(f"Data queue is empty or None: {self.data_queue}")
                 return [0.0] * 8
-
-    def get_formatted_data(self):
-        """
-        Get data in a more readable format with labels
-        """
-        data = self.get_latest_data()
-        if data:
-            formatted = {}
-            for i, value in enumerate(data):
-                formatted[f"Channel_{i+1}"] = value
-            return formatted
-        return None
-
-    def is_connected(self):
-        """Check if the device is connected and running."""
-        return self.running and self.serialPort and self.serialPort.is_open
-    
     
     
 

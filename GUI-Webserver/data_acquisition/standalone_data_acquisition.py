@@ -7,8 +7,8 @@ Also reads from teledyne_flow.csv and labjack_pressure.csv in real-time.
 Usage:
     python standalone_data_acquisition.py                    # Run with file logging only
     python standalone_data_acquisition.py --terminal-log     # Show logs in terminal
-    python standalone_data_acquisition.py --debug            # Enable debug mode with file logging
-    python standalone_data_acquisition.py --debug --terminal-log  # Debug mode with terminal output
+    python standalone_data_acquisition.py --verbose          # Enable verbose logging with file logging
+    python standalone_data_acquisition.py --verbose --terminal-log  # Verbose mode with terminal output
 """
 
 from pyModbusTCP.client import ModbusClient
@@ -28,6 +28,7 @@ from _LakeShoreReader import LakeShoreReader
 from _MaxiGaugeReader import MaxiGaugeReader
 import pytz
 import argparse
+import sys
 
 # Global args variable for command line arguments
 args = None
@@ -47,27 +48,88 @@ def utc_to_est_str(utc_dt):
     est_dt = utc_dt.astimezone(EST)
     return est_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-# Global variable to control terminal logging
-TERMINAL_LOGGING = False
+def print_status_header():
+    """Print a beautiful status header for the data acquisition system"""
+    print("\n" + "="*80)
+    print("🚀 UVA Lab Data Acquisition System")
+    print("="*80)
+    print("📊 Collecting data from multiple sources:")
+    print("   • Modbus TCP (HMI/PLC)")
+    print("   • Teledyne Flow Meters")
+    print("   • LabJack Pressure Sensors")
+    print("   • LakeShore Temperature Controllers")
+    print("   • MaxiGauge Pressure Gauges")
+    print("="*80)
+    print("💾 Data is being saved to database")
+    print("📝 Logs are being written to data_acquisition.log")
+    print("⏰ Started at:", get_current_est_time())
+    print("="*80 + "\n")
 
-def setup_logging(terminal_output=False):
+def print_status_update(iteration, modbus_status, teledyne_status, labjack_status, lakeshore_status, maxigauge_status):
+    """Print a beautiful status update"""
+    status_symbols = {
+        'success': '✅',
+        'warning': '⚠️',
+        'error': '❌',
+        'none': '⏸️'
+    }
+    
+    print(f"\r🔄 Iteration {iteration:4d} | "
+          f"Modbus: {status_symbols.get(modbus_status, '❓')} | "
+          f"Teledyne: {status_symbols.get(teledyne_status, '❓')} | "
+          f"LabJack: {status_symbols.get(labjack_status, '❓')} | "
+          f"LakeShore: {status_symbols.get(lakeshore_status, '❓')} | "
+          f"MaxiGauge: {status_symbols.get(maxigauge_status, '❓')} | "
+          f"Time: {get_current_est_time()}", end='', flush=True)
+
+def setup_logging(verbose=False, terminal_output=False):
     """Setup logging configuration"""
-    global TERMINAL_LOGGING
-    TERMINAL_LOGGING = terminal_output
+    # Create logs directory if it doesn't exist
+    os.makedirs('logs', exist_ok=True)
     
-    handlers = [logging.FileHandler('data_acquisition.log')]
+    # Determine log level
+    log_level = logging.DEBUG if verbose else logging.INFO
     
+    # Create formatters
+    file_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+    )
+    console_formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s'
+    )
+    
+    # Create handlers
+    handlers = []
+    
+    # File handler for all logs
+    file_handler = logging.FileHandler('logs/data_acquisition.log')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(file_formatter)
+    handlers.append(file_handler)
+    
+    # Debug file handler if verbose
+    if verbose:
+        debug_handler = logging.FileHandler('logs/data_acquisition_debug.log')
+        debug_handler.setLevel(logging.DEBUG)
+        debug_handler.setFormatter(file_formatter)
+        handlers.append(debug_handler)
+    
+    # Console handler if terminal output requested
     if terminal_output:
-        handlers.append(logging.StreamHandler())
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(log_level)
+        console_handler.setFormatter(console_formatter)
+        handlers.append(console_handler)
     
+    # Configure root logger
     logging.basicConfig(
-        level=logging.INFO,  # Change to logging.DEBUG for even more detail
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=handlers
+        level=logging.DEBUG,  # Set to lowest level to capture all
+        handlers=handlers,
+        force=True  # Override any existing configuration
     )
 
 # Initialize logging without terminal output by default
-setup_logging(terminal_output=False)
+setup_logging(verbose=False, terminal_output=False)
 logger = logging.getLogger(__name__)
 
 # Import configuration
@@ -225,19 +287,18 @@ def _read_HMI():
         logger.info(f"Processed {len(rounded_float_values)} float values")
         
         # Log each value with its corresponding label
-        if args.debug:
-            for label, value in zip(labels, rounded_float_values[:18]):
-                logger.debug(f"{label}: {value}")
+        logger.debug("HMI Data Values:")
+        for label, value in zip(labels, rounded_float_values[:18]):
+            logger.debug(f"{label}: {value}")
         
         # Ensure we have exactly 18 values for HMI data
         if len(rounded_float_values) >= 18:
             hmi_data = rounded_float_values[:18]
             logger.info("Successfully read all HMI data")
-            if args.debug:
-                logger.info("First 3 values:")
-                for i in range(3):
-                    logger.info(f"  {labels[i]}: {hmi_data[i]}")
-                logger.info("... (15 more values)")
+            logger.debug("First 3 values:")
+            for i in range(3):
+                logger.debug(f"  {labels[i]}: {hmi_data[i]}")
+            logger.debug("... (15 more values)")
             return hmi_data
         else:
             logger.error(f"Not enough float values: got {len(rounded_float_values)}, need 18")
@@ -245,8 +306,7 @@ def _read_HMI():
         
     except Exception as e:
         logger.error(f"Error reading Modbus data: {e}")
-        if args.debug:
-            logger.error(f"Exception details:", exc_info=True)  # This will log the full traceback
+        logger.debug("Exception details:", exc_info=True)  # This will log the full traceback
         return None
     finally:
         try:
@@ -342,8 +402,7 @@ def insert_hmi_data(data):
         ''', (fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai, get_current_est_time()))
         
         conn.commit()
-        if args.debug:
-            logger.info(f"DEBUG: Inserted HMI data: {data[:3]}...")
+        logger.debug(f"Inserted HMI data: {data[:3]}...")
         return True
     except Exception as e:
         logger.error(f"Error inserting HMI data: {e}")
@@ -364,8 +423,7 @@ def insert_teledyne_data(flow_data):
         ''', flow_data + [get_current_est_time()])
         
         conn.commit()
-        if args.debug:
-            logger.info(f"DEBUG: Inserted Teledyne data: {flow_data}")
+        logger.debug(f"Inserted Teledyne data: {flow_data}")
         return True
     except Exception as e:
         logger.error(f"Error inserting Teledyne data: {e}")
@@ -385,8 +443,7 @@ def insert_labjack_data(pressure_data):
         ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], get_current_est_time()))
         
         conn.commit()
-        if args.debug:
-            logger.info(f"DEBUG: Inserted LabJack data: {pressure_data}")
+        logger.debug(f"Inserted LabJack data: {pressure_data}")
         return True
     except Exception as e:
         logger.error(f"Error inserting LabJack data: {e}")
@@ -415,8 +472,7 @@ def insert_lakeshore_data_target_stick(data):
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
         
         conn.commit()
-        if args.debug:
-            logger.info(f"DEBUG: Inserted Lakeshore data: {data}")
+        logger.debug(f"Inserted Lakeshore data: {data}")
         return True
     except Exception as e:
         logger.error(f"Error inserting Lakeshore data: {e}")
@@ -443,8 +499,7 @@ def insert_maxigauge_data(data):
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], get_current_est_time()))
 
         conn.commit()
-        if args.debug:
-            logger.info("DEBUG: Inserted MaxiGauge data: {data}")
+        logger.debug(f"Inserted MaxiGauge data: {data}")
         return True
     except Exception as e:
         logger.error(f"Error inserting MaxiGauge data: {e}")
@@ -473,8 +528,7 @@ def insert_lakeshore_data_fridge_temp(data):
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
 
         conn.commit()
-        if args.debug:
-            logger.info(f"DEBUG: Inserted Lakeshore data: {data}")
+        logger.debug(f"Inserted Lakeshore data: {data}")
         return True
     except Exception as e:
         logger.error(f"Error inserting Lakeshore data: {e}")
@@ -487,134 +541,130 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
     success = True
     
     # Insert HMI/Modbus data
-    if args.debug:
-        print("DEBUG: Attempting to insert HMI data")
+    logger.debug("Attempting to insert HMI data")
     if modbus_data is not None:
-        insert_hmi_data(modbus_data)
-        # if not insert_hmi_data(modbus_data):
-        #     success = False
-        success = True
-        # logger.info("DEBUG: Successfully inserted HMI data")
+        if insert_hmi_data(modbus_data):
+            modbus_status = 'success'
+        else:
+            modbus_status = 'error'
+            success = False
+            logger.error("Failed to insert HMI data")
     else:
+        modbus_status = 'error'
         success = False
-        logger.error("Failed to insert HMI data")
+        logger.error("No HMI data to insert")
     
     # Insert Teledyne data
-    if args.debug:
-        print("DEBUG: Attempting to insert Teledyne data")
+    logger.debug("Attempting to insert Teledyne data")
     if teledyne_data is not None:
         seperator_flow = teledyne_data[0]
         magnet_flow = teledyne_data[1]
         main_flow = teledyne_data[2]
         if any(v is not None for v in [seperator_flow, magnet_flow, main_flow]):
-            if not insert_teledyne_data([seperator_flow, magnet_flow, main_flow]):
+            if insert_teledyne_data([seperator_flow, magnet_flow, main_flow]):
+                teledyne_status = 'success'
+            else:
+                teledyne_status = 'error'
                 success = False
                 logger.error("Failed to insert Teledyne data")
         else:
             logger.warning("Missing required teledyne flow values. Inserting None values instead...")
             seperator_flow = magnet_flow = main_flow = None
-            insert_teledyne_data([seperator_flow, magnet_flow, main_flow])
+            if insert_teledyne_data([seperator_flow, magnet_flow, main_flow]):
+                teledyne_status = 'warning'
+            else:
+                teledyne_status = 'error'
+                success = False
     else:
-        if args.debug:
-            print("DEBUG: Successfully inserted Teledyne data")
+        teledyne_status = 'none'
+        logger.debug("No Teledyne data to insert")
             
     
     # Insert LabJack data
-    if args.debug:
-        print("DEBUG: Attempting to insert LabJack data")
+    logger.debug("Attempting to insert LabJack data")
     if labjack_data is not None:
         root_exhaust_pressure = labjack_data[0]
         buffer_pressure = labjack_data[1]
         magnet_pressure = labjack_data[2]
         purifier_inlet_pressure = labjack_data[3]
         fridge_vapor_pressure = labjack_data[4]
-        if args.debug:
-            print(f"DEBUG:Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}")
-        insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure])
-        success = True
+        logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}")
+        if insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure]):
+            labjack_status = 'success'
+        else:
+            labjack_status = 'error'
+            success = False
+            logger.error("Failed to insert LabJack data")
     else:
+        labjack_status = 'error'
         success = False
-        logger.error("Failed to insert LabJack data")
+        logger.error("No LabJack data to insert")
     
     # Insert Lakeshore data
-    if args.debug:
-        print("DEBUG: Attempting to insert Target Stick Data")
+    logger.debug("Attempting to insert Target Stick Data")
     if lakeshore_data_target_stick is not None:
-        insert_lakeshore_data_target_stick(lakeshore_data_target_stick)
-        success = True
+        if insert_lakeshore_data_target_stick(lakeshore_data_target_stick):
+            lakeshore_status = 'success'
+        else:
+            lakeshore_status = 'error'
+            success = False
+            logger.error("Failed to insert Target Stick Data")
     else:
+        lakeshore_status = 'error'
         success = False
-        logger.error("Failed to insert Target Stick Data")
+        logger.error("No Target Stick data to insert")
 
-    # if args.debug:
-    #     print("DEBUG: Attemping to insert Fridge Temp Data")
-    # if lakeshore_data_fridge_temp is not None:
-    #     insert_lakeshore_data_fridge_temp(lakeshore_data_fridge_temp) 
-    #     success = True
-    # else:
-    #     success = False
-    #     logger.error("Failed to insert Fridge Temp Data")
-    
     # Insert MaxiGauge data
-    if args.debug:
-        print("DEBUG: Attempting to insert MaxiGauge data")
+    logger.debug("Attempting to insert MaxiGauge data")
     if maxigauge_data is not None:
-        insert_maxigauge_data(maxigauge_data)
-        success = True
+        if insert_maxigauge_data(maxigauge_data):
+            maxigauge_status = 'success'
+        else:
+            maxigauge_status = 'error'
+            success = False
+            logger.error("Failed to insert MaxiGauge data")
     else:
+        maxigauge_status = 'error'
         success = False
-        logger.error("Failed to insert MaxiGauge data")
+        logger.error("No MaxiGauge data to insert")
 
-    return success
+    return success, modbus_status, teledyne_status, labjack_status, lakeshore_status, maxigauge_status
 
 
 def main():
     """Main data acquisition loop"""
     global args
     parser = argparse.ArgumentParser(description='Data Acquisition System')
-    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
     parser.add_argument('--terminal-log', action='store_true', help='Show log output in terminal')
     args = parser.parse_args()
 
     # Setup logging with terminal output if requested
-    setup_logging(terminal_output=args.terminal_log)
-
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
+    setup_logging(verbose=args.verbose, terminal_output=args.terminal_log)
 
     global teledyne_reader, labjack_reader, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp
 
-    if args.debug:
-        debug_handler = logging.FileHandler('data_acquisition_debug.log')
-        debug_handler.setLevel(logging.DEBUG)
-        debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
-        logger.addHandler(debug_handler)
-        
-        # If terminal logging is enabled, also add debug output to terminal
-        if args.terminal_log:
-            debug_terminal_handler = logging.StreamHandler()
-            debug_terminal_handler.setLevel(logging.DEBUG)
-            debug_terminal_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'))
-            logger.addHandler(debug_terminal_handler)
+    # Print beautiful header if not in verbose mode
+    if not args.verbose and not args.terminal_log:
+        print_status_header()
 
-    if args.debug:
-        logger.info("Starting Data Acquisition System with Direct Database Pipeline")
-        logger.info("DEBUG: Debug mode enabled")
-        logger.info(f"DEBUG: Database path: {DATABASE_PATH}")
-        logger.info(f"DEBUG: Sleep interval: {SLEEP_INTERVAL} seconds")
-        logger.info(f"DEBUG: PLC IP: {PLC_IP}")
-        logger.info(f"DEBUG: Unit ID: {UNIT_ID}")
-        logger.info(f"DEBUG: Integer Port: {INT_PORT}")
-        logger.info(f"DEBUG: Float Port: {FLOAT_PORT}")
-        logger.info(f"DEBUG: Number of registers to read: {NUM_REG_TO_READ}")
-        logger.info(f"DEBUG: Labels: {labels}")
-        logger.info(f"DEBUG: Teledyne labels: {teledyne_labels}")
-        logger.info(f"DEBUG: Pressure labels: {Pressure_labels}")
-        logger.info(f"DEBUG: Max consecutive failures: {MAX_CONSECUTIVE_FAILURES}")
+    logger.info("Starting Data Acquisition System with Direct Database Pipeline")
+    if args.verbose:
+        logger.info("VERBOSE: Verbose mode enabled")
+        logger.info(f"VERBOSE: Database path: {DATABASE_PATH}")
+        logger.info(f"VERBOSE: Sleep interval: {SLEEP_INTERVAL} seconds")
+        logger.info(f"VERBOSE: PLC IP: {PLC_IP}")
+        logger.info(f"VERBOSE: Unit ID: {UNIT_ID}")
+        logger.info(f"VERBOSE: Integer Port: {INT_PORT}")
+        logger.info(f"VERBOSE: Float Port: {FLOAT_PORT}")
+        logger.info(f"VERBOSE: Number of registers to read: {NUM_REG_TO_READ}")
+        logger.info(f"VERBOSE: Labels: {labels}")
+        logger.info(f"VERBOSE: Teledyne labels: {teledyne_labels}")
+        logger.info(f"VERBOSE: Pressure labels: {Pressure_labels}")
+        logger.info(f"VERBOSE: Max consecutive failures: {MAX_CONSECUTIVE_FAILURES}")
     
     # Setup database
-    if args.debug:
-        logger.info("DEBUG: Setting up database")
+    logger.info("Setting up database")
     try:
         setup_database()
     except Exception as e:
@@ -624,8 +674,7 @@ def main():
     try:
         teledyne_reader = TeledyneDataReader(TELEDYNE_CHECK_INTERVAL)
         teledyne_reader.start()
-        if args.debug:
-            logger.info("DEBUG: Teledyne data reader started")
+        logger.info("Teledyne data reader started")
     except Exception as e:
         logger.error(f"Error starting teledyne data reader: {e}")
     
@@ -633,8 +682,7 @@ def main():
     try:
         labjack_reader = LabJackReader(LABJACK_CHECK_INTERVAL)
         labjack_reader.start()
-        if args.debug:
-            logger.info("DEBUG: LabJack data reader started")
+        logger.info("LabJack data reader started")
     except Exception as e:
         logger.error(f"Error starting labjack data reader: {e}")
     
@@ -656,28 +704,31 @@ def main():
     try:
         lakeshore_reader_target_stick = LakeShoreReader(port="COM4")
         lakeshore_reader_target_stick.start()
-        if args.debug:
-            logger.info("DEBUG: Lakeshore data reader started")
+        logger.info("Lakeshore data reader started")
     except Exception as e:
         logger.error(f"Error starting lakeshore data reader: {e}")
 
     try:
         maxigauge_reader = MaxiGaugeReader(check_interval=MAXIGAUGE_CHECK_INTERVAL)
         maxigauge_reader.start()
-        if args.debug:
-            logger.info("DEBUG: MaxiGauge data reader started")
+        logger.info("MaxiGauge data reader started")
     except Exception as e:
         logger.error(f"Error starting maxigauge data reader: {e}")
 
+    iteration = 0
     
     try:
         while True:
             try:
+                iteration += 1
+                
                 # Read data from Modbus()
                 modbus_data = _read_HMI()
                 
                 if modbus_data is None:
                     logger.warning(f"Failed to read Modbus data. Retrying after {SLEEP_INTERVAL} seconds...")
+                    if not args.verbose and not args.terminal_log:
+                        print_status_update(iteration, 'error', 'none', 'none', 'none', 'none')
                     continue
                 
                 # Read teledyne data
@@ -688,25 +739,36 @@ def main():
                 
                 # Read lakeshore data
                 lakeshore_data_target_stick = read_lakeshore_data_target_stick()
+                
                 # lakeshore_data_fridge_temp = read_lakeshore_data_fridge_temp()
                 
                 # Read maxigauge data
                 maxigauge_data = read_maxigauge_data()
 
                 # Pipeline data directly to database
-                db_success = pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, maxigauge_data)
+                db_success, modbus_status, teledyne_status, labjack_status, lakeshore_status, maxigauge_status = pipeline_to_database(
+                    modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, maxigauge_data
+                )
+                
+                # Print status update if not in verbose mode
+                if not args.verbose and not args.terminal_log:
+                    print_status_update(iteration, modbus_status, teledyne_status, labjack_status, lakeshore_status, maxigauge_status)
                 
                 if not db_success:
-                    logger.warning("Some data failed to insert into database \n")
+                    logger.warning("Some data failed to insert into database")
                 
                 # Wait before next reading
                 time.sleep(SLEEP_INTERVAL)
                 
             except KeyboardInterrupt:
                 logger.info("Data acquisition stopped by user")
+                if not args.verbose and not args.terminal_log:
+                    print("\n\n🛑 Data acquisition stopped by user")
                 break
             except Exception as e:
                 logger.error(f"Unexpected error in main loop: {e}")
+                if not args.verbose and not args.terminal_log:
+                    print_status_update(iteration, 'error', 'error', 'error', 'error', 'error')
                 time.sleep(SLEEP_INTERVAL)
                 
     finally:
@@ -731,6 +793,9 @@ def main():
         if lakeshore_reader_fridge_temp:
             lakeshore_reader_fridge_temp.stop()
             logger.info("Lakeshore data reader stopped")
+
+        if not args.verbose and not args.terminal_log:
+            print("\n\n✅ Data acquisition system shutdown complete")
 
 if __name__ == '__main__':
     main() 
