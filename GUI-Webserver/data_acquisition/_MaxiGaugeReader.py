@@ -90,7 +90,7 @@ class MaxiGaugeReader:
                 self.connected = False
                 return None
                 
-            ascii_data = data.decode('ascii', errors='ignore').strip()
+            ascii_data = data.decode('ascii', errors='ignore')
             logger.debug(f"Received ASCII data: {repr(ascii_data)}")
             
             # Parse the response
@@ -99,20 +99,24 @@ class MaxiGaugeReader:
             if ascii_data:
                 # Split by commas and extract all values
                 parts = ascii_data.split(',')
+                logger.debug(f"All parts after split: {parts}")
                 pressure_values = []
                 
-                for part in parts:
+                for i, part in enumerate(parts):
                     part = part.strip()
+                    logger.debug(f"Processing part {i}: '{part}'")
                     # Check if the part is in scientific notation (contains 'E' or 'e')
                     if 'E' in part.upper() or 'e' in part:
                         try:
                             # Convert scientific notation to float
                             pressure_float = float(part)
                             pressure_values.append(pressure_float)
-                        except (ValueError, IndexError):
+                            logger.debug(f"Added pressure value: {pressure_float}")
+                        except (ValueError, IndexError) as e:
+                            logger.debug(f"Failed to convert '{part}' to float: {e}")
                             continue
                 
-                logger.debug(f"Extracted pressure values: {pressure_values}")
+                logger.debug(f"Final extracted pressure values: {pressure_values}")
                 return pressure_values if pressure_values else None
             else:
                 logger.warning("Empty response from MaxiGauge")
