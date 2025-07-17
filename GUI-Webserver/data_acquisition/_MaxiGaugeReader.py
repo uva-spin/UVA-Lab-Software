@@ -93,6 +93,11 @@ class MaxiGaugeReader:
             ascii_data = data.decode('ascii', errors='ignore')
             logger.debug(f"Received ASCII data: {repr(ascii_data)}")
             
+            # Clean up the data by removing control characters and extra whitespace
+            # Remove \r\n\x06\r\n from the end and any other control characters
+            ascii_data = ascii_data.replace('\r\n\x06\r\n', '').replace('\r\n', '').strip()
+            logger.debug(f"Cleaned ASCII data: {repr(ascii_data)}")
+            
             # Parse the response
             # Actual format: "3,+1.1000E+03,2,+1.1000E+03,5,+0.0000E+00,..."
             # Extract only the scientific notation values (pressure readings)
