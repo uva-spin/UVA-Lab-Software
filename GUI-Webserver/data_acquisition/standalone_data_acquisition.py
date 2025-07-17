@@ -582,7 +582,7 @@ def main():
     if args.debug:
         logger.setLevel(logging.DEBUG)
 
-    global teledyne_reader, labjack_reader
+    global teledyne_reader, labjack_reader, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp
 
     if args.debug:
         debug_handler = logging.FileHandler('data_acquisition_debug.log')
@@ -662,7 +662,7 @@ def main():
         logger.error(f"Error starting lakeshore data reader: {e}")
 
     try:
-        maxigauge_reader = MaxiGaugeReader(MAXIGAUGE_CHECK_INTERVAL)
+        maxigauge_reader = MaxiGaugeReader(check_interval=MAXIGAUGE_CHECK_INTERVAL)
         maxigauge_reader.start()
         if args.debug:
             logger.info("DEBUG: MaxiGauge data reader started")
