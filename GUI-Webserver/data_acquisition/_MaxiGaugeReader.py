@@ -18,11 +18,53 @@ class MaxiGaugeReader:
         self.running = False
         self.thread = None
         self.data_queue = []
-        self.socket = None
         self.check_interval = check_interval
         self.MAXIGAUGE_TCP_IP = "172.29.36.194"
         self.MAXIGAUGE_TCP_PORT = 8000
         self.MAXIGAUGE_TCP_UNIT_ID = 2
+        self.connected = False
+        self.last_connection_attempt = 0
+        self.connection_retry_interval = 5  # seconds
+
+    def _socket_connection(self):
+        """Connect to the MaxiGauge socket"""
+        if self.connected and self.socket:
+            return True
+            
+        # Don't retry too frequently
+        current_time = time.time()
+        if current_time - self.last_connection_attempt < self.connection_retry_interval:
+            return False
+            
+        self.last_connection_attempt = current_time
+        
+        try:
+            # Close existing socket if any
+            if self.socket:
+                try:
+                    self.socket.close()
+                except:
+                    pass
+                self.socket = None
+                self.connected = False
+            
+            # Create new socket
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.settimeout(self.timeout)
+            self.socket.connect((self.MAXIGAUGE_TCP_IP, self.MAXIGAUGE_TCP_PORT))
+            self.connected = True
+            logger.info(f"Successfully connected to MaxiGauge at {self.MAXIGAUGE_TCP_IP}:{self.MAXIGAUGE_TCP_PORT}")
+            return True
+        except Exception as e:
+            logger.error(f"Error connecting to MaxiGauge: {e}")
+            self.connected = False
+            if self.socket:
+                try:
+                    self.socket.close()
+                except:
+                    pass
+                self.socket = None
+            return False
 
     def _socket_read(self):
         """Read data from the MaxiGauge socket
@@ -32,36 +74,31 @@ class MaxiGaugeReader:
         If there are no %e values, return None
         
         """
-        socket.setdefaulttimeout(1)
-        while self.running:
-            try:
-                self._socket_connection()
-                data = self.socket.recv(1024)
-                if not data:
-                    logger.warning("No data received from MaxiGauge!")
-                    return None
-                ascii_data = data.decode('ascii', errors='ignore')
-                logger.debug(f"Received ASCII data: {ascii_data}")
-                # Find the %e values
-                values = re.findall(r'%e', ascii_data)
-                logger.debug(f"Found data values: {values}")
-                if not values:
-                    logger.warning("No data values found in MaxiGauge data!")
-                    return None
-                return values
-            except Exception as e:
-                logger.error(f"Error reading data from MaxiGauge: {e}")
-                return None
+        if not self._socket_connection():
+            return None
             
-    def _socket_connection(self):
-        """Connect to the MaxiGauge socket"""
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect((self.MAXIGAUGE_TCP_IP, self.MAXIGAUGE_TCP_PORT))
+            data = self.socket.recv(1024)
+            if not data:
+                logger.warning("No data received from MaxiGauge!")
+                self.connected = False
+                return None
+            ascii_data = data.decode('ascii', errors='ignore')
+            logger.debug(f"Received ASCII data: {ascii_data}")
+            # Find the %e values
+            values = re.findall(r'%e', ascii_data)
+            logger.debug(f"Found data values: {values}")
+            if not values:
+                logger.warning("No data values found in MaxiGauge data!")
+                return None
+            return values
+        except socket.timeout:
+            logger.debug("Socket timeout - no data available")
+            return None
         except Exception as e:
-            logger.error(f"Error connecting to MaxiGauge: {e}")
-            return False
-
+            logger.error(f"Error reading data from MaxiGauge: {e}")
+            self.connected = False
+            return None
 
     def start(self):
         """Start the MaxiGauge reader and open the TCP connection."""
@@ -78,9 +115,15 @@ class MaxiGaugeReader:
         """Stop the MaxiGauge reader and close the TCP connection."""
         logger.info("Stopping MaxiGauge reader")
         self.running = False
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+            self.socket = None
+        self.connected = False
         if self.thread:
             self.thread.join(timeout=2)
-
 
     def get_latest_data(self):
         """Get the latest MaxiGauge data from the TCP connection"""
@@ -102,7 +145,7 @@ class MaxiGaugeReader:
                     self.data_queue = data
                     logger.debug(f"Updated MaxiGauge data queue: {self.data_queue}")
                 else:
-                    logger.warning("Failed to read data from TCP connection")
+                    logger.debug("No data received from MaxiGauge")
             except Exception as e:
                 logger.error(f"Error monitoring Pfeiffer MaxiGauge: {e}")
 
