@@ -208,7 +208,10 @@ class MaxiGaugeReader:
             if data:
                 self.data_queue = data
                 logger.debug(f"Updated MaxiGauge data queue: {self.data_queue}")
-            return self.data_queue
+                return data  # Return fresh data directly
+            else:
+                # If no fresh data, return cached data if available
+                return self.data_queue if self.data_queue else None
         except Exception as e:
             logger.error(f"Error getting latest MaxiGauge data: {e}")
             return None
