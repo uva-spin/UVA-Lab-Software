@@ -2,7 +2,6 @@ import serial
 import time
 import logging
 import threading
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +10,7 @@ logger.addHandler(logging.StreamHandler())
 logger.addHandler(logging.FileHandler('data_logs/lakeshore_debug.log'))
 
 class LakeShoreReader:
-    def __init__(self, port="COM4", baudrate=9600, bytesize=serial.SEVENBITS, timeout=2, stopbits=serial.STOPBITS_ONE):
+    def __init__(self, port="COM4", baudrate=9600, bytesize=7, timeout=2, stopbits=1):
         self.port = port
         self.baudrate = baudrate
         self.bytesize = bytesize
@@ -21,13 +20,11 @@ class LakeShoreReader:
         self.running = False
         self.thread = None
         self.data_queue = [0.0] * 8
-        self._lock = threading.Lock()  
-        self.raw_data = None
+        self._lock = threading.Lock()
 
     def start(self):
         """Start the LakeShore reader and open the serial port."""
         try:
-
             if self.running:
                 logger.warning("LakeShore reader is already running")
                 return False
@@ -37,12 +34,13 @@ class LakeShoreReader:
                 logger.info("Closing existing serial connection")
                 self.serialPort.close()
             
-            # Open new serial connection
+            # Open new serial connection with proper parity
             logger.info(f"Opening serial port {self.port}")
             self.serialPort = serial.Serial(
                 port=self.port, 
                 baudrate=self.baudrate, 
                 bytesize=self.bytesize, 
+                parity=serial.PARITY_ODD,  # Add proper parity
                 timeout=self.timeout, 
                 stopbits=self.stopbits
             )
@@ -97,47 +95,50 @@ class LakeShoreReader:
         """Destructor to ensure cleanup when object is destroyed."""
         self.stop()
 
-    def _clean_and_convert_data(self, raw_bytes):
+    def _parse_lakeshore_data(self, raw_data):
         """
-        Convert raw bytes to a list of float values using ord().
-        Applies ord() directly to each byte in the raw input.
+        Parse LakeShore data response.
+        Expected format: "123.456,234.567,345.678,456.789,567.890,678.901,789.012,890.123\r\n"
         """
         try:
-            logger.debug(f"Raw bytes: {raw_bytes}")
-            logger.debug(f"Raw bytes type: {type(raw_bytes)}")
-            logger.debug(f"Raw bytes length: {len(raw_bytes)}")
+            logger.debug(f"Raw data: {raw_data}")
             
-            byte_values = []
-            for byte in raw_bytes:
-                try:
-                    byte_val = ord(byte)
-                    byte_values.append(byte_val)
-                    logger.debug(f"Byte {byte} -> ord() = {byte_val}")
-                except Exception as e:
-                    logger.warning(f"Could not get ord() for byte {byte}: {e}")
-                    byte_values.append(0)
+            # Decode bytes to string and strip whitespace
+            if isinstance(raw_data, bytes):
+                data_str = raw_data.decode('ascii', errors='ignore').strip()
+            else:
+                data_str = str(raw_data).strip()
             
-            logger.debug(f"Byte values: {byte_values}")
+            logger.debug(f"Decoded data string: {data_str}")
             
-            cleaned_values = []
-            for i, byte_val in enumerate(byte_values):
-                try:
-                    float_val = float(byte_val)
-                    cleaned_values.append(float_val)
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Could not convert byte value {byte_val} to float: {e}, using 0.0")
-                    cleaned_values.append(0.0)
-            
-            while len(cleaned_values) < 8:
-                cleaned_values.append(0.0)
-            
-            cleaned_values = cleaned_values[:8]
-            
-            logger.debug(f"Final cleaned values: {cleaned_values}")
-            return cleaned_values
-            
+            # Split by commas and convert to floats
+            if data_str:
+                parts = data_str.split(',')
+                temperature_values = []
+                
+                for part in parts:
+                    part = part.strip()
+                    if part:
+                        try:
+                            temp_val = float(part)
+                            temperature_values.append(temp_val)
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Could not convert '{part}' to float: {e}, using 0.0")
+                            temperature_values.append(0.0)
+                
+                # Ensure we have exactly 8 values
+                while len(temperature_values) < 8:
+                    temperature_values.append(0.0)
+                temperature_values = temperature_values[:8]
+                
+                logger.debug(f"Parsed temperature values: {temperature_values}")
+                return temperature_values
+            else:
+                logger.warning("Empty data string received")
+                return [0.0] * 8
+                
         except Exception as e:
-            logger.error(f"Error cleaning data: {e}")
+            logger.error(f"Error parsing LakeShore data: {e}")
             return [0.0] * 8
 
     def _read_data(self):
@@ -152,24 +153,21 @@ class LakeShoreReader:
                         logger.error("Serial port is not open")
                         break
                     
-                    # Send command to device
+                    # Simple communication like Teledyne example
                     self.serialPort.write(b'SRDG?\r\n')
-                    
-                    # Read response
                     raw_data = self.serialPort.readline()
                     logger.debug(f"Raw data received: {raw_data}")
                     
                     if raw_data:
-                        self.raw_data = raw_data
-                        cleaned_data = self._clean_and_convert_data(raw_data)
-                        logger.debug(f"Cleaned data: {cleaned_data}")
+                        parsed_data = self._parse_lakeshore_data(raw_data)
+                        logger.debug(f"Parsed data: {parsed_data}")
                         
-                        if cleaned_data:
+                        if parsed_data:
                             with self._lock:
-                                self.data_queue = cleaned_data
-                            logger.info(f"Updated data queue: {cleaned_data}")
+                                self.data_queue = parsed_data
+                            logger.info(f"Updated data queue: {parsed_data}")
                         else:
-                            logger.warning("No valid data received after cleaning")
+                            logger.warning("No valid data received after parsing")
                     else:
                         logger.warning("No raw data received from device")
                     
@@ -213,42 +211,30 @@ class LakeShoreReader:
         """
         with self._lock:
             logger.debug(f"get_latest_data called. Queue contents: {self.data_queue}")
-            logger.debug(f"Queue type: {type(self.data_queue)}, length: {len(self.data_queue) if self.data_queue else 0}")
             
             if self.data_queue and len(self.data_queue) > 0:
-                float_data = []
-                for i, value in enumerate(self.data_queue):
-                    if value is not None:
-                        try:
-                            float_val = float(value)
-                            float_data.append(float_val)
-                        except (ValueError, TypeError):
-                            logger.warning(f"Invalid value at index {i}: {value}, using 0.0")
-                            float_data.append(0.0)
-                    else:
-                        float_data.append(0.0)
+                # Ensure we return exactly 8 values
+                result = self.data_queue[:8]
+                while len(result) < 8:
+                    result.append(0.0)
                 
-                while len(float_data) < 8:
-                    float_data.append(0.0)
-                float_data = float_data[:8]
-                
-                logger.debug(f"Returning float data: {float_data}")
-                return float_data, self.raw_data    
+                logger.debug(f"Returning temperature data: {result}")
+                return result
             else:
                 logger.debug(f"Data queue is empty or None: {self.data_queue}")
-                return [0.0] * 8, self.raw_data
+                return [0.0] * 8
 
     def get_formatted_data(self):
         """
         Get data in a more readable format with labels
         """
-        data, raw_data = self.get_latest_data()
+        data = self.get_latest_data()
         if data:
             formatted = {}
             for i, value in enumerate(data):
                 formatted[f"Channel_{i+1}"] = value
-            return formatted, raw_data
-        return None, None
+            return formatted
+        return None
 
     def is_connected(self):
         """Check if the device is connected and running."""
