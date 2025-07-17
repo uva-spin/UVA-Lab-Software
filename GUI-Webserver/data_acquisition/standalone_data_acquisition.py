@@ -25,6 +25,7 @@ import sqlite3
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
 from _LakeShoreReader import LakeShoreReader
+from _MaxiGaugeReader import MaxiGaugeReader
 import pytz
 import argparse
 
