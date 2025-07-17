@@ -3,7 +3,6 @@ import threading
 import time
 import logging
 import numpy as np
-from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 import socket
 import re
 
@@ -27,7 +26,7 @@ class TeledyneDataReader:
         self.socket = None
 
 
-    def _tcp_connection(self):
+    def _socket_read(self):
         """Read data from Teledyne device using raw TCP socket and extract first three numbers after READ:"""
         socket.setdefaulttimeout(1)
         try:
@@ -43,7 +42,7 @@ class TeledyneDataReader:
             sock.close()
 
             if not data:
-                logger.warning("No data received from device")
+                logger.warning("No data received from Teledyne Flow Meter!")
                 return [None, None, None]
 
             ascii_data = data.decode('ascii', errors='ignore')
@@ -91,24 +90,20 @@ class TeledyneDataReader:
             logger.error(f"Error connecting to Teledyne THCD-401: {e}")
             return None
         
-    def _socket_read(self):
-        """Read data from the Teledyne THCD-401 socket"""
-        try:
-            data = self.socket.recv(1024)
-            return data
-        except Exception as e:
-            logger.error(f"Error reading data from Teledyne THCD-401: {e}")
-            return None
-        
     def start(self):
         """Start the teledyne data reading thread"""
         self.running = True
-        self.thread = threading.Thread(target=self._monitor_tcp, daemon=True)
-        self.thread.start()
-        logger.info("Started teledyne data monitoring via TCP")
+        try:
+            self.thread = threading.Thread(target=self._monitor_tcp, daemon=True)
+            self.thread.start()
+            logger.info("Started teledyne data monitoring via TCP")
+        except Exception as e:
+            logger.error(f"Error starting teledyne data monitoring via TCP: {e}")
+            return False
         
     def stop(self):
         """Stop the teledyne data reading thread"""
+        logger.info("Stopping teledyne flow meter reader")
         self.running = False
         if self.thread:
             self.thread.join(timeout=2)
@@ -117,7 +112,7 @@ class TeledyneDataReader:
         """Get the latest teledyne data from TCP connection"""
         try:
             # Read directly from TCP connection
-            values = self._tcp_connection()
+            values = self._socket_read()
             if values:
                 self.data_queue = values
                 logger.debug(f"Updated teledyne data queue: {self.data_queue}")
@@ -132,7 +127,7 @@ class TeledyneDataReader:
         while self.running:
             try:
                 # Read data from TCP connection
-                values = self._tcp_connection()
+                values = self._socket_read()
                 if values:
                     self.data_queue = values
                     logger.debug(f"Updated teledyne data queue: {self.data_queue}")

@@ -92,6 +92,7 @@ except ImportError:
     TELEDYNE_CHECK_INTERVAL = 10  # Check for new data every second
     LABJACK_CHECK_INTERVAL = 1  # Check for new data every second
     LAKESHORE_CHECK_INTERVAL = 1  # Check for new data every second
+    MAXIGAUGE_CHECK_INTERVAL = 1  # Check for new data every second
 
 # Define the labels for the float values
 labels = [
@@ -137,6 +138,9 @@ labjack_reader = None
 # Global lakeshore readers instance
 lakeshore_reader_target_stick = None
 lakeshore_reader_fridge_temp = None
+
+# Global maxigauge reader instance
+maxigauge_reader = None
 
 def ensure_database_directory():
     """Ensure the database directory exists"""
@@ -288,6 +292,15 @@ def read_lakeshore_data_fridge_temp():
     
     return lakeshore_reader_fridge_temp.get_latest_data()
 
+def read_maxigauge_data():
+    """Read latest maxigauge data"""
+    global maxigauge_reader
+
+    if maxigauge_reader is None:
+        return [None] * 6  # Return None for 6 maxigauge values
+    
+    return maxigauge_reader.get_latest_data()
+
 
 def insert_hmi_data(data):
     """Insert HMI data into the hmi table"""
@@ -410,6 +423,35 @@ def insert_lakeshore_data_target_stick(data):
     finally:
         conn.close()
 
+def insert_maxigauge_data(data):
+    """Insert MaxiGauge data into the maxigauge table"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO MaxiGauge (
+                "maxigauge_seperator_inlet_pressure",
+                "maxigauge_upper_roots_pressure",
+                "channel_3",
+                "channel_4",
+                "channel_5",
+                "channel_6",
+                "Timestamp"
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], get_current_est_time()))
+
+        conn.commit()
+        if args.debug:
+            logger.info("DEBUG: Inserted MaxiGauge data: {data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting MaxiGauge data: {e}")
+        return False
+    finally:
+        conn.close()
+
+
 def insert_lakeshore_data_fridge_temp(data):
     """Insert Lakeshore data into the lakeshore_fridge_temp table"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -439,7 +481,7 @@ def insert_lakeshore_data_fridge_temp(data):
     finally:
         conn.close()
 
-def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick):
+def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, maxigauge_data):
     """Pipeline data directly to the database"""
     success = True
     
@@ -512,6 +554,16 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
     #     success = False
     #     logger.error("Failed to insert Fridge Temp Data")
     
+    # Insert MaxiGauge data
+    if args.debug:
+        print("DEBUG: Attempting to insert MaxiGauge data")
+    if maxigauge_data is not None:
+        insert_maxigauge_data(maxigauge_data)
+        success = True
+    else:
+        success = False
+        logger.error("Failed to insert MaxiGauge data")
+
     return success
 
 
@@ -607,11 +659,20 @@ def main():
             logger.info("DEBUG: Lakeshore data reader started")
     except Exception as e:
         logger.error(f"Error starting lakeshore data reader: {e}")
+
+    try:
+        maxigauge_reader = MaxiGaugeReader(MAXIGAUGE_CHECK_INTERVAL)
+        maxigauge_reader.start()
+        if args.debug:
+            logger.info("DEBUG: MaxiGauge data reader started")
+    except Exception as e:
+        logger.error(f"Error starting maxigauge data reader: {e}")
+
     
     try:
         while True:
             try:
-                # Read data from Modbus
+                # Read data from Modbus()
                 modbus_data = _read_HMI()
                 
                 if modbus_data is None:
@@ -628,8 +689,11 @@ def main():
                 lakeshore_data_target_stick = read_lakeshore_data_target_stick()
                 # lakeshore_data_fridge_temp = read_lakeshore_data_fridge_temp()
                 
+                # Read maxigauge data
+                maxigauge_data = read_maxigauge_data()
+
                 # Pipeline data directly to database
-                db_success = pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick)
+                db_success = pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, maxigauge_data)
                 
                 if not db_success:
                     logger.warning("Some data failed to insert into database \n")
@@ -645,7 +709,8 @@ def main():
                 time.sleep(SLEEP_INTERVAL)
                 
     finally:
-        # Clean up
+        logger.info("Cleaning up data acquisition system")
+
         if teledyne_reader:
             teledyne_reader.stop()
             logger.info("Teledyne data reader stopped")
@@ -653,6 +718,18 @@ def main():
         if labjack_reader:
             labjack_reader.stop()
             logger.info("LabJack data reader stopped")
+        
+        if maxigauge_reader:
+            maxigauge_reader.stop()
+            logger.info("MaxiGauge data reader stopped")
+
+        if lakeshore_reader_target_stick:
+            lakeshore_reader_target_stick.stop()
+            logger.info("Lakeshore data reader stopped")
+
+        if lakeshore_reader_fridge_temp:
+            lakeshore_reader_fridge_temp.stop()
+            logger.info("Lakeshore data reader stopped")
 
 if __name__ == '__main__':
     main() 

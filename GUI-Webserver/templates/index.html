@@ -135,6 +135,8 @@
                     return ' (%)';
                 } else if (column.includes('ait') || column.includes('analyzer')) {
                     return ' (Mol %)';
+                } else if (column.includes('seperator_inlet_pressure') || column.includes('upper_roots_pressure')) {
+                    return ' (mbar)';
                 } else {
                     return ''; // No units for unknown columns
                 }
@@ -278,10 +280,6 @@
         }
 
         async function fetchDataFromDB(selectedKeys) {
-            // Calculate total milliseconds and time range
-            // const totalMilliseconds = (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
-            // const now = new Date();
-            // const start = new Date(now.getTime() - totalMilliseconds);
 
             const totalMilliseconds = (hours * 3600 + minutes * 60 + seconds) * 1000;
             const now = new Date();
@@ -528,6 +526,7 @@
                 'Fridge Section Pressures': columns.filter(col => col.includes('pressure')),
                 'Target Stick Temperature': columns.filter(col => col.includes('target_stick')),
                 'Fridge Temperature': columns.filter(col => col.includes('fridge')),
+                'MaxiGauge': columns.filter(col => col.includes('maxigauge')),
             };
 
             // Create sections for each group
