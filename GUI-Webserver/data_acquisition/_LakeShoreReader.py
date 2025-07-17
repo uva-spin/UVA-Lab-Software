@@ -11,7 +11,7 @@ logger.addHandler(logging.StreamHandler())
 logger.addHandler(logging.FileHandler('data_logs/lakeshore_debug.log'))
 
 class LakeShoreReader:
-    def __init__(self, port="COM4", baudrate=9600, bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE):
+    def __init__(self, port="COM4", baudrate=9600, bytesize=serial.SEVENBITS, timeout=2, stopbits=serial.STOPBITS_ONE):
         self.port = port
         self.baudrate = baudrate
         self.bytesize = bytesize
@@ -21,12 +21,13 @@ class LakeShoreReader:
         self.running = False
         self.thread = None
         self.data_queue = [0.0] * 8
-        self._lock = threading.Lock()  # Add thread safety
+        self._lock = threading.Lock()  
+        self.raw_data = None
 
     def start(self):
         """Start the LakeShore reader and open the serial port."""
         try:
-            # Check if already running
+
             if self.running:
                 logger.warning("LakeShore reader is already running")
                 return False
@@ -67,17 +68,14 @@ class LakeShoreReader:
         """Stop the LakeShore reader and close the serial port."""
         logger.info("Stopping LakeShore reader")
         
-        # Set running flag to False to stop the thread
         self.running = False
         
-        # Wait for thread to finish
         if self.thread and self.thread.is_alive():
             logger.info("Waiting for data reading thread to finish...")
             self.thread.join(timeout=5.0)  # Wait up to 5 seconds
             if self.thread.is_alive():
                 logger.warning("Thread did not finish within timeout")
         
-        # Clean up resources
         self._cleanup()
         logger.info("LakeShore reader stopped")
 
@@ -109,11 +107,9 @@ class LakeShoreReader:
             logger.debug(f"Raw bytes type: {type(raw_bytes)}")
             logger.debug(f"Raw bytes length: {len(raw_bytes)}")
             
-            # Convert each byte to its ord() value directly
             byte_values = []
             for byte in raw_bytes:
                 try:
-                    # Convert byte to its numeric value using ord()
                     byte_val = ord(byte)
                     byte_values.append(byte_val)
                     logger.debug(f"Byte {byte} -> ord() = {byte_val}")
@@ -123,22 +119,18 @@ class LakeShoreReader:
             
             logger.debug(f"Byte values: {byte_values}")
             
-            # Convert byte values to floats
             cleaned_values = []
             for i, byte_val in enumerate(byte_values):
                 try:
-                    # Convert byte value to float
                     float_val = float(byte_val)
                     cleaned_values.append(float_val)
                 except (ValueError, TypeError) as e:
                     logger.warning(f"Could not convert byte value {byte_val} to float: {e}, using 0.0")
                     cleaned_values.append(0.0)
             
-            # Ensure we have exactly 8 values (LakeShore typically has 8 channels)
             while len(cleaned_values) < 8:
                 cleaned_values.append(0.0)
             
-            # Truncate if we have more than 8 values
             cleaned_values = cleaned_values[:8]
             
             logger.debug(f"Final cleaned values: {cleaned_values}")
@@ -146,7 +138,6 @@ class LakeShoreReader:
             
         except Exception as e:
             logger.error(f"Error cleaning data: {e}")
-            # Return default values on error
             return [0.0] * 8
 
     def _read_data(self):
@@ -169,6 +160,7 @@ class LakeShoreReader:
                     logger.debug(f"Raw data received: {raw_data}")
                     
                     if raw_data:
+                        self.raw_data = raw_data
                         cleaned_data = self._clean_and_convert_data(raw_data)
                         logger.debug(f"Cleaned data: {cleaned_data}")
                         
@@ -194,7 +186,6 @@ class LakeShoreReader:
             logger.error(f"Critical error in data reading thread: {e}")
         finally:
             logger.info("Data reading thread stopped")
-            # Don't call self.stop() here to avoid recursive calls
 
     def data_stream(self):
         """Start the data streaming thread."""
@@ -221,13 +212,10 @@ class LakeShoreReader:
         Always returns a list of 8 float values.
         """
         with self._lock:
-            # Check if we have any data, regardless of thread status
             logger.debug(f"get_latest_data called. Queue contents: {self.data_queue}")
             logger.debug(f"Queue type: {type(self.data_queue)}, length: {len(self.data_queue) if self.data_queue else 0}")
             
-            # Check if data_queue exists and has content
             if self.data_queue and len(self.data_queue) > 0:
-                # Ensure all values are floats
                 float_data = []
                 for i, value in enumerate(self.data_queue):
                     if value is not None:
@@ -240,28 +228,27 @@ class LakeShoreReader:
                     else:
                         float_data.append(0.0)
                 
-                # Ensure we have exactly 8 values
                 while len(float_data) < 8:
                     float_data.append(0.0)
                 float_data = float_data[:8]
                 
                 logger.debug(f"Returning float data: {float_data}")
-                return float_data
+                return float_data, self.raw_data    
             else:
                 logger.debug(f"Data queue is empty or None: {self.data_queue}")
-                return [0.0] * 8
+                return [0.0] * 8, self.raw_data
 
     def get_formatted_data(self):
         """
         Get data in a more readable format with labels
         """
-        data = self.get_latest_data()
+        data, raw_data = self.get_latest_data()
         if data:
             formatted = {}
             for i, value in enumerate(data):
                 formatted[f"Channel_{i+1}"] = value
-            return formatted
-        return None
+            return formatted, raw_data
+        return None, None
 
     def is_connected(self):
         """Check if the device is connected and running."""

@@ -78,7 +78,17 @@ class MaxiGaugeReader:
             return None
             
         try:
-            data = self.socket.recv(1024)
+            self.data = []
+            for i in range(6):
+                self.socket.send(f'PR{i}\r\n'.encode('ascii'))
+                time.sleep(0.1)
+                data = self.socket.recv(1024)
+                if not data:
+                    logger.warning("No data received from MaxiGauge!")
+                    self.connected = False
+                    return None
+                ascii_data = data.decode('ascii', errors='ignore')
+                self.data.append(ascii_data)
             if not data:
                 logger.warning("No data received from MaxiGauge!")
                 self.connected = False
