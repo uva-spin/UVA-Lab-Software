@@ -148,10 +148,12 @@ def test_raw_data_processing():
     
     # Test with sample raw data (simulating what might come from the device)
     test_cases = [
-        b'\xab\xb0\xb9\xb9\xae\xb9\xb9\r\n',  # Sample data from your test
-        b'123.456,789.012,345.678,901.234\r\n',  # CSV format
-        b'SRDG?\r\n',  # Command format
-        b'\x00\x01\x02\x03\x04\x05\x06\x07',  # Binary data
+        b'123.456,234.567,345.678,456.789,567.890,678.901,789.012,890.123\r\n',  # CSV format
+        b'100.0,200.0,300.0,400.0,500.0,600.0,700.0,800.0\r\n',  # Another CSV format
+        b'0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\r\n',  # All zeros
+        b'123.456\r\n',  # Incomplete data
+        b'\r\n',  # Empty data
+        b'invalid,data,here\r\n',  # Invalid data
     ]
     
     for i, test_data in enumerate(test_cases, 1):
@@ -160,7 +162,7 @@ def test_raw_data_processing():
         print(f"Input (hex): {test_data.hex()}")
         
         try:
-            result = reader._clean_and_convert_data(test_data)
+            result = reader._parse_lakeshore_data(test_data)
             print(f"Output: {result}")
             print(f"Output type: {type(result)}")
             print(f"Output length: {len(result)}")

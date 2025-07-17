@@ -89,26 +89,28 @@ def test_data_processing():
     
     reader = LakeShoreReader()
     
-    # Test with the sample data you showed in the terminal
-    sample_data = b'\xab\xb0\xb9\xb9\xae\xb9\xb9\r\n'
+    # Test with sample data in different formats
+    test_cases = [
+        b'123.456,234.567,345.678,456.789,567.890,678.901,789.012,890.123\r\n',
+        b'100.0,200.0,300.0,400.0,500.0,600.0,700.0,800.0\r\n',
+        b'0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\r\n',
+        b'123.456\r\n',  # Incomplete data
+        b'\r\n',  # Empty data
+        b'invalid,data,here\r\n',  # Invalid data
+    ]
     
-    print(f"Sample raw data: {sample_data}")
-    print(f"Sample data (hex): {sample_data.hex()}")
-    print(f"Sample data (repr): {repr(sample_data)}")
-    
-    # Process the data
-    processed = reader._clean_and_convert_data(sample_data)
-    
-    print(f"\nProcessed data: {processed}")
-    print(f"Processed data type: {type(processed)}")
-    print(f"Processed data length: {len(processed)}")
-    
-    # Show what each byte becomes
-    print("\nByte-by-byte conversion:")
-    for i, byte in enumerate(sample_data):
-        if byte != b'\r' and byte != b'\n':
-            ord_val = ord(byte)
-            print(f"  Byte {i}: {byte} (hex: {byte.hex()}) -> ord() = {ord_val}")
+    for i, sample_data in enumerate(test_cases, 1):
+        print(f"\nTest case {i}:")
+        print(f"Sample raw data: {sample_data}")
+        print(f"Sample data (hex): {sample_data.hex()}")
+        print(f"Sample data (repr): {repr(sample_data)}")
+        
+        # Process the data
+        processed = reader._parse_lakeshore_data(sample_data)
+        
+        print(f"Processed data: {processed}")
+        print(f"Processed data type: {type(processed)}")
+        print(f"Processed data length: {len(processed)}")
 
 if __name__ == "__main__":
     # Run the simple test
