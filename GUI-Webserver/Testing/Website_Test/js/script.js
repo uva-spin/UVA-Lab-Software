@@ -17,41 +17,114 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Add loading states to buttons
-function addLoadingState(button) {
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-    button.disabled = true;
-    button.classList.add('loading');
+// Utility functions for the application
+const Utils = {
+    // Add loading state to a button
+    addLoadingState: function(button) {
+        if (!button) return () => {};
+        
+        const originalText = button.innerHTML;
+        button.classList.add('loading');
+        button.disabled = true;
+        
+        return function() {
+            button.classList.remove('loading');
+            button.disabled = false;
+            button.innerHTML = originalText;
+        };
+    },
     
-    return function() {
-        button.innerHTML = originalText;
-        button.disabled = false;
-        button.classList.remove('loading');
-    };
-}
+    // Show toast notification
+    showToast: function(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        
+        const icon = this.getToastIcon(type);
+        
+        toast.innerHTML = `
+            <div class="toast-content">
+                <i class="${icon}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Trigger animation
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+        
+        // Remove toast after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    },
+    
+    // Get appropriate icon for toast type
+    getToastIcon: function(type) {
+        switch (type) {
+            case 'success':
+                return 'fas fa-check-circle';
+            case 'error':
+                return 'fas fa-exclamation-circle';
+            case 'warning':
+                return 'fas fa-exclamation-triangle';
+            default:
+                return 'fas fa-info-circle';
+        }
+    },
+    
+    // Format timestamp for display
+    formatTimestamp: function(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    },
+    
+    // Debounce function for performance
+    debounce: function(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    },
+    
+    // Throttle function for performance
+    throttle: function(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+};
 
-// Toast notification system
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-        <div class="toast-content">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-            <span>${message}</span>
-        </div>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    // Trigger animation
-    setTimeout(() => toast.classList.add('show'), 100);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => document.body.removeChild(toast), 300);
-    }, 3000);
+// Export for use in other scripts
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Utils;
 }
 
 // Keyboard shortcuts
