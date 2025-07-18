@@ -370,7 +370,7 @@ body {
     background: var(--bg-secondary);
     border-left: 1px solid var(--border-color);
     box-shadow: var(--shadow-xl);
-    z-index: 999;
+    z-index: 1001;
     transition: right 0.3s ease;
     overflow-y: auto;
     padding-top: 8rem; /* Add top padding to account for header banner */

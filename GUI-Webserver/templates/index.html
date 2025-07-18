@@ -594,15 +594,6 @@
 
             console.log('All available columns:', columns);
             console.log('Flow Controllers found:', columns.filter(col => col.includes('fc')));
-            
-            // Test specific FC columns
-            const testFcColumns = ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out'];
-            testFcColumns.forEach(testCol => {
-                const found = columns.includes(testCol);
-                const filtered = col => col.includes('fc');
-                console.log(`Test column "${testCol}": in columns=${found}, matches filter=${filtered(testCol)}`);
-            });
-            
             console.log('Column groups created:', columnGroups);
 
             // Create sections for each group
