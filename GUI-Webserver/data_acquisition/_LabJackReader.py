@@ -44,7 +44,7 @@ class LabJackReader:
             self.device = u3.U3()
             self.device.configU3()
             self.device.getCalibrationData()
-            self.device.configIO(FIOAnalog=63)  
+            self.device.configIO(FIOAnalog=127)  # 127 = 0x7F = 01111111 binary (enables FIO0-FIO6 as analog)  
             logger.info("LabJackReader: Device initialized")
             
             self.running = True
@@ -97,7 +97,7 @@ class LabJackReader:
         try:
             logger.info("Configuring U3 stream")
 
-            self.device.streamConfig(NumChannels=6, PChannels=[0, 1, 2, 3, 4, 5], NChannels=[31, 31, 31, 31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
+            self.device.streamConfig(NumChannels=6, PChannels=[0, 1, 2, 3, 4, 6], NChannels=[31, 31, 31, 31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
 
             try:
                 self.device.streamStart()
