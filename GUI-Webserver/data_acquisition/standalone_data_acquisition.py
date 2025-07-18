@@ -330,7 +330,7 @@ def read_labjack_data():
     global labjack_reader
     
     if labjack_reader is None:
-        return [None] * 5  # Return None for 4 pressure values
+        return [None] * 6  # Return None for 4 pressure values
         
     return labjack_reader.get_latest_data()
 
@@ -438,9 +438,9 @@ def insert_labjack_data(pressure_data):
     
     try:
         cursor.execute('''
-            INSERT INTO Pressures (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, "Timestamp") 
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], get_current_est_time()))
+            INSERT INTO Labjack (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple, "Timestamp") 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], pressure_data[5], get_current_est_time()))
         
         conn.commit()
         logger.debug(f"Inserted LabJack data: {pressure_data}")
@@ -588,8 +588,9 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
         magnet_pressure = labjack_data[2]
         purifier_inlet_pressure = labjack_data[3]
         fridge_vapor_pressure = labjack_data[4]
-        logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}")
-        if insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure]):
+        thermocouple = labjack_data[5]
+        logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}, Pressure 6: {thermocouple}")
+        if insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple]):
             labjack_status = 'success'
         else:
             labjack_status = 'error'

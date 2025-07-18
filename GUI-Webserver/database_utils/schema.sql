@@ -21,13 +21,14 @@ CREATE TABLE IF NOT EXISTS HMI (
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
-CREATE TABLE IF NOT EXISTS Pressures (
+CREATE TABLE IF NOT EXISTS Labjack (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   root_exhaust_pressure FLOAT,
   buffer_pressure FLOAT,
   magnet_pressure FLOAT,
   purifier_inlet_pressure FLOAT,
   fridge_vapor_pressure FLOAT,
+  thermocouple FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 

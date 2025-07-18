@@ -16,7 +16,7 @@ class LabJackReader:
     def __init__(self, check_interval=1):
         self.check_interval = check_interval
         self.last_position = 0
-        self.data_queue = [None, None, None, None, None]
+        self.data_queue = [None, None, None, None, None, None]
         self.running = False
         self.thread = None
         self.device = None
@@ -25,6 +25,7 @@ class LabJackReader:
         self.avg_Magnet_Pressure = None
         self.avg_Purifier_Inlet_Pressure = None
         self.avg_Fridge_Vapor_Pressure = None
+        self.avg_Thermocouple = None
 
         self.ROOT_EXHAUST_SCALE_FACTOR = 0.7928388747 # Torr
         self.BUFFER_SCALE_FACTOR = 17.46031746 #PSI
@@ -96,7 +97,7 @@ class LabJackReader:
         try:
             logger.info("Configuring U3 stream")
 
-            self.device.streamConfig(NumChannels=5, PChannels=[0, 1, 2, 3, 4], NChannels=[31, 31, 31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
+            self.device.streamConfig(NumChannels=6, PChannels=[0, 1, 2, 3, 4, 5], NChannels=[31, 31, 31, 31, 31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
 
             try:
                 self.device.streamStart()
@@ -112,6 +113,7 @@ class LabJackReader:
                 Magnet_Pressure = np.zeros(MAX_REQUESTS)
                 Purifier_Inlet_Pressure = np.zeros(MAX_REQUESTS)
                 Fridge_Vapor_Pressure = np.zeros(MAX_REQUESTS)
+                Thermocouple = np.zeros(MAX_REQUESTS)
 
                 for i, r in enumerate(self.device.streamData()):
                     if not self.running:
@@ -158,7 +160,11 @@ class LabJackReader:
                             vOut_Fridge_Vapor_Pressure = sum(r["AIN4"]) / len(r["AIN4"])
                         else:
                             logger.warning(f"No data for Fridge Vapor Pressure at {datetime.now()}")
-                            
+
+                        if self._check_data(r["AIN5"]): ### Thermocouple
+                            vOut_Thermocouple = sum(r["AIN5"]) / len(r["AIN5"])
+                        else:
+                            logger.warning(f"No data for Thermocouple at {datetime.now()}")
 
                         dataCount += 1
                         packetCount += r['numPackets']
@@ -168,6 +174,7 @@ class LabJackReader:
                         Magnet_Pressure[i] = vOut_Magnet_Pressure
                         Purifier_Inlet_Pressure[i] = vOut_Purifier_Inlet_Pressure
                         Fridge_Vapor_Pressure[i] = vOut_Fridge_Vapor_Pressure
+                        Thermocouple[i] = vOut_Thermocouple
                     else:
                         logger.warning(f"No data at {datetime.now()}")
 
@@ -185,11 +192,13 @@ class LabJackReader:
                     self.avg_Magnet_Pressure = np.average(Magnet_Pressure)
                     self.avg_Purifier_Inlet_Pressure = np.average(Purifier_Inlet_Pressure)
                     self.avg_Fridge_Vapor_Pressure = np.average(Fridge_Vapor_Pressure)
+                    self.avg_Thermocouple = np.average(Thermocouple)
                     self.data_queue[0] = self.psi_to_torr(self.ROOT_EXHAUST_SCALE_FACTOR * self.avg_Root_Exhausted_Pressure) ## In Torr
                     self.data_queue[1] = self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure ## In PSI
                     self.data_queue[2] = self.MAGNET_SCALE_FACTOR * self.avg_Magnet_Pressure ## In PSI
                     self.data_queue[3] = self.PURIFIER_INLET_SCALE_FACTOR * self.avg_Purifier_Inlet_Pressure ## In PSI
                     self.data_queue[4] = self.FRIDGE_VAPOR_SCALE_FACTOR * self.avg_Fridge_Vapor_Pressure + self.FRIDGE_VAPOR_SHIFT ## In Torr
+                    self.data_queue[5] = self.avg_Thermocouple ## In C
         except Exception as e:
             logger.error(f"LabJackReader: Error in monitor loop: {e}")
             # Don't sleep here, let the data_stream method handle the delay
@@ -209,9 +218,7 @@ class LabJackReader:
     def get_latest_data(self):
         """Get the latest data from the data queue"""
         try:
-            # logger.info(f"Getting latest Pressure data from queue")
-            # print(f"DEBUG: Pressure data: {self.data_queue[0]}, {self.data_queue[1]}, {self.data_queue[2]}, {self.data_queue[3]}, {self.data_queue[4]}")
-            return [self.data_queue[0], self.data_queue[1], self.data_queue[2], self.data_queue[3], self.data_queue[4]]
+            return [self.data_queue[0], self.data_queue[1], self.data_queue[2], self.data_queue[3], self.data_queue[4], self.data_queue[5]]
         except Exception as e:
             logger.error(f"Error getting latest labjack data: {e}")
-            return [None] * 5
+            return [None] * 6

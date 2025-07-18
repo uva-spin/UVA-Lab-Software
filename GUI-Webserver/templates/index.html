@@ -549,6 +549,8 @@
             const sidebar = document.getElementById('data-sidebar');
             sidebar.innerHTML = ''; // Clear existing content
 
+            console.log('Creating sidebar with columns:', columns);
+
             if (columns.length === 0) {
                 sidebar.innerHTML = `
                     <div class="error-container">
@@ -574,12 +576,21 @@
                 'Target Stick Temperature': columns.filter(col => col.includes('target_stick')),
                 'Fridge Temperature': columns.filter(col => col.includes('fridge')),
                 'MaxiGauge': columns.filter(col => col.includes('maxigauge')),
+                'Thermocouple': columns.filter(col => col.includes('thermocouple')),
             };
+
+            console.log('Column groups created:', columnGroups);
 
             // Create sections for each group
             Object.entries(columnGroups).forEach(([groupName, groupColumns]) => {
-                if (groupColumns.length === 0) return;
+                console.log(`Processing group "${groupName}" with ${groupColumns.length} columns:`, groupColumns);
+                
+                if (groupColumns.length === 0) {
+                    console.log(`Skipping group "${groupName}" - no columns found`);
+                    return;
+                }
 
+                console.log(`Creating section for "${groupName}"`);
                 const sectionId = groupName.toLowerCase().replace(/\s+/g, '-');
                 const section = document.createElement('div');
                 section.className = 'data-section';
