@@ -25,6 +25,7 @@
         let selectedKeys = [];
         let isDarkMode = false;
         let availableColumns = [];
+        let plotInstance = null;
 
         // Theme management
         function toggleTheme() {
@@ -212,13 +213,20 @@
                     content: "%s: %y.3",
                     xDateFormat: "%Y-%m-%d %H:%M:%S",
                     defaultTheme: !isDarkMode
+                },
+                zoom: {
+                    interactive: true,
+                    amount: 1.5
+                },
+                pan: {
+                    interactive: true
                 }
             };
 
             $('#chart').empty();
             if (selectedColumns.length > 0) {
                 try {
-                    $.plot($('#chart'), plotData, options);
+                    plotInstance = $.plot($('#chart'), plotData, options);
 
                     // Add hover event for tooltips
                     $("#chart").bind("plothover", function (event, pos, item) {
@@ -233,6 +241,17 @@
                         } else {
                             $("#tooltip").remove();
                         }
+                    });
+
+                    // Add zoom and pan events to keep plot centered
+                    $("#chart").bind("plotzoom", function (event, plot, ranges) {
+                        // The plot is automatically centered by Flot
+                        console.log('Plot zoomed:', ranges);
+                    });
+
+                    $("#chart").bind("plotpan", function (event, plot, ranges) {
+                        // The plot is automatically centered by Flot
+                        console.log('Plot panned:', ranges);
                     });
 
                 } catch (error) {
@@ -374,8 +393,8 @@
 
         async function updateFromDB() {
             const selectedKeys = Array.from(
-                document.querySelectorAll('input[type="checkbox"]:checked')
-            ).map(cb => cb.dataset.key);
+                document.querySelectorAll('.parameter-item.selected')
+            ).map(item => item.dataset.key);
 
             if (selectedKeys.length === 0) {
                 updateEmptyChartDisplay();
@@ -475,20 +494,20 @@
         }
 
         function selectAllData() {
-            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = true;
+            const parameterItems = document.querySelectorAll('.parameter-item');
+            parameterItems.forEach(item => {
+                item.classList.add('selected');
             });
-            handleCheckboxChange();
+            handleParameterSelection();
             Utils.showToast('All data entries selected!', 'success');
         }
 
         function clearAllData() {
-            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = false;
+            const parameterItems = document.querySelectorAll('.parameter-item');
+            parameterItems.forEach(item => {
+                item.classList.remove('selected');
             });
-            handleCheckboxChange();
+            handleParameterSelection();
             Utils.showToast('All data entries cleared!', 'info');
         }
 
@@ -497,13 +516,53 @@
             Utils.showToast('Data refreshed!', 'success');
         }
 
-        // Function to create data selection grid from available columns
-        function createDataSelectionGrid(columns) {
-            const grid = document.getElementById('grid');
-            grid.innerHTML = ''; // Clear existing content
+        // Sidebar functions
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.data-sidebar');
+            const toggleBtn = document.querySelector('.sidebar-toggle');
+            sidebar.classList.toggle('active');
+            toggleBtn.classList.toggle('active');
+        }
+
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const header = section.querySelector('.section-header');
+            const content = section.querySelector('.section-content');
+            
+            section.classList.toggle('expanded');
+            if (section.classList.contains('expanded')) {
+                content.style.maxHeight = content.scrollHeight + 'px';
+            } else {
+                content.style.maxHeight = '0';
+            }
+        }
+
+        function toggleParameter(parameterElement) {
+            parameterElement.classList.toggle('selected');
+            handleParameterSelection();
+        }
+
+        async function handleParameterSelection() {
+            selectedKeys = Array.from(document.querySelectorAll('.parameter-item.selected'))
+                .map(item => item.dataset.key);
+
+            if (selectedKeys.length === 0) {
+                updateEmptyChartDisplay();
+                document.getElementById('chart-title').textContent = 'Select Data Entries';
+                return;
+            }
+
+            const { data: dbData } = await fetchDataFromDB(selectedKeys);
+            await updatePlot(dbData, selectedKeys);
+        }
+
+        // Function to create data selection sidebar from available columns
+        function createDataSelectionSidebar(columns) {
+            const sidebar = document.getElementById('data-sidebar');
+            sidebar.innerHTML = ''; // Clear existing content
 
             if (columns.length === 0) {
-                grid.innerHTML = `
+                sidebar.innerHTML = `
                     <div class="error-container">
                         <i class="fas fa-exclamation-triangle"></i>
                         <p>No data columns available. Please check if the database is properly configured and contains data.</p>
@@ -533,51 +592,43 @@
             Object.entries(columnGroups).forEach(([groupName, groupColumns]) => {
                 if (groupColumns.length === 0) return;
 
+                const sectionId = groupName.toLowerCase().replace(/\s+/g, '-');
                 const section = document.createElement('div');
                 section.className = 'data-section';
+                section.id = sectionId;
 
-                const titleDiv = document.createElement('div');
-                titleDiv.className = 'section-title';
-                titleDiv.innerHTML = `<i class="fas fa-layer-group"></i> ${groupName}`;
-                section.appendChild(titleDiv);
+                const header = document.createElement('div');
+                header.className = 'section-header';
+                header.onclick = () => toggleSection(sectionId);
+                header.innerHTML = `
+                    <i class="fas fa-chevron-right"></i>
+                    <span>${groupName}</span>
+                    <span class="section-count">${groupColumns.length}</span>
+                `;
 
-                const checkboxContainer = document.createElement('div');
-                checkboxContainer.className = 'checkbox-container';
+                const content = document.createElement('div');
+                content.className = 'section-content';
 
                 groupColumns.forEach(columnName => {
-                    const group = document.createElement('div');
-                    group.className = 'checkbox-group';
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    const id = `${groupName}-${columnName}`.toLowerCase().replace(/\s+/g, '-');
-                    checkbox.id = id;
-                    checkbox.dataset.key = columnName;
-
-                    const label = document.createElement('label');
-                    label.htmlFor = id;
-                    label.textContent = columnName;
-
-                    group.appendChild(checkbox);
-                    group.appendChild(label);
-                    checkboxContainer.appendChild(group);
+                    const parameterItem = document.createElement('div');
+                    parameterItem.className = 'parameter-item';
+                    parameterItem.dataset.key = columnName;
+                    parameterItem.onclick = () => toggleParameter(parameterItem);
+                    parameterItem.textContent = columnName;
+                    content.appendChild(parameterItem);
                 });
 
-                section.appendChild(checkboxContainer);
-                grid.appendChild(section);
-            });
-
-            // Setup checkbox event listeners
-            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                checkbox.addEventListener('change', handleCheckboxChange);
+                section.appendChild(header);
+                section.appendChild(content);
+                sidebar.appendChild(section);
             });
         }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
             // Show loading state for data selection
-            const grid = document.getElementById('grid');
-            grid.innerHTML = `
+            const sidebar = document.getElementById('data-sidebar');
+            sidebar.innerHTML = `
                 <div class="loading-container">
                     <div class="loading-spinner"></div>
                     <p>Loading available data columns...</p>
@@ -589,15 +640,15 @@
                 availableColumns = await fetchAvailableColumns();
                 
                 if (availableColumns.length === 0) {
-                    grid.innerHTML = `
+                    sidebar.innerHTML = `
                         <div class="error-container">
                             <i class="fas fa-exclamation-triangle"></i>
                             <p>No data columns available. Please check if the database is properly configured.</p>
                         </div>
                     `;
                 } else {
-                    // Create the data selection grid
-                    createDataSelectionGrid(availableColumns);
+                    // Create the data selection sidebar
+                    createDataSelectionSidebar(availableColumns);
                 }
 
                 // Start the auto-update cycle
@@ -606,7 +657,7 @@
 
             } catch (error) {
                 console.error('Error loading available columns:', error);
-                grid.innerHTML = `
+                sidebar.innerHTML = `
                     <div class="error-container">
                         <i class="fas fa-exclamation-triangle"></i>
                         <p>Error loading available columns. Please refresh the page.</p>
@@ -676,10 +727,43 @@
     <header class="header-banner">
         <div class="banner-content">
             <div class="banner-title">
-                <!-- <i class="fas fa-atom"></i> -->
                 <span>UVA Polarized Target Group Lab 036 System Panel</span>
             </div>
             <div class="banner-controls">
+                <!-- Control Panel Content Moved to Banner -->
+                <div class="control-group">
+                    <div class="time-controls">
+                        <div class="time-input">
+                            <label for="hours">H</label>
+                            <input type="number" id="hours" name="hours" min="0" max="24" value="1" step="1">
+                        </div>
+                        <div class="time-input">
+                            <label for="minutes">M</label>
+                            <input type="number" id="minutes" name="minutes" min="0" max="59" value="0" step="1">
+                        </div>
+                        <div class="time-input">
+                            <label for="seconds">S</label>
+                            <input type="number" id="seconds" name="seconds" min="0" max="59" value="0" step="1">
+                        </div>
+                        <div class="time-input">
+                            <label for="update_every">Update</label>
+                            <input type="number" id="update_every" name="update_every" min="1" max="300" value="5" step="1">
+                        </div>
+                    </div>
+                    <button type="button" class="apply-btn" onclick="applySettings()">
+                        <i class="fas fa-sync-alt"></i> Apply
+                    </button>
+                    <div class="countdown-display">
+                        <span>Auto-update in: </span>
+                        <span id="countdown" class="countdown-timer">5</span>
+                        <span>s</span>
+                    </div>
+                </div>
+                <div class="status-info">
+                    <p id="last-updated" class="last-updated">
+                        <i class="fas fa-clock"></i> Last updated: --
+                    </p>
+                </div>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
                     <i id="theme-icon" class="fas fa-moon"></i>
                 </button>
@@ -692,50 +776,6 @@
 
     <!-- Main Content -->
     <main class="main-container">
-        <!-- Control Panel -->
-        <section class="control-panel">
-            <div class="panel-header">
-                <h2><i class="fas fa-sliders-h"></i> Control Panel</h2>
-            </div>
-
-            <form id="refresh-form" class="control-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="hours">Hours</label>
-                        <input type="number" id="hours" name="hours" min="0" max="24" value="1" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="minutes">Minutes</label>
-                        <input type="number" id="minutes" name="minutes" min="0" max="59" value="0" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="seconds">Seconds</label>
-                        <input type="number" id="seconds" name="seconds" min="0" max="59" value="0" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="update_every">Update Interval (s)</label>
-                        <input type="number" id="update_every" name="update_every" min="1" max="300" value="5" step="1">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <button type="submit" class="submit-btn">
-                        <i class="fas fa-sync-alt"></i> Apply Settings
-                    </button>
-                    <div class="countdown-display">
-                        <span>Auto-update in: </span>
-                        <span id="countdown" class="countdown-timer">5</span>
-                        <span>s</span>
-                    </div>
-                </div>
-            </form>
-
-            <div class="status-info">
-                <p id="last-updated" class="last-updated">
-                    <i class="fas fa-clock"></i> Last updated: --
-                </p>
-            </div>
-        </section>
-
         <!-- Chart Section -->
         <section class="chart-section">
             <div class="chart-header">
@@ -743,15 +783,17 @@
             </div>
             <div id="chart" class="chart-container"></div>
         </section>
-
-        <!-- Data Selection Panel -->
-        <section class="data-panel">
-            <div class="panel-header">
-                <h2><i class="fas fa-database"></i> Data Selection</h2>
-            </div>
-            <div class="grid-container" id="grid"></div>
-        </section>
     </main>
+
+    <!-- Data Selection Sidebar -->
+    <div class="data-sidebar" id="data-sidebar">
+        <!-- Content will be populated by JavaScript -->
+    </div>
+
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Data Selection">
+        <i class="fas fa-database"></i>
+    </button>
 
     <!-- Floating Action Button -->
     <div class="fab-container">
@@ -772,66 +814,45 @@
     </div>
 
     <script>
-        // Form handling
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('refresh-form');
+        // Apply settings function
+        async function applySettings() {
+            const applyBtn = document.querySelector('.apply-btn');
+            const removeLoading = Utils.addLoadingState(applyBtn);
 
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
+            try {
+                // Get values directly from the form
+                const formHours = parseInt(document.getElementById('hours').value) || 0;
+                const formMinutes = parseInt(document.getElementById('minutes').value) || 0;
+                const formSeconds = parseInt(document.getElementById('seconds').value) || 0;
+                const formUpdateTime = parseInt(document.getElementById('update_every').value) || 1;
 
-                const submitBtn = form.querySelector('.submit-btn');
-                const removeLoading = Utils.addLoadingState(submitBtn);
+                // Update global variables
+                hours = formHours;
+                minutes = formMinutes;
+                seconds = formSeconds;
+                updateTime = formUpdateTime;
 
-                try {
-                    // Get values directly from the form
-                    const formHours = parseInt(document.getElementById('hours').value) || 0;
-                    const formMinutes = parseInt(document.getElementById('minutes').value) || 0;
-                    const formSeconds = parseInt(document.getElementById('seconds').value) || 0;
-                    const formUpdateTime = parseInt(document.getElementById('update_every').value) || 1;
+                console.log('Form values updated:', { hours, minutes, seconds, updateTime });
 
-                    // Update global variables
-                    hours = formHours;
-                    minutes = formMinutes;
-                    seconds = formSeconds;
-                    updateTime = formUpdateTime;
+                // Get currently selected keys
+                const selectedKeys = Array.from(document.querySelectorAll('.parameter-item.selected'))
+                    .map(item => item.dataset.key);
 
-                    console.log('Form values updated:', { hours, minutes, seconds, updateTime });
-
-                    // Get currently selected keys
-                    const selectedKeys = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
-                        .map(cb => cb.dataset.key);
-
-                    if (selectedKeys.length > 0) {
-                        // Force an immediate data update
-                        await updateFromDB();
-                    }
-
-                    // Restart the countdown with new update interval
-                    await startCountdownFromServer();
-                    
-                    Utils.showToast('Settings applied successfully!', 'success');
-                } catch (error) {
-                    console.error('Error applying settings:', error);
-                    Utils.showToast('Error applying settings. Please try again.', 'error');
-                } finally {
-                    removeLoading();
+                if (selectedKeys.length > 0) {
+                    // Force an immediate data update
+                    await updateFromDB();
                 }
-            });
-        });
 
-        // Checkbox change handler
-        async function handleCheckboxChange() {
-            selectedKeys = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(cb => cb.dataset.key);
-
-            if (selectedKeys.length === 0) {
-                updateEmptyChartDisplay();
-                document.getElementById('chart-title').textContent = 'Select Data Entries';
-                return;
+                // Restart the countdown with new update interval
+                await startCountdownFromServer();
+                
+                Utils.showToast('Settings applied successfully!', 'success');
+            } catch (error) {
+                console.error('Error applying settings:', error);
+                Utils.showToast('Error applying settings. Please try again.', 'error');
+            } finally {
+                removeLoading();
             }
-
-            const { data: dbData } = await fetchDataFromDB(selectedKeys);
-            await updatePlot(dbData, selectedKeys);
         }
     </script>
 </body>
