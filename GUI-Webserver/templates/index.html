@@ -214,15 +214,7 @@
                     xDateFormat: "%Y-%m-%d %H:%M:%S",
                     defaultTheme: !isDarkMode
                 },
-                zoom: {
-                    interactive: true,
-                    amount: 1.5,
-                    trigger: "dblclick"
-                },
-                pan: {
-                    interactive: true,
-                    trigger: "click"
-                }
+
             };
 
             $('#chart').empty();
@@ -245,16 +237,7 @@
                         }
                     });
 
-                    // Add zoom and pan events to keep plot centered
-                    $("#chart").bind("plotzoom", function (event, plot, ranges) {
-                        // The plot is automatically centered by Flot
-                        console.log('Plot zoomed:', ranges);
-                    });
 
-                    $("#chart").bind("plotpan", function (event, plot, ranges) {
-                        // The plot is automatically centered by Flot
-                        console.log('Plot panned:', ranges);
-                    });
 
                 } catch (error) {
                     console.error('Error plotting data:', error);

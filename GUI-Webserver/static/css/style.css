@@ -353,7 +353,7 @@ body {
     z-index: 999;
     transition: right 0.3s ease;
     overflow-y: auto;
-    padding: 2rem 1.5rem;
+    padding: 2.5rem 2rem;
 }
 
 .data-sidebar.active {
@@ -417,13 +417,13 @@ body {
 .data-section {
     background: var(--bg-tertiary);
     border-radius: 12px;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     border: 1px solid var(--border-color);
     overflow: hidden;
 }
 
 .section-header {
-    padding: 1rem 1.25rem;
+    padding: 1.25rem 1.5rem;
     background: var(--bg-primary);
     border-bottom: 1px solid var(--border-color);
     cursor: pointer;
@@ -433,6 +433,7 @@ body {
     font-weight: 600;
     color: var(--text-primary);
     transition: all 0.3s ease;
+    font-size: 0.95rem;
 }
 
 .section-header:hover {
@@ -462,16 +463,18 @@ body {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease;
+    padding: 0.5rem 0;
 }
 
 .parameter-item {
-    padding: 0.75rem 1.25rem;
+    padding: 1rem 1.5rem;
     cursor: pointer;
     transition: all 0.3s ease;
     border-bottom: 1px solid var(--border-color);
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     color: var(--text-secondary);
     position: relative;
+    line-height: 1.4;
 }
 
 .parameter-item:last-child {
@@ -535,6 +538,7 @@ body {
     .data-sidebar {
         width: 350px;
         right: -350px;
+        padding: 2rem 1.5rem;
     }
     
     .sidebar-toggle.active {
@@ -590,6 +594,7 @@ body {
     .data-sidebar {
         width: 300px;
         right: -300px;
+        padding: 1.5rem 1rem;
     }
     
     .sidebar-toggle.active {
@@ -626,6 +631,7 @@ body {
     .data-sidebar {
         width: 280px;
         right: -280px;
+        padding: 1rem 0.75rem;
     }
     
     .sidebar-toggle.active {
