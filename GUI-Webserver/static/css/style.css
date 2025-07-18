@@ -290,11 +290,11 @@ body {
     border-radius: 16px;
     overflow: hidden;
     background: var(--bg-primary);
-    border: 1px solid var(--border-color);
+    border: none;
     position: relative;
     margin: 0 auto;
     padding: 0;
-    box-shadow: var(--shadow-lg);
+    box-shadow: none;
 }
 
 /* Empty Chart Animation */
@@ -338,6 +338,26 @@ body {
         textGlow 2s ease-in-out infinite alternate;
     display: inline-block;
     position: relative;
+}
+
+/* Dimming Overlay */
+.dimming-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(2px);
+}
+
+.dimming-overlay.active {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* Data Sidebar */

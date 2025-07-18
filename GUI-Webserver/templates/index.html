@@ -505,8 +505,11 @@
         function toggleSidebar() {
             const sidebar = document.querySelector('.data-sidebar');
             const toggleBtn = document.querySelector('.sidebar-toggle');
+            const dimmingOverlay = document.getElementById('dimming-overlay');
+            
             sidebar.classList.toggle('active');
             toggleBtn.classList.toggle('active');
+            dimmingOverlay.classList.toggle('active');
         }
 
         function toggleSection(sectionId) {
@@ -640,6 +643,28 @@
                 startCountdownFromServer();
                 updateEmptyChartDisplay();
 
+                // Add Enter key listeners to time input fields
+                const timeInputs = ['hours', 'minutes', 'seconds', 'update_every'];
+                timeInputs.forEach(inputId => {
+                    const input = document.getElementById(inputId);
+                    if (input) {
+                        input.addEventListener('keypress', function(event) {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                applySettings();
+                            }
+                        });
+                    }
+                });
+
+                // Add click listener to dimming overlay to close sidebar
+                const dimmingOverlay = document.getElementById('dimming-overlay');
+                if (dimmingOverlay) {
+                    dimmingOverlay.addEventListener('click', function() {
+                        toggleSidebar();
+                    });
+                }
+
             } catch (error) {
                 console.error('Error loading available columns:', error);
                 sidebar.innerHTML = `
@@ -758,6 +783,9 @@
             </div>
         </div>
     </header>
+
+    <!-- Dimming Overlay -->
+    <div class="dimming-overlay" id="dimming-overlay"></div>
 
     <!-- Main Content -->
     <main class="main-container">
