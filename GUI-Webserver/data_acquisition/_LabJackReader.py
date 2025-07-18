@@ -44,7 +44,7 @@ class LabJackReader:
             self.device = u3.U3()
             self.device.configU3()
             self.device.getCalibrationData()
-            self.device.configIO(FIOAnalog=31)  
+            self.device.configIO(FIOAnalog=63)  
             logger.info("LabJackReader: Device initialized")
             
             self.running = True
@@ -161,8 +161,8 @@ class LabJackReader:
                         else:
                             logger.warning(f"No data for Fridge Vapor Pressure at {datetime.now()}")
 
-                        if self._check_data(r["AIN5"]): ### Thermocouple
-                            vOut_Thermocouple = sum(r["AIN5"]) / len(r["AIN5"])
+                        if self._check_data(r["AIN6"]): ### Thermocouple
+                            vOut_Thermocouple = sum(r["AIN6"]) / len(r["AIN6"])
                         else:
                             logger.warning(f"No data for Thermocouple at {datetime.now()}")
 
