@@ -579,23 +579,6 @@
                 'Thermocouple': columns.filter(col => col.includes('thermocouple')),
             };
 
-            // Find uncategorized columns
-            const categorizedColumns = new Set();
-            Object.values(columnGroups).forEach(group => {
-                group.forEach(col => categorizedColumns.add(col));
-            });
-            const uncategorizedColumns = columns.filter(col => 
-                !categorizedColumns.has(col) && col !== 'Timestamp'
-            );
-            
-            if (uncategorizedColumns.length > 0) {
-                columnGroups['Other/Uncategorized'] = uncategorizedColumns;
-            }
-
-            console.log('All available columns:', columns);
-            console.log('Flow Controllers found:', columns.filter(col => col.includes('fc')));
-            console.log('Column groups created:', columnGroups);
-
             // Create sections for each group
             Object.entries(columnGroups).forEach(([groupName, groupColumns]) => {
                 console.log(`Processing group "${groupName}" with ${groupColumns.length} columns:`, groupColumns);
@@ -771,7 +754,7 @@
                     <div class="time-controls">
                         <div class="time-input">
                             <label for="hours">H</label>
-                            <input type="number" id="hours" name="hours" min="0" max="24" value="1" step="1">
+                            <input type="number" id="hours" name="hours" min="0", value="0" step="1">
                         </div>
                         <div class="time-input">
                             <label for="minutes">M</label>

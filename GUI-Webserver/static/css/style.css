@@ -61,6 +61,8 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
     min-height: 100vh;
     overflow-x: hidden;
+    overflow-y: hidden;
+    position: fixed;
 }
 
 /* Header Banner */
@@ -266,7 +268,7 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 2rem;
-    display: grid;
+    display: block;
     gap: 2rem;
     grid-template-columns: 1fr;
     margin-right: 60px; /* Space for sidebar toggle button */
