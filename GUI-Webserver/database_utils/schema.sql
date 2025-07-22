@@ -66,6 +66,20 @@ CREATE TABLE IF NOT EXISTS Lakeshore_Fridge_Temp (
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
+CREATE TABLE IF NOT EXISTS Lakeshore_Magnet_Temp (
+  id Integer PRIMARY KEY AUTOINCREMENT,
+  channel_1 FLOAT,
+  channel_2 FLOAT,
+  channel_3 FLOAT,
+  channel_4 FLOAT,
+  channel_5 FLOAT,
+  channel_6 FLOAT,
+  channel_7 FLOAT,
+  channel_8 FLOAT,
+  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+);
+
+
 
 CREATE TABLE IF NOT EXISTS MaxiGauge (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

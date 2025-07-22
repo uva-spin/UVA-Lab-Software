@@ -201,6 +201,7 @@ labjack_reader = None
 # Global lakeshore readers instance
 lakeshore_reader_target_stick = None
 lakeshore_reader_fridge_temp = None
+lakeshore_reader_magnet_temp = None
 
 # Global maxigauge reader instance
 maxigauge_reader = None
@@ -353,6 +354,15 @@ def read_lakeshore_data_fridge_temp():
     
     return lakeshore_reader_fridge_temp.get_latest_data()
 
+def read_lakeshore_data_magnet_temp():
+    """Read latest lakeshore data from magnet temperature"""
+    global lakeshore_reader_magnet_temp
+
+    if lakeshore_reader_magnet_temp is None:
+        return [None] * 8  # Return None for 8 lakeshore values
+    
+    return lakeshore_reader_magnet_temp.get_latest_data()
+
 def read_maxigauge_data():
     """Read latest maxigauge data"""
     global maxigauge_reader
@@ -480,34 +490,6 @@ def insert_lakeshore_data_target_stick(data):
     finally:
         conn.close()
 
-def insert_maxigauge_data(data):
-    """Insert MaxiGauge data into the maxigauge table"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
-            INSERT INTO MaxiGauge (
-                "maxigauge_seperator_inlet_pressure",
-                "maxigauge_upper_roots_pressure",
-                "channel_3",
-                "channel_4",
-                "channel_5",
-                "channel_6",
-                "Timestamp"
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (data[0], data[1], data[2], data[3], data[4], data[5], get_current_est_time()))
-
-        conn.commit()
-        logger.debug(f"Inserted MaxiGauge data: {data}")
-        return True
-    except Exception as e:
-        logger.error(f"Error inserting MaxiGauge data: {e}")
-        return False
-    finally:
-        conn.close()
-
-
 def insert_lakeshore_data_fridge_temp(data):
     """Insert Lakeshore data into the lakeshore_fridge_temp table"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -536,7 +518,66 @@ def insert_lakeshore_data_fridge_temp(data):
     finally:
         conn.close()
 
-def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, maxigauge_data):
+def insert_lakeshore_data_magnet_temp(data):
+    """Insert Lakeshore data into the lakeshore_magnet_temp table"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO Lakeshore_Magnet_Temp (
+                "channel_1",
+                "channel_2",
+                "channel_3",
+                "channel_4",
+                "channel_5",
+                "channel_6",
+                "channel_7",
+                "channel_8",
+                "Timestamp"
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
+        
+        conn.commit()
+        logger.debug(f"Inserted Lakeshore data: {data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting Lakeshore data: {e}")
+        return False
+    finally:
+        conn.close()
+
+def insert_maxigauge_data(data):
+    """Insert MaxiGauge data into the maxigauge table"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO MaxiGauge (
+                "maxigauge_seperator_inlet_pressure",
+                "maxigauge_upper_roots_pressure",
+                "channel_3",
+                "channel_4",
+                "channel_5",
+                "channel_6",
+                "Timestamp"
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], get_current_est_time()))
+
+        conn.commit()
+        logger.debug(f"Inserted MaxiGauge data: {data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting MaxiGauge data: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+
+
+def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data):
     """Pipeline data directly to the database"""
     success = True
     
@@ -588,9 +629,8 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
         magnet_pressure = labjack_data[2]
         purifier_inlet_pressure = labjack_data[3]
         fridge_vapor_pressure = labjack_data[4]
-        thermocouple = labjack_data[5]
-        logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}, Pressure 6: {thermocouple}")
-        if insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple]):
+        logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}")
+        if insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure]):
             labjack_status = 'success'
         else:
             labjack_status = 'error'
@@ -605,15 +645,31 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
     logger.debug("Attempting to insert Target Stick Data")
     if lakeshore_data_target_stick is not None:
         if insert_lakeshore_data_target_stick(lakeshore_data_target_stick):
-            lakeshore_status = 'success'
+            lakeshore_target_stick_status = 'success'
         else:
-            lakeshore_status = 'error'
+            lakeshore_target_stick_status = 'error'
             success = False
             logger.error("Failed to insert Target Stick Data")
     else:
-        lakeshore_status = 'error'
+        lakeshore_target_stick_status = 'error'
         success = False
         logger.error("No Target Stick data to insert")
+
+    if lakeshore_data_fridge_temp is not None:
+        if insert_lakeshore_data_fridge_temp(lakeshore_data_fridge_temp):
+            lakeshore_fridge_temp_status = 'success'
+        else:
+            lakeshore_fridge_temp_status = 'error'
+            success = False
+            logger.error("Failed to insert Fridge Temp Data")
+
+    if lakeshore_data_magnet_temp is not None:
+        if insert_lakeshore_data_magnet_temp(lakeshore_data_magnet_temp):
+            lakeshore_magnet_temp_status = 'success'
+        else:
+            lakeshore_magnet_temp_status = 'error'
+            success = False
+            logger.error("Failed to insert Magnet Temp Data")
 
     # Insert MaxiGauge data
     logger.debug("Attempting to insert MaxiGauge data")
@@ -629,7 +685,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
         success = False
         logger.error("No MaxiGauge data to insert")
 
-    return success, modbus_status, teledyne_status, labjack_status, lakeshore_status, maxigauge_status
+    return success, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status
 
 
 def main():
@@ -643,7 +699,7 @@ def main():
     # Setup logging with terminal output if requested
     setup_logging(verbose=args.verbose, terminal_output=args.terminal_log)
 
-    global teledyne_reader, labjack_reader, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp
+    global teledyne_reader, labjack_reader, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp, lakeshore_reader_magnet_temp
 
     # Print beautiful header if not in verbose mode
     if not args.verbose and not args.terminal_log:
@@ -741,19 +797,27 @@ def main():
                 # Read lakeshore data
                 lakeshore_data_target_stick = read_lakeshore_data_target_stick()
                 
-                # lakeshore_data_fridge_temp = read_lakeshore_data_fridge_temp()
+                lakeshore_data_fridge_temp = read_lakeshore_data_fridge_temp()
+                
+                lakeshore_data_magnet_temp = read_lakeshore_data_magnet_temp()
                 
                 # Read maxigauge data
                 maxigauge_data = read_maxigauge_data()
 
                 # Pipeline data directly to database
-                db_success, modbus_status, teledyne_status, labjack_status, lakeshore_status, maxigauge_status = pipeline_to_database(
-                    modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, maxigauge_data
+                db_success, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status = pipeline_to_database(
+                    modbus_data, 
+                    teledyne_data, 
+                    labjack_data, 
+                    lakeshore_data_target_stick, 
+                    lakeshore_data_fridge_temp, 
+                    lakeshore_data_magnet_temp, 
+                    maxigauge_data
                 )
                 
                 # Print status update if not in verbose mode
                 if not args.verbose and not args.terminal_log:
-                    print_status_update(iteration, modbus_status, teledyne_status, labjack_status, lakeshore_status, maxigauge_status)
+                    print_status_update(iteration, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status)
                 
                 if not db_success:
                     logger.warning("Some data failed to insert into database")
@@ -793,6 +857,10 @@ def main():
 
         if lakeshore_reader_fridge_temp:
             lakeshore_reader_fridge_temp.stop()
+            logger.info("Lakeshore data reader stopped")
+
+        if lakeshore_reader_magnet_temp:
+            lakeshore_reader_magnet_temp.stop()
             logger.info("Lakeshore data reader stopped")
 
         if not args.verbose and not args.terminal_log:

@@ -31,6 +31,7 @@ class KeithleyReader:
         self.bytesize = bytesize
         self.timeout = timeout
         self.stopbits = stopbits
+        self.parity = serial.PARITY_NONE
 
     def start(self):
         try:
@@ -44,6 +45,7 @@ class KeithleyReader:
                 bytesize=self.bytesize,
                 timeout=self.timeout,
                 stopbits=self.stopbits,
+                parity=self.parity,
             )
 
             if self.serialPort.is_open:
