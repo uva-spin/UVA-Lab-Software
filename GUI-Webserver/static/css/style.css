@@ -80,8 +80,7 @@ body {
 .banner-content {
     width: 100%;
     margin: 0;
-    /* Remove horizontal padding to eliminate whitespace */
-    padding: 0 1rem;
+    padding: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -269,12 +268,11 @@ body {
 .main-container {
     width: 100%;
     margin: 0;
-    /* Remove horizontal padding to eliminate whitespace */
-    padding: 1rem 0;
+    padding: 0;
     display: block;
     gap: 2rem;
     grid-template-columns: 1fr;
-    margin-right: 60px; /* Space for sidebar toggle button */
+    /* margin-right: 60px; */
 }
 
 /* Chart Section */
