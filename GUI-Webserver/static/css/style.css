@@ -74,13 +74,12 @@ body {
     top: 0;
     z-index: 1000;
     backdrop-filter: blur(10px);
-    width: 100%;
 }
 
 .banner-content {
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -266,13 +265,13 @@ body {
 
 /* Main Container */
 .main-container {
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
     display: block;
     gap: 2rem;
     grid-template-columns: 1fr;
-    /* margin-right: 60px; */
+    margin-right: 60px; /* Space for sidebar toggle button */
 }
 
 /* Chart Section */
