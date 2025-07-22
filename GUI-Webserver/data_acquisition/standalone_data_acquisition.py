@@ -471,14 +471,14 @@ def insert_lakeshore_data_target_stick(data):
     try:
         cursor.execute('''
             INSERT INTO Lakeshore_Target_Stick (
-                "buffle_top_temperature",
-                "buffle_bottom_temperature",
-                "seperator_top_temperature",
-                "seperator_bottom_temperature",
-                "heat_exchanger_top_temperature",
-                "heat_exchanger_bottom_temperature",
-                "annealing_plate_bar_temperature",
-                "annealing_plate_top_temperature",
+                "target_stick_buffle_top_temperature",
+                "target_stick_buffle_bottom_temperature",
+                "target_stick_seperator_top_temperature",
+                "target_stick_seperator_bottom_temperature",
+                "target_stick_heat_exchanger_top_temperature",
+                "target_stick_heat_exchanger_bottom_temperature",
+                "target_stick_annealing_plate_bar_temperature",
+                "target_stick_annealing_plate_top_temperature",
                 "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
@@ -500,13 +500,13 @@ def insert_lakeshore_data_fridge_temp(data):
     try:
         cursor.execute('''
             INSERT INTO Lakeshore_Fridge_Temp (
-                "target_top_up_temperature",
-                "target_top_up_center_temperature",
-                "target_top_down_temperature",
-                "target_bottom_up_temperature",
-                "target_bottom_down_temperature",
-                "target_top_cernox_temperature",
-                "target_bottom_cernox_temperature",
+                "fridge_target_top_up_temperature",
+                "fridge_target_top_up_center_temperature",
+                "fridge_target_top_down_temperature",
+                "fridge_target_bottom_up_temperature",
+                "fridge_target_bottom_down_temperature",
+                "fridge_target_top_cernox_temperature",
+                "fridge_target_bottom_cernox_temperature",
                 "target_stick_annealing_plate_top_temperature
                 "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -529,14 +529,14 @@ def insert_lakeshore_data_magnet_temp(data):
     try:
         cursor.execute('''
             INSERT INTO Lakeshore_Magnet_Temp (
-                "channel_1",
-                "channel_2",
-                "channel_3",
-                "channel_4",
-                "channel_5",
-                "channel_6",
-                "channel_7",
-                "channel_8",
+                "magnet_channel_1",
+                "magnet_channel_2",
+                "magnet_channel_3",
+                "magnet_channel_4",
+                "magnet_channel_5",
+                "magnet_channel_6",
+                "magnet_channel_7",
+                "magnet_channel_8",
                 "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
