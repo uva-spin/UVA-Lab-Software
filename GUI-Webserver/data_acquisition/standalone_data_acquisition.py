@@ -78,16 +78,16 @@ def print_status_update(iteration, modbus_status, teledyne_status, labjack_statu
         'none': '⏸️'
     }
     
-    print(f"\r🔄 Iteration {iteration:4d} | "
-          f"Modbus: {status_symbols.get(modbus_status, '❓')} | "
-          f"Teledyne: {status_symbols.get(teledyne_status, '❓')} | "
-          f"LabJack: {status_symbols.get(labjack_status, '❓')} | "
-          f"LakeShore Target Stick: {status_symbols.get(lakeshore_target_stick_status, '❓')} | "
-          f"LakeShore Fridge Temp: {status_symbols.get(lakeshore_fridge_temp_status, '❓')} | "
-          f"LakeShore Magnet Temp: {status_symbols.get(lakeshore_magnet_temp_status, '❓')} | "
-          f"MaxiGauge: {status_symbols.get(maxigauge_status, '❓')} | "
-          f"IVC: {status_symbols.get(ivc_status, '❓')} | "
-          f"Time: {get_current_est_time()}", end='', flush=True)
+    print(f"\r🔄 {iteration:4d} | "
+          f"MB:{status_symbols.get(modbus_status, '❓')} | "
+          f"TDY:{status_symbols.get(teledyne_status, '❓')} | "
+          f"LJ:{status_symbols.get(labjack_status, '❓')} | "
+          f"LS-TS:{status_symbols.get(lakeshore_target_stick_status, '❓')} | "
+          f"LS-FT:{status_symbols.get(lakeshore_fridge_temp_status, '❓')} | "
+          f"LS-MT:{status_symbols.get(lakeshore_magnet_temp_status, '❓')} | "
+          f"MG:{status_symbols.get(maxigauge_status, '❓')} | "
+          f"IVC:{status_symbols.get(ivc_status, '❓')} | "
+          f"{get_current_est_time()}", end='', flush=True)
 
 def setup_logging(verbose=False, terminal_output=False):
     """Setup logging configuration"""
@@ -484,10 +484,10 @@ def insert_lakeshore_data_target_stick(data):
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
         
         conn.commit()
-        logger.debug(f"Inserted Lakeshore data: {data}")
+        logger.debug(f"Inserted Target Stick Lakeshore data: {data}")
         return True
     except Exception as e:
-        logger.error(f"Error inserting Lakeshore data: {e}")
+        logger.error(f"Error inserting Target Stick Lakeshore data: {e}")
         return False
     finally:
         conn.close()
@@ -507,15 +507,16 @@ def insert_lakeshore_data_fridge_temp(data):
                 "target_bottom_down_temperature",
                 "target_top_cernox_temperature",
                 "target_bottom_cernox_temperature",
+                "target_stick_annealing_plate_top_temperature
                 "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
 
         conn.commit()
-        logger.debug(f"Inserted Lakeshore data: {data}")
+        logger.debug(f"Inserted Fridge Lakeshore data: {data}")
         return True
     except Exception as e:
-        logger.error(f"Error inserting Lakeshore data: {e}")
+        logger.error(f"Error inserting Fridge Lakeshore data: {e}")
         return False
     finally:
         conn.close()
@@ -541,10 +542,10 @@ def insert_lakeshore_data_magnet_temp(data):
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
         
         conn.commit()
-        logger.debug(f"Inserted Lakeshore data: {data}")
+        logger.debug(f"Inserted Magnet Lakeshore data: {data}")
         return True
     except Exception as e:
-        logger.error(f"Error inserting Lakeshore data: {e}")
+        logger.error(f"Error inserting Magnet Lakeshore data: {e}")
         return False
     finally:
         conn.close()
@@ -644,14 +645,15 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
     
     # Insert LabJack data
     logger.debug("Attempting to insert LabJack data")
-    if labjack_data is not None:
+    if labjack_data is not None and len(labjack_data) >= 6:
         root_exhaust_pressure = labjack_data[0]
         buffer_pressure = labjack_data[1]
         magnet_pressure = labjack_data[2]
         purifier_inlet_pressure = labjack_data[3]
         fridge_vapor_pressure = labjack_data[4]
-        logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}")
-        if insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure]):
+        thermocouple = labjack_data[5]
+        logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}, Thermocouple: {thermocouple}")
+        if insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple]):
             labjack_status = 'success'
         else:
             labjack_status = 'error'
@@ -660,7 +662,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
     else:
         labjack_status = 'error'
         success = False
-        logger.error("No LabJack data to insert")
+        logger.error("No LabJack data to insert or insufficient data points")
     
     # Insert Lakeshore data
     logger.debug("Attempting to insert Target Stick Data")
