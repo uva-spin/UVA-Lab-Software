@@ -504,10 +504,10 @@ def insert_lakeshore_data_fridge_temp(data):
                 "fridge_target_top_up_center_temperature",
                 "fridge_target_top_down_temperature",
                 "fridge_target_bottom_up_temperature",
+                "fridge_target_bottom_up_center_temperature",
                 "fridge_target_bottom_down_temperature",
                 "fridge_target_top_cernox_temperature",
                 "fridge_target_bottom_cernox_temperature",
-                "target_stick_annealing_plate_top_temperature
                 "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))

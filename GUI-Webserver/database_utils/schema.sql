@@ -83,10 +83,10 @@ CREATE TABLE IF NOT EXISTS MaxiGauge (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   maxigauge_seperator_inlet_pressure FLOAT,
   maxigauge_upper_roots_pressure FLOAT,
-  channel_3 FLOAT,
-  channel_4 FLOAT,
-  channel_5 FLOAT,
-  channel_6 FLOAT,
+  maxigauge_channel_3 FLOAT,
+  maxigauge_channel_4 FLOAT,
+  maxigauge_channel_5 FLOAT,
+  maxigauge_channel_6 FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
