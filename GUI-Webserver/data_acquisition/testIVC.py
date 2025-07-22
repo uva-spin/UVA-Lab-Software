@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Quick LakeShore Reader Test
+Quick IVC Reader Test
 
-A simple script to quickly test LakeShore reader functionality.
+A simple script to quickly test IVC reader functionality.
 Useful for basic connectivity and data reading verification.
 """
 
@@ -23,6 +23,7 @@ def quick_test():
         print("Starting connection...")
         if not reader.start():
             print("Failed to start connection!")
+            print("Check if the device is connected and the port is correct.")
             return
         
         print("Connection started successfully!")
@@ -35,23 +36,31 @@ def quick_test():
         
         print("Data stream started!")
         
+        # Wait a moment for data to start flowing
+        print("Waiting for data to start flowing...")
+        time.sleep(2)
+        
         # Collect a few data points
         print("\nCollecting data...")
         for i in range(5):
             data = reader.get_latest_data()
             
-            print(f"Reading {i+1}: {data}")
-            
-            print()
+            if data is not None:
+                print(f"Reading {i+1}: {data}")
+            else:
+                print(f"Reading {i+1}: No data received")
             
             time.sleep(1)
         
-        print("Test completed successfully!")
+        print("\nTest completed successfully!")
         
     except KeyboardInterrupt:
         print("\nStopped by user")
     except Exception as e:
         print(f"Error: {e}")
+        import traceback
+        print("Full traceback:")
+        traceback.print_exc()
     finally:
         print("Cleaning up...")
         reader.stop()
