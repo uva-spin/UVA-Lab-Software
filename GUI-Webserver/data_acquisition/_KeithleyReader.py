@@ -4,6 +4,12 @@ import logging
 import threading
 logger = logging.getLogger(__name__)
 
+file_handler = logging.FileHandler('keithley.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+
+
 class KeithleyReader:
     def __init__(self, port='COM6', baudrate=9600, bytesize=8, timeout=1, stopbits=1):
         self.port = port
