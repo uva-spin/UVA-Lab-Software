@@ -2,12 +2,21 @@ import serial
 import time
 import logging
 import threading
-logger = logging.getLogger(__name__)
 
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Set logger level to DEBUG
+
+# Create file handler
 file_handler = logging.FileHandler('keithley.log')
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# Add handler to logger
 logger.addHandler(file_handler)
+
+# Prevent duplicate logs by not propagating to root logger
+logger.propagate = False
 
 
 class KeithleyReader:
@@ -112,6 +121,8 @@ class KeithleyReader:
                 #         logger.warning("No valid data received after parsing")
                 else:
                     logger.warning("No raw data received from device")
+                
+                time.sleep(0.1)  # Add delay to prevent high CPU usage
                     
         except Exception as e:
             logger.error(f"Error in data reading thread: {e}")
