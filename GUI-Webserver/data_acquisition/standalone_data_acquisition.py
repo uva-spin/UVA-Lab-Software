@@ -57,7 +57,7 @@ def print_status_header():
     print("🚀 UVA Lab Data Acquisition System")
     print("="*80)
     print("📊 Collecting data from multiple sources:")
-    print("   • Modbus TCP (HMI/PLC)")
+    print("   • QT System")
     print("   • Teledyne Flow Meters")
     print("   • LabJack Pressure Sensors")
     print("   • LakeShore Temperature Controllers")
@@ -79,7 +79,7 @@ def print_status_update(iteration, modbus_status, teledyne_status, labjack_statu
     }
     
     print(f"\r🔄 {iteration:4d} | "
-          f"MB:{status_symbols.get(modbus_status, '❓')} | "
+          f"QT:{status_symbols.get(modbus_status, '❓')} | "
           f"TDY:{status_symbols.get(teledyne_status, '❓')} | "
           f"LJ:{status_symbols.get(labjack_status, '❓')} | "
           f"LS-TS:{status_symbols.get(lakeshore_target_stick_status, '❓')} | "
@@ -371,9 +371,13 @@ def read_ivc_data():
     global ivc_reader
 
     if ivc_reader is None:
-        return [None] * 1  # Return None for 1 IVC value
+        return None  # Return None for IVC value when reader is not available
     
-    return ivc_reader.get_latest_data()
+    data = ivc_reader.get_latest_data()
+    if data is not None and isinstance(data, (int, float)):
+        return data
+    else:
+        return None
 
 def insert_hmi_data(data):
     """Insert HMI data into the hmi table"""
@@ -697,24 +701,40 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
     # Insert MaxiGauge data
     logger.debug("Attempting to insert MaxiGauge data")
     if maxigauge_data is not None:
-        if insert_maxigauge_data(maxigauge_data):
-            maxigauge_status = 'success'
+        # Validate that we have the correct data format
+        if isinstance(maxigauge_data, list) and len(maxigauge_data) == 6:
+            logger.debug(f"MaxiGauge data is valid format: {maxigauge_data}")
+            if insert_maxigauge_data(maxigauge_data):
+                maxigauge_status = 'success'
+            else:
+                maxigauge_status = 'error'
+                success = False
+                logger.error(f"Failed to insert MaxiGauge data: {maxigauge_data}")
         else:
             maxigauge_status = 'error'
             success = False
-            logger.error("Failed to insert MaxiGauge data")
+            logger.error(f"MaxiGauge data has invalid format - expected list of 6 values, got: {type(maxigauge_data)} with value: {maxigauge_data}")
     else:
         maxigauge_status = 'error'
         success = False
         logger.error("No MaxiGauge data to insert")
 
+    # Insert IVC data
+    logger.debug("Attempting to insert IVC data")
     if ivc_data is not None:
-        if insert_ivc_data(ivc_data):
-            ivc_status = 'success'
+        # Validate that we have a numeric value
+        if isinstance(ivc_data, (int, float)):
+            logger.debug(f"IVC data is valid: {ivc_data}")
+            if insert_ivc_data(ivc_data):
+                ivc_status = 'success'
+            else:
+                ivc_status = 'error'
+                success = False
+                logger.error(f"Failed to insert IVC data: {ivc_data}")
         else:
             ivc_status = 'error'
             success = False
-            logger.error("Failed to insert IVC data")
+            logger.error(f"IVC data has invalid format - expected numeric value, got: {type(ivc_data)} with value: {ivc_data}")
     else:
         ivc_status = 'error'
         success = False

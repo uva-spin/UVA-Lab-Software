@@ -17,7 +17,7 @@ class MaxiGaugeReader:
         self.socket = None
         self.running = False
         self.thread = None
-        self.data_queue = [None] * 6
+        self.data_queue = [None] * 6  # Initialize with 6 None values
         self.check_interval = check_interval
         self.MAXIGAUGE_TCP_IP = "172.29.36.194"
         self.MAXIGAUGE_TCP_PORT = 8000
@@ -205,13 +205,22 @@ class MaxiGaugeReader:
         """Get the latest MaxiGauge data from the TCP connection"""
         try:
             data = self._socket_read()
-            if data:
-                self.data_queue = data
+            if data and isinstance(data, list):
+                # Ensure we have exactly 6 values
+                if len(data) >= 6:
+                    self.data_queue = data[:6]  # Take first 6 values
+                else:
+                    # Pad with None if we have fewer than 6 values
+                    padded_data = data + [None] * (6 - len(data))
+                    self.data_queue = padded_data
                 logger.debug(f"Updated MaxiGauge data queue: {self.data_queue}")
-                return data  # Return fresh data directly
+                return self.data_queue[:]  # Return a copy
             else:
-                # If no fresh data, return cached data if available
-                return self.data_queue if self.data_queue else None
+                # If no fresh data, return cached data if available, otherwise return 6 None values
+                if self.data_queue and len(self.data_queue) == 6:
+                    return self.data_queue[:]
+                else:
+                    return [None] * 6
         except Exception as e:
             logger.error(f"Error getting latest MaxiGauge data: {e}")
             return [None] * 6
@@ -220,8 +229,14 @@ class MaxiGaugeReader:
         while self.running:
             try:
                 data = self._socket_read()
-                if data:
-                    self.data_queue = data
+                if data and isinstance(data, list):
+                    # Ensure we have exactly 6 values
+                    if len(data) >= 6:
+                        self.data_queue = data[:6]  # Take first 6 values
+                    else:
+                        # Pad with None if we have fewer than 6 values
+                        padded_data = data + [None] * (6 - len(data))
+                        self.data_queue = padded_data
                     logger.debug(f"Updated MaxiGauge data queue: {self.data_queue}")
                 else:
                     logger.debug("No data received from MaxiGauge")

@@ -2,6 +2,7 @@ import serial
 import time
 import logging
 import threading
+import re
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -46,7 +47,15 @@ class IVCReader:
             if self.serialPort.is_open:
                 self.running = True
                 logger.info("Serial port opened successfully")
-                return True
+                
+                # Automatically start the data stream
+                if self.data_stream():
+                    logger.info("IVC reader started successfully with data stream")
+                    return True
+                else:
+                    logger.error("Failed to start data stream")
+                    self._cleanup()
+                    return False
             else:
                 logger.error("Failed to open serial port")
                 return False
@@ -149,26 +158,51 @@ class IVCReader:
             
             logger.debug(f"Decoded data string: {data_str}")
             
+            # Remove any non-printable characters and control characters
+            clean_data = re.sub(r'[^\x20-\x7E]', '', data_str)
+            logger.debug(f"Cleaned data string: {clean_data}")
+            
             # Parse the comma-separated data format: 1,<number>,5,<number>
             # We want the second entry (index 1 after splitting)
-            if data_str:
-                parts = data_str.split(',')
+            if clean_data:
+                parts = clean_data.split(',')
                 logger.debug(f"Split data parts: {parts}")
                 
-                # Check if we have enough parts and extract the second number
+                # Look for numeric values in all parts, not just the second one
+                for i, part in enumerate(parts):
+                    part = part.strip()
+                    if part:
+                        try:
+                            # Try to extract scientific notation or regular float
+                            if 'E' in part.upper() or 'e' in part:
+                                # Scientific notation
+                                numeric_value = float(part)
+                                logger.debug(f"Extracted scientific notation value from part {i}: {numeric_value}")
+                                return numeric_value
+                            else:
+                                # Regular number
+                                numeric_value = float(part)
+                                # Skip obvious status codes like 1, 5, etc. (usually single digits)
+                                if abs(numeric_value) > 10 or (numeric_value != int(numeric_value) if numeric_value == int(numeric_value) else True):
+                                    logger.debug(f"Extracted numeric value from part {i}: {numeric_value}")
+                                    return numeric_value
+                        except (ValueError, TypeError) as e:
+                            logger.debug(f"Could not convert part '{part}' to float: {e}")
+                            continue
+                
+                # If we couldn't find a good numeric value, try the traditional second position
                 if len(parts) >= 2:
                     try:
                         second_value = float(parts[1].strip())
-                        logger.debug(f"Extracted second value: {second_value}")
+                        logger.debug(f"Fallback: extracted second value: {second_value}")
                         return second_value
                     except (ValueError, TypeError) as e:
-                        logger.warning(f"Could not convert '{parts[1]}' to float: {e}")
-                        return None
-                else:
-                    logger.warning(f"Insufficient data parts. Expected at least 2, got {len(parts)}: {parts}")
-                    return None
+                        logger.warning(f"Could not convert fallback value '{parts[1]}' to float: {e}")
+                
+                logger.warning(f"No valid numeric data found in parts: {parts}")
+                return None
             else:
-                logger.warning("Empty data string received")
+                logger.warning("Empty or invalid data string received")
                 return None
             
         except Exception as e:
@@ -176,13 +210,58 @@ class IVCReader:
             return None
     
     def get_latest_data(self):
-        """Get the latest data from the IVC reader"""
-        with self._lock:
-            logger.debug(f"get_latest_data called. Queue contents: {self.data_queue}")
+        """Get the latest data from the IVC reader with retry logic for valid numeric data"""
+        max_attempts = 5
+        attempt_delay = 0.1  # 100ms between attempts
+        
+        for attempt in range(max_attempts):
+            with self._lock:
+                current_data = self.data_queue
+                
+            # Check if we have valid numeric data
+            if current_data is not None and isinstance(current_data, (int, float)):
+                logger.debug(f"Returning valid IVC data: {current_data}")
+                return current_data
             
-            if self.data_queue is not None:
-                logger.debug(f"Returning IVC data: {self.data_queue}")
-                return self.data_queue
+            # If no valid data, try to get fresh data directly
+            if attempt < max_attempts - 1:  # Don't wait on the last attempt
+                logger.debug(f"No valid IVC data yet (attempt {attempt + 1}/{max_attempts}), trying to get fresh data...")
+                fresh_data = self._get_fresh_data()
+                if fresh_data is not None and isinstance(fresh_data, (int, float)):
+                    with self._lock:
+                        self.data_queue = fresh_data
+                    logger.debug(f"Got fresh IVC data: {fresh_data}")
+                    return fresh_data
+                
+                time.sleep(attempt_delay)
+        
+        logger.warning("Could not get valid numeric IVC data after multiple attempts")
+        return None
+    
+    def _get_fresh_data(self):
+        """Try to get fresh data immediately from the device"""
+        if not self.serialPort or not self.serialPort.is_open:
+            return None
+            
+        try:
+            # Clear any pending data
+            if self.serialPort.in_waiting > 0:
+                self.serialPort.read_all()
+            
+            # Send command and read response
+            self.serialPort.write(b'PRX\r\n')
+            time.sleep(0.1)
+            self.serialPort.write(b'\x05')
+            time.sleep(0.1)
+            
+            raw_data = self.serialPort.readline()
+            if raw_data:
+                logger.debug(f"Fresh raw data received: {raw_data}")
+                return self._parse_ivc_data(raw_data)
             else:
-                logger.debug("Data queue is empty or None")
+                logger.debug("No fresh raw data received from device")
                 return None
+                
+        except Exception as e:
+            logger.debug(f"Error getting fresh IVC data: {e}")
+            return None
