@@ -128,7 +128,6 @@ def setup_logging(verbose=False, terminal_output=False):
         force=True  # Override any existing configuration
     )
 
-# Initialize logging without terminal output by default
 setup_logging(verbose=False, terminal_output=False)
 logger = logging.getLogger(__name__)
 
@@ -175,21 +174,6 @@ labels = [
     "TI504.AI.Value",
     "TI505.AI.Value",
     "TI523.AI.Value"
-]
-
-# Define labels for teledyne flow data
-teledyne_labels = [
-    "Seperator_Flow",
-    "Magnet_Flow", 
-    "Main_Flow"
-]
-
-Pressure_labels = [
-    "Root_Exhaust_Pressure",
-    "Buffer_Pressure",
-    "Magnet_Pressure",
-    "Purifier_Inlet_Pressure",
-    "Fridge_Vapor_Pressure"
 ]
 
 # Global teledyne reader instance
@@ -716,8 +700,6 @@ def main():
         logger.info(f"VERBOSE: Float Port: {FLOAT_PORT}")
         logger.info(f"VERBOSE: Number of registers to read: {NUM_REG_TO_READ}")
         logger.info(f"VERBOSE: Labels: {labels}")
-        logger.info(f"VERBOSE: Teledyne labels: {teledyne_labels}")
-        logger.info(f"VERBOSE: Pressure labels: {Pressure_labels}")
         logger.info(f"VERBOSE: Max consecutive failures: {MAX_CONSECUTIVE_FAILURES}")
     
     # Setup database
@@ -743,25 +725,26 @@ def main():
     except Exception as e:
         logger.error(f"Error starting labjack data reader: {e}")
     
-    # Start lakeshore data readers
-
-      ### Wait for RS232 cables ####
-
-
-    # try:
-    #     lakeshore_reader_fridge_temp = LakeShoreReader(port="COM5")
-    #     lakeshore_reader_fridge_temp.start()
-    #     if args.debug:
-    #         logger.info("DEBUG: Lakeshore data reader started")
-    # except Exception as e:
-    #     logger.error(f"Error starting lakeshore data reader: {e}")
-
-  
+    # Start lakeshore data readers  
 
     try:
         lakeshore_reader_target_stick = LakeShoreReader(port="COM4")
         lakeshore_reader_target_stick.start()
-        logger.info("Lakeshore data reader started")
+        logger.info("Lakeshore data reader started for target stick")
+    except Exception as e:
+        logger.error(f"Error starting lakeshore data reader: {e}")
+
+    try:
+        lakeshore_reader_fridge_temp = LakeShoreReader(port="COM5")
+        lakeshore_reader_fridge_temp.start()
+        logger.info("Lakeshore data reader started for fridge temp")
+    except Exception as e:
+        logger.error(f"Error starting lakeshore data reader: {e}")
+
+    try:
+        lakeshore_reader_magnet_temp = LakeShoreReader(port="COM6")
+        lakeshore_reader_magnet_temp.start()
+        logger.info("Lakeshore data reader started for magnet temp")
     except Exception as e:
         logger.error(f"Error starting lakeshore data reader: {e}")
 
