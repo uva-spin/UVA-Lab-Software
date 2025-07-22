@@ -22,13 +22,16 @@ from datetime import datetime, timezone
 import os
 import threading
 import sqlite3
+import argparse
+import sys
+import pytz
+
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader
 from _LakeShoreReader import LakeShoreReader
 from _MaxiGaugeReader import MaxiGaugeReader
-import pytz
-import argparse
-import sys
+from _IVCReader import IVCReader
+
 
 # Global args variable for command line arguments
 args = None
@@ -80,6 +83,7 @@ def print_status_update(iteration, modbus_status, teledyne_status, labjack_statu
           f"LabJack: {status_symbols.get(labjack_status, '❓')} | "
           f"LakeShore: {status_symbols.get(lakeshore_status, '❓')} | "
           f"MaxiGauge: {status_symbols.get(maxigauge_status, '❓')} | "
+          f"IVC: {status_symbols.get(ivc_status, '❓')} | "
           f"Time: {get_current_est_time()}", end='', flush=True)
 
 def setup_logging(verbose=False, terminal_output=False):
@@ -189,6 +193,9 @@ lakeshore_reader_magnet_temp = None
 
 # Global maxigauge reader instance
 maxigauge_reader = None
+
+# Global IVC reader instance
+ivc_reader = None
 
 def ensure_database_directory():
     """Ensure the database directory exists"""
@@ -356,6 +363,14 @@ def read_maxigauge_data():
     
     return maxigauge_reader.get_latest_data()
 
+def read_ivc_data():
+    """Read latest IVC data"""
+    global ivc_reader
+
+    if ivc_reader is None:
+        return [None] * 1  # Return None for 1 IVC value
+    
+    return ivc_reader.get_latest_data()
 
 def insert_hmi_data(data):
     """Insert HMI data into the hmi table"""
@@ -558,10 +573,29 @@ def insert_maxigauge_data(data):
     finally:
         conn.close()
 
+def insert_ivc_data(data):
+    """Insert IVC data into the ivc table"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO IVC (
+                "ivc_pressure",
+                "Timestamp"
+            ) VALUES (?, ?)
+        ''', (data, get_current_est_time()))
+        
+        conn.commit()
+        logger.debug(f"Inserted IVC data: {data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting IVC data: {e}")
+        return False
+    finally:
+        conn.close()
 
-
-
-def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data):
+def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
     """Pipeline data directly to the database"""
     success = True
     
@@ -669,7 +703,19 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
         success = False
         logger.error("No MaxiGauge data to insert")
 
-    return success, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status
+    if ivc_data is not None:
+        if insert_ivc_data(ivc_data):
+            ivc_status = 'success'
+        else:
+            ivc_status = 'error'
+            success = False
+            logger.error("Failed to insert IVC data")
+    else:
+        ivc_status = 'error'
+        success = False
+        logger.error("No IVC data to insert")
+
+    return success, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status
 
 
 def main():
@@ -683,7 +729,7 @@ def main():
     # Setup logging with terminal output if requested
     setup_logging(verbose=args.verbose, terminal_output=args.terminal_log)
 
-    global teledyne_reader, labjack_reader, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp, lakeshore_reader_magnet_temp
+    global teledyne_reader, labjack_reader, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp, lakeshore_reader_magnet_temp, ivc_reader
 
     # Print beautiful header if not in verbose mode
     if not args.verbose and not args.terminal_log:
@@ -755,6 +801,13 @@ def main():
     except Exception as e:
         logger.error(f"Error starting maxigauge data reader: {e}")
 
+    try:
+        ivc_reader = IVCReader(port="COM7")
+        ivc_reader.start()
+        logger.info("IVC data reader started")
+    except Exception as e:
+        logger.error(f"Error starting ivc data reader: {e}")
+
     iteration = 0
     
     try:
@@ -787,20 +840,31 @@ def main():
                 # Read maxigauge data
                 maxigauge_data = read_maxigauge_data()
 
+                # Read ivc data
+                ivc_data = read_ivc_data()
+
                 # Pipeline data directly to database
-                db_success, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status = pipeline_to_database(
+                db_success, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status = pipeline_to_database(
                     modbus_data, 
                     teledyne_data, 
                     labjack_data, 
                     lakeshore_data_target_stick, 
                     lakeshore_data_fridge_temp, 
                     lakeshore_data_magnet_temp, 
-                    maxigauge_data
+                    maxigauge_data,
+                    ivc_data
                 )
                 
                 # Print status update if not in verbose mode
                 if not args.verbose and not args.terminal_log:
-                    print_status_update(iteration, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status)
+                    print_status_update(iteration, 
+                                        modbus_status, 
+                                        teledyne_status, 
+                                        labjack_status, 
+                                        lakeshore_target_stick_status, 
+                                        lakeshore_fridge_temp_status, 
+                                        lakeshore_magnet_temp_status, 
+                                        maxigauge_status, ivc_status)
                 
                 if not db_success:
                     logger.warning("Some data failed to insert into database")
@@ -845,6 +909,10 @@ def main():
         if lakeshore_reader_magnet_temp:
             lakeshore_reader_magnet_temp.stop()
             logger.info("Lakeshore data reader stopped")
+
+        if ivc_reader:
+            ivc_reader.stop()
+            logger.info("IVC data reader stopped")
 
         if not args.verbose and not args.terminal_log:
             print("\n\n✅ Data acquisition system shutdown complete")

@@ -42,44 +42,42 @@ CREATE TABLE IF NOT EXISTS Flow_Rates (
 
 CREATE TABLE IF NOT EXISTS Lakeshore_Target_Stick (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  buffle_top_temperature FLOAT,
-  buffle_bottom_temperature FLOAT,
-  seperator_top_temperature FLOAT,
-  seperator_bottom_temperature FLOAT,
-  heat_exchanger_top_temperature FLOAT,
-  heat_exchanger_bottom_temperature FLOAT,
-  annealing_plate_bar_temperature FLOAT,
-  annealing_plate_top_temperature FLOAT,
+  target_stick_buffle_top_temperature FLOAT,
+  target_stick_buffle_bottom_temperature FLOAT,
+  target_stick_seperator_top_temperature FLOAT,
+  target_stick_seperator_bottom_temperature FLOAT,
+  target_stick_heat_exchanger_top_temperature FLOAT,
+  target_stick_heat_exchanger_bottom_temperature FLOAT,
+  target_stick_annealing_plate_bar_temperature FLOAT,
+  target_stick_annealing_plate_top_temperature FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS Lakeshore_Fridge_Temp (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  target_top_up_temperature FLOAT,
-  target_top_up_center_temperature FLOAT,
-  target_top_down_temperature FLOAT,
-  target_bottom_up_temperature FLOAT, 
-  target_bottom_up_center_temperature FLOAT,
-  target_bottom_down_temperature FLOAT,
-  target_top_cernox_temperature FLOAT,
-  target_bottom_cernox_temperature FLOAT,
+  fridge_target_top_up_temperature FLOAT,
+  fridge_target_top_up_center_temperature FLOAT,
+  fridge_target_top_down_temperature FLOAT,
+  fridge_target_bottom_up_temperature FLOAT, 
+  fridge_target_bottom_up_center_temperature FLOAT,
+  fridge_target_bottom_down_temperature FLOAT,
+  fridge_target_top_cernox_temperature FLOAT,
+  fridge_target_bottom_cernox_temperature FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS Lakeshore_Magnet_Temp (
   id Integer PRIMARY KEY AUTOINCREMENT,
-  channel_1 FLOAT,
-  channel_2 FLOAT,
-  channel_3 FLOAT,
-  channel_4 FLOAT,
-  channel_5 FLOAT,
-  channel_6 FLOAT,
-  channel_7 FLOAT,
-  channel_8 FLOAT,
+  magnet_channel_1 FLOAT,
+  magnet_channel_2 FLOAT,
+  magnet_channel_3 FLOAT,
+  magnet_channel_4 FLOAT,
+  magnet_channel_5 FLOAT,
+  magnet_channel_6 FLOAT,
+  magnet_channel_7 FLOAT,
+  magnet_channel_8 FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
-
-
 
 CREATE TABLE IF NOT EXISTS MaxiGauge (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,5 +87,11 @@ CREATE TABLE IF NOT EXISTS MaxiGauge (
   channel_4 FLOAT,
   channel_5 FLOAT,
   channel_6 FLOAT,
+  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS IVC (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ivc_pressure FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
