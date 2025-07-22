@@ -74,11 +74,12 @@ body {
     top: 0;
     z-index: 1000;
     backdrop-filter: blur(10px);
+    width: 100%;
 }
 
 .banner-content {
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
     padding: 0 2rem;
     display: flex;
     justify-content: space-between;
@@ -265,8 +266,9 @@ body {
 
 /* Main Container */
 .main-container {
-    max-width: 1400px;
-    margin: 0 auto;
+    /* Remove max-width constraint and center alignment */
+    width: 100%;
+    margin: 0;
     padding: 2rem;
     display: block;
     gap: 2rem;
