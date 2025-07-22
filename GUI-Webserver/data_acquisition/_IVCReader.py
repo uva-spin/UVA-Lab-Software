@@ -92,7 +92,9 @@ class IVCReader:
                     break
                 
                 try:
-                    self.serialPort.write(b'PRX')
+                    self.serialPort.write(b'PRX\r\n')
+                    time.sleep(0.1)
+                    self.serialPort.write(b'\x05')
                     raw_data = self.serialPort.readline()
                     if raw_data:
                         logger.debug(f"Raw data received: {raw_data}")
@@ -146,7 +148,28 @@ class IVCReader:
                 data_str = str(raw_data).strip()
             
             logger.debug(f"Decoded data string: {data_str}")
-            return data_str
+            
+            # Parse the comma-separated data format: 1,<number>,5,<number>
+            # We want the second entry (index 1 after splitting)
+            if data_str:
+                parts = data_str.split(',')
+                logger.debug(f"Split data parts: {parts}")
+                
+                # Check if we have enough parts and extract the second number
+                if len(parts) >= 2:
+                    try:
+                        second_value = float(parts[1].strip())
+                        logger.debug(f"Extracted second value: {second_value}")
+                        return second_value
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Could not convert '{parts[1]}' to float: {e}")
+                        return None
+                else:
+                    logger.warning(f"Insufficient data parts. Expected at least 2, got {len(parts)}: {parts}")
+                    return None
+            else:
+                logger.warning("Empty data string received")
+                return None
             
         except Exception as e:
             logger.error(f"Error parsing IVC data: {e}")
