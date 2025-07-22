@@ -62,13 +62,14 @@ def print_status_header():
     print("   • LabJack Pressure Sensors")
     print("   • LakeShore Temperature Controllers")
     print("   • MaxiGauge Pressure Gauges")
+    print("   • IVC Pressure Gauge")
     print("="*80)
     print("💾 Data is being saved to database")
     print("📝 Logs are being written to data_acquisition.log")
     print("⏰ Started at:", get_current_est_time())
     print("="*80 + "\n")
 
-def print_status_update(iteration, modbus_status, teledyne_status, labjack_status, lakeshore_status, maxigauge_status):
+def print_status_update(iteration, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status):
     """Print a beautiful status update"""
     status_symbols = {
         'success': '✅',
@@ -81,7 +82,9 @@ def print_status_update(iteration, modbus_status, teledyne_status, labjack_statu
           f"Modbus: {status_symbols.get(modbus_status, '❓')} | "
           f"Teledyne: {status_symbols.get(teledyne_status, '❓')} | "
           f"LabJack: {status_symbols.get(labjack_status, '❓')} | "
-          f"LakeShore: {status_symbols.get(lakeshore_status, '❓')} | "
+          f"LakeShore Target Stick: {status_symbols.get(lakeshore_target_stick_status, '❓')} | "
+          f"LakeShore Fridge Temp: {status_symbols.get(lakeshore_fridge_temp_status, '❓')} | "
+          f"LakeShore Magnet Temp: {status_symbols.get(lakeshore_magnet_temp_status, '❓')} | "
           f"MaxiGauge: {status_symbols.get(maxigauge_status, '❓')} | "
           f"IVC: {status_symbols.get(ivc_status, '❓')} | "
           f"Time: {get_current_est_time()}", end='', flush=True)
@@ -821,7 +824,7 @@ def main():
                 if modbus_data is None:
                     logger.warning(f"Failed to read Modbus data. Retrying after {SLEEP_INTERVAL} seconds...")
                     if not args.verbose and not args.terminal_log:
-                        print_status_update(iteration, 'error', 'none', 'none', 'none', 'none')
+                        print_status_update(iteration, 'error', 'none', 'none', 'none', 'none', 'none', 'none', 'none', 'none')
                     continue
                 
                 # Read teledyne data
@@ -880,7 +883,7 @@ def main():
             except Exception as e:
                 logger.error(f"Unexpected error in main loop: {e}")
                 if not args.verbose and not args.terminal_log:
-                    print_status_update(iteration, 'error', 'error', 'error', 'error', 'error')
+                    print_status_update(iteration, 'error', 'error', 'error', 'error', 'error', 'error', 'error', 'error')
                 time.sleep(SLEEP_INTERVAL)
                 
     finally:
