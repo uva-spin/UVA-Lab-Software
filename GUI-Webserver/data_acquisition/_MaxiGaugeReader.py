@@ -17,7 +17,7 @@ class MaxiGaugeReader:
         self.socket = None
         self.running = False
         self.thread = None
-        self.data_queue = []
+        self.data_queue = [None] * 6
         self.check_interval = check_interval
         self.MAXIGAUGE_TCP_IP = "172.29.36.194"
         self.MAXIGAUGE_TCP_PORT = 8000
@@ -214,7 +214,7 @@ class MaxiGaugeReader:
                 return self.data_queue if self.data_queue else None
         except Exception as e:
             logger.error(f"Error getting latest MaxiGauge data: {e}")
-            return None
+            return [None] * 6
         
     def _monitor_tcp(self):
         while self.running:
