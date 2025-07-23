@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Standalone Data Acquisition Script
-This script runs on the machine connected to Modbus devices and pipelines data directly to the database.
+This script runs on the machine connected to QT devices and pipelines data directly to the database.
 Also reads from teledyne_flow.csv and labjack_pressure.csv in real-time.
 
 Usage:
@@ -11,8 +11,8 @@ Usage:
     python standalone_data_acquisition.py --verbose --terminal-log  # Verbose mode with terminal output
 """
 
-from pyModbusTCP.client import ModbusClient
-from pyModbusTCP import utils
+from pyQTTCP.client import QTClient
+from pyQTTCP import utils
 import struct
 import time
 import csv
@@ -27,7 +27,7 @@ import sys
 import pytz
 
 from _TeledyneReader import TeledyneDataReader
-from _LabJackReader import LabJackReader
+from _LabJackReader import LabJackReader_1, LabJackReader_2
 from _LakeShoreReader import LakeShoreReader
 from _MaxiGaugeReader import MaxiGaugeReader
 from _IVCReader import IVCReader
@@ -69,7 +69,7 @@ def print_status_header():
     print("⏰ Started at:", get_current_est_time())
     print("="*80 + "\n")
 
-def print_status_update(iteration, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status):
+def print_status_update(iteration, QT_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status):
     """Print a beautiful status update"""
     status_symbols = {
         'success': '✅',
@@ -79,7 +79,7 @@ def print_status_update(iteration, modbus_status, teledyne_status, labjack_statu
     }
     
     print(f"\r🔄 {iteration:4d} | "
-          f"QT:{status_symbols.get(modbus_status, '❓')} | "
+          f"QT:{status_symbols.get(QT_status, '❓')} | "
           f"TDY:{status_symbols.get(teledyne_status, '❓')} | "
           f"LJ:{status_symbols.get(labjack_status, '❓')} | "
           f"LS-TS:{status_symbols.get(lakeshore_target_stick_status, '❓')} | "
@@ -187,7 +187,8 @@ labels = [
 teledyne_reader = None
 
 # Global labjack reader instance
-labjack_reader = None
+labjack_reader_1 = None
+labjack_reader_2 = None
 
 # Global lakeshore readers instance
 lakeshore_reader_target_stick = None
@@ -235,15 +236,15 @@ def setup_database():
     finally:
         conn.close()
 
-def _read_HMI():
-    """Read data from Modbus TCP server"""
+def _read_QT():
+    """Read data from QT TCP server"""
     plc_ip = PLC_IP
     unit_id = UNIT_ID
     int_port = INT_PORT
     float_port = FLOAT_PORT
     num_reg_to_read = NUM_REG_TO_READ
 
-    logger.info(f"=== Starting HMI Read ===")
+    logger.info(f"=== Starting QT Read ===")
     logger.info(f"PLC IP: {plc_ip}")
     logger.info(f"Unit ID: {unit_id}")
     logger.info(f"Integer Port: {int_port}")
@@ -252,7 +253,7 @@ def _read_HMI():
     try:
         # Read integer values
         logger.info("Reading integer values")
-        client = ModbusClient(host=plc_ip, port=int_port, unit_id=unit_id, auto_open=True, auto_close=False)
+        client = QTClient(host=plc_ip, port=int_port, unit_id=unit_id, auto_open=True, auto_close=False)
         int_regs = client.read_holding_registers(0, num_reg_to_read)
         if int_regs:
             int_values = utils.get_list_2comp(int_regs, 16)
@@ -262,7 +263,7 @@ def _read_HMI():
 
         # Read float values
         logger.info("Reading float values")
-        client = ModbusClient(host=plc_ip, port=float_port, unit_id=unit_id, auto_open=True, auto_close=False)
+        client = QTClient(host=plc_ip, port=float_port, unit_id=unit_id, auto_open=True, auto_close=False)
         float_regs = client.read_holding_registers(0, num_reg_to_read)
         
         if not float_regs:
@@ -282,32 +283,32 @@ def _read_HMI():
         logger.info(f"Processed {len(rounded_float_values)} float values")
         
         # Log each value with its corresponding label
-        logger.debug("HMI Data Values:")
+        logger.debug("QT Data Values:")
         for label, value in zip(labels, rounded_float_values[:18]):
             logger.debug(f"{label}: {value}")
         
-        # Ensure we have exactly 18 values for HMI data
+        # Ensure we have exactly 18 values for QT data
         if len(rounded_float_values) >= 18:
-            hmi_data = rounded_float_values[:18]
-            logger.info("Successfully read all HMI data")
+            QT_data = rounded_float_values[:18]
+            logger.info("Successfully read all QT data")
             logger.debug("First 3 values:")
             for i in range(3):
-                logger.debug(f"  {labels[i]}: {hmi_data[i]}")
+                logger.debug(f"  {labels[i]}: {QT_data[i]}")
             logger.debug("... (15 more values)")
-            return hmi_data
+            return QT_data
         else:
             logger.error(f"Not enough float values: got {len(rounded_float_values)}, need 18")
             return None
         
     except Exception as e:
-        logger.error(f"Error reading Modbus data: {e}")
+        logger.error(f"Error reading QT data: {e}")
         logger.debug("Exception details:", exc_info=True)  # This will log the full traceback
         return None
     finally:
         try:
             if not client or not client.is_open:
                 client.close()
-                logger.info("Closed Modbus connection")
+                logger.info("Closed QT connection")
         except:
             pass
 
@@ -322,12 +323,21 @@ def read_teledyne_data():
 
 def read_labjack_data():
     """Read latest labjack pressure data"""
-    global labjack_reader
+    global labjack_reader_1
     
-    if labjack_reader is None:
+    if labjack_reader_1 is None:
         return [None] * 6  # Return None for 4 pressure values
         
-    return labjack_reader.get_latest_data()
+    return labjack_reader_1.get_latest_data()
+
+def read_labjack_data_2():
+    """Read latest labjack pressure data"""
+    global labjack_reader_2
+
+    if labjack_reader_2 is None:
+        return [None] * 2  # Return None for 2 pressure values
+        
+    return labjack_reader_2.get_latest_data()
 
 def read_lakeshore_data_target_stick():
     """Read latest lakeshore data from target stick"""
@@ -379,10 +389,10 @@ def read_ivc_data():
     else:
         return None
 
-def insert_hmi_data(data):
-    """Insert HMI data into the hmi table"""
+def insert_QT_data(data):
+    """Insert QT data into the QT table"""
     if len(data) != 18:
-        logger.error(f"Expected 18 HMI values, got {len(data)}")
+        logger.error(f"Expected 18 QT values, got {len(data)}")
         return False
         
     conn = sqlite3.connect(DATABASE_PATH)
@@ -409,7 +419,7 @@ def insert_hmi_data(data):
     
     try:
         cursor.execute('''
-            INSERT INTO HMI (
+            INSERT INTO QT (
                 fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
                 pt501_ai, pt502_ai, pt503_ai, pt504_ai,
                 ait501_ai, ti501_ai, ti502_ai, ti503_ai,
@@ -418,10 +428,10 @@ def insert_hmi_data(data):
         ''', (fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai, get_current_est_time()))
         
         conn.commit()
-        logger.debug(f"Inserted HMI data: {data[:3]}...")
+        logger.debug(f"Inserted QT data: {data[:3]}...")
         return True
     except Exception as e:
-        logger.error(f"Error inserting HMI data: {e}")
+        logger.error(f"Error inserting QT data: {e}")
         return False
     finally:
         conn.close()
@@ -447,7 +457,7 @@ def insert_teledyne_data(flow_data):
     finally:
         conn.close()
 
-def insert_labjack_data(pressure_data):
+def insert_labjack_1_data(pressure_data):
     """Insert LabJack data into the pressures table"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
@@ -603,23 +613,22 @@ def insert_ivc_data(data):
     finally:
         conn.close()
 
-def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
+def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
     """Pipeline data directly to the database"""
     success = True
     
-    # Insert HMI/Modbus data
-    logger.debug("Attempting to insert HMI data")
-    if modbus_data is not None:
-        if insert_hmi_data(modbus_data):
-            modbus_status = 'success'
+    # Insert QT data
+    logger.debug("Attempting to insert QT data")
+    if QT_data is not None:
+        if insert_QT_data(QT_data):
+            QT_status = 'success'
         else:
-            modbus_status = 'error'
+            QT_status = 'error'
             success = False
-            logger.error("Failed to insert HMI data")
+            logger.error("Failed to insert QT data")
     else:
-        modbus_status = 'error'
-        success = False
-        logger.error("No HMI data to insert")
+        QT_status = 'none'
+        logger.warning("No QT data available - QT connection may be down. Other data sources will continue to be processed.")
     
     # Insert Teledyne data
     logger.debug("Attempting to insert Teledyne data")
@@ -649,25 +658,39 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
     
     # Insert LabJack data
     logger.debug("Attempting to insert LabJack data")
-    if labjack_data is not None and len(labjack_data) >= 6:
-        root_exhaust_pressure = labjack_data[0]
-        buffer_pressure = labjack_data[1]
-        magnet_pressure = labjack_data[2]
-        purifier_inlet_pressure = labjack_data[3]
-        fridge_vapor_pressure = labjack_data[4]
-        thermocouple = labjack_data[5]
+    if labjack_data_1 is not None and len(labjack_data_1) >= 6:
+        root_exhaust_pressure = labjack_data_1[0]
+        buffer_pressure = labjack_data_1[1]
+        magnet_pressure = labjack_data_1[2]
+        purifier_inlet_pressure = labjack_data_1[3]
+        fridge_vapor_pressure = labjack_data_1[4]
+        thermocouple = labjack_data_1[5]
         logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}, Thermocouple: {thermocouple}")
-        if insert_labjack_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple]):
-            labjack_status = 'success'
+        if insert_labjack_1_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple]):
+            labjack_1_status = 'success'
         else:
-            labjack_status = 'error'
+            labjack_1_status = 'error'
             success = False
             logger.error("Failed to insert LabJack data")
     else:
-        labjack_status = 'error'
+        labjack_1_status = 'error'
         success = False
         logger.error("No LabJack data to insert or insufficient data points")
-    
+
+    if labjack_data_2 is not None and len(labjack_data_2) >= 2:
+        flow_meter_1 = labjack_data_2[0]
+        flow_meter_2 = labjack_data_2[1]
+        logger.debug(f"Flow Meter 1: {flow_meter_1}, Flow Meter 2: {flow_meter_2}")
+        if insert_labjack_2_data([flow_meter_1, flow_meter_2]):
+            labjack_2_status = 'success'
+        else:
+            labjack_2_status = 'error'  
+            success = False
+            logger.error("Failed to insert LabJack data")
+    else:
+        labjack_2_status = 'error'
+        success = False
+        logger.error("No LabJack data to insert or insufficient data points")
     # Insert Lakeshore data
     logger.debug("Attempting to insert Target Stick Data")
     if lakeshore_data_target_stick is not None:
@@ -740,7 +763,7 @@ def pipeline_to_database(modbus_data, teledyne_data, labjack_data, lakeshore_dat
         success = False
         logger.error("No IVC data to insert")
 
-    return success, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status
+    return success, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status
 
 
 def main():
@@ -754,7 +777,7 @@ def main():
     # Setup logging with terminal output if requested
     setup_logging(verbose=args.verbose, terminal_output=args.terminal_log)
 
-    global teledyne_reader, labjack_reader, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp, lakeshore_reader_magnet_temp, ivc_reader
+    global teledyne_reader, labjack_reader_1, labjack_reader_2, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp, lakeshore_reader_magnet_temp, ivc_reader
 
     # Print beautiful header if not in verbose mode
     if not args.verbose and not args.terminal_log:
@@ -790,8 +813,12 @@ def main():
     
     # Start labjack data reader
     try:
-        labjack_reader = LabJackReader(LABJACK_CHECK_INTERVAL)
-        labjack_reader.start()
+        labjack_reader_1 = LabJackReader_1(LABJACK_CHECK_INTERVAL)
+        labjack_reader_1.start()
+        logger.info("LabJack data reader started")
+
+        labjack_reader_2 = LabJackReader_2(LABJACK_CHECK_INTERVAL)
+        labjack_reader_2.start()
         logger.info("LabJack data reader started")
     except Exception as e:
         logger.error(f"Error starting labjack data reader: {e}")
@@ -840,20 +867,18 @@ def main():
             try:
                 iteration += 1
                 
-                # Read data from Modbus()
-                modbus_data = _read_HMI()
+                # Read data from QT()
+                QT_data = _read_QT()
                 
-                if modbus_data is None:
-                    logger.warning(f"Failed to read Modbus data. Retrying after {SLEEP_INTERVAL} seconds...")
-                    if not args.verbose and not args.terminal_log:
-                        print_status_update(iteration, 'error', 'none', 'none', 'none', 'none', 'none', 'none', 'none', 'none')
-                    continue
+                if QT_data is None:
+                    logger.warning(f"Failed to read QT data. Continuing with other data sources (Teledyne, LabJack, LakeShore, MaxiGauge, IVC)...")
                 
                 # Read teledyne data
                 teledyne_data = read_teledyne_data()
 
                 # Read labjack data
-                labjack_data = read_labjack_data()
+                labjack_data_1 = read_labjack_data()
+                labjack_data_2 = read_labjack_data_2()
                 
                 # Read lakeshore data
                 lakeshore_data_target_stick = read_lakeshore_data_target_stick()
@@ -869,10 +894,11 @@ def main():
                 ivc_data = read_ivc_data()
 
                 # Pipeline data directly to database
-                db_success, modbus_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status = pipeline_to_database(
-                    modbus_data, 
+                db_success, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status = pipeline_to_database(
+                    QT_data, 
                     teledyne_data, 
-                    labjack_data, 
+                    labjack_data_1, 
+                    labjack_data_2, 
                     lakeshore_data_target_stick, 
                     lakeshore_data_fridge_temp, 
                     lakeshore_data_magnet_temp, 
@@ -883,9 +909,10 @@ def main():
                 # Print status update if not in verbose mode
                 if not args.verbose and not args.terminal_log:
                     print_status_update(iteration, 
-                                        modbus_status, 
+                                        QT_status, 
                                         teledyne_status, 
-                                        labjack_status, 
+                                        labjack_1_status, 
+                                        labjack_2_status, 
                                         lakeshore_target_stick_status, 
                                         lakeshore_fridge_temp_status, 
                                         lakeshore_magnet_temp_status, 
@@ -893,6 +920,17 @@ def main():
                 
                 if not db_success:
                     logger.warning("Some data failed to insert into database")
+                
+                # Log data source status summary for monitoring
+                success_count = sum(1 for status in [QT_status, teledyne_status, labjack_1_status, labjack_2_status, 
+                                                   lakeshore_target_stick_status, lakeshore_fridge_temp_status, 
+                                                   lakeshore_magnet_temp_status, maxigauge_status, ivc_status] 
+                                  if status == 'success')
+                total_sources = 8
+                logger.info(f"Data collection cycle {iteration}: {success_count}/{total_sources} sources active - "
+                           f"QT:{QT_status}, Teledyne:{teledyne_status}, LabJack_1:{labjack_1_status}, LabJack_2:{labjack_2_status}, "
+                           f"LakeShore-TS:{lakeshore_target_stick_status}, LakeShore-FT:{lakeshore_fridge_temp_status}, "
+                           f"LakeShore-MT:{lakeshore_magnet_temp_status}, MaxiGauge:{maxigauge_status}, IVC:{ivc_status}")
                 
                 # Wait before next reading
                 time.sleep(SLEEP_INTERVAL)
@@ -915,8 +953,12 @@ def main():
             teledyne_reader.stop()
             logger.info("Teledyne data reader stopped")
 
-        if labjack_reader:
-            labjack_reader.stop()
+        if labjack_reader_1:
+            labjack_reader_1.stop()
+            logger.info("LabJack data reader stopped")
+
+        if labjack_reader_2:
+            labjack_reader_2.stop()
             logger.info("LabJack data reader stopped")
         
         if maxigauge_reader:

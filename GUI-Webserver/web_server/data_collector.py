@@ -197,7 +197,7 @@ class DataCollector:
         finally:
             conn.close()
 
-# Create Flask app for receiving HMI data
+# Create Flask app for receiving QT data
 app = Flask(__name__, 
             template_folder='../templates',
             static_folder='../static')

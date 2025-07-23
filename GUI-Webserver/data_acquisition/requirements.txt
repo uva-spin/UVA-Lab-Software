@@ -1,2 +1,5 @@
 pyModbusTCP==0.2.0
-requests==2.31.0 
+requests==2.31.0
+u3==2.0.0
+ljm==1.24.0
+numpy==1.24.3 
