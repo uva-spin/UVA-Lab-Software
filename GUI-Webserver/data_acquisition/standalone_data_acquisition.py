@@ -69,7 +69,7 @@ def print_status_header():
     print("⏰ Started at:", get_current_est_time())
     print("="*80 + "\n")
 
-def print_status_update(iteration, QT_status, teledyne_status, labjack_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status):
+def print_status_update(iteration, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status):
     """Print a beautiful status update"""
     status_symbols = {
         'success': '✅',
@@ -81,7 +81,8 @@ def print_status_update(iteration, QT_status, teledyne_status, labjack_status, l
     print(f"\r🔄 {iteration:4d} | "
           f"QT:{status_symbols.get(QT_status, '❓')} | "
           f"TDY:{status_symbols.get(teledyne_status, '❓')} | "
-          f"LJ:{status_symbols.get(labjack_status, '❓')} | "
+          f"LJ1:{status_symbols.get(labjack_1_status, '❓')} | "
+          f"LJ2:{status_symbols.get(labjack_2_status, '❓')} | "
           f"LS-TS:{status_symbols.get(lakeshore_target_stick_status, '❓')} | "
           f"LS-FT:{status_symbols.get(lakeshore_fridge_temp_status, '❓')} | "
           f"LS-MT:{status_symbols.get(lakeshore_magnet_temp_status, '❓')} | "
@@ -420,7 +421,7 @@ def insert_flow_data_combined(teledyne_data=None, labjack_2_data=None):
         cursor.execute('''
             INSERT INTO Flow_Rates (
                 seperator_flow, magnet_flow, main_flow, 
-                seperator_flow_meter, heat_exchanger_flow_meter, "Timestamp"
+                microwave_flow_meter, heat_exchanger_flow_meter, "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?)
         ''', (seperator_flow, magnet_flow, main_flow, flow_meter_1, flow_meter_2, get_current_est_time()))
         
@@ -462,7 +463,7 @@ def insert_labjack_2_data(flow_data):
         # Insert LabJack 2 flow meter data into the Flow_Rates table
         # This will create a new row with flow_meter_1 and flow_meter_2 values
         cursor.execute('''
-            INSERT INTO Flow_Rates (seperator_flow_meter, heat_exchanger_flow_meter, "Timestamp") 
+            INSERT INTO Flow_Rates (microwave_flow_meter, heat_exchanger_flow_meter, "Timestamp") 
             VALUES (?, ?, ?)
         ''', (flow_data[0], flow_data[1], get_current_est_time()))
         
@@ -613,20 +614,28 @@ def insert_ivc_data(data):
 
 def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
     """Pipeline data directly to the database"""
-    success = True
+    # Initialize all statuses to 'none' - each data source is independent
+    QT_status = 'none'
+    teledyne_status = 'none'
+    labjack_1_status = 'none'
+    labjack_2_status = 'none'
+    lakeshore_target_stick_status = 'none'
+    lakeshore_fridge_temp_status = 'none'
+    lakeshore_magnet_temp_status = 'none'
+    maxigauge_status = 'none'
+    ivc_status = 'none'
     
     # Insert QT data
     logger.debug("Attempting to insert QT data")
     if QT_data is not None:
         if insert_QT_data(QT_data):
             QT_status = 'success'
+            logger.debug("Successfully inserted QT data")
         else:
             QT_status = 'error'
-            success = False
             logger.error("Failed to insert QT data")
     else:
-        QT_status = 'none'
-        logger.warning("No QT data available - QT connection may be down. Other data sources will continue to be processed.")
+        logger.debug("No QT data available - QT connection may be down")
     
     # Insert LabJack 1 data (pressure data)
     logger.debug("Attempting to insert LabJack 1 data")
@@ -637,115 +646,118 @@ def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2,
         purifier_inlet_pressure = labjack_data_1[3]
         fridge_vapor_pressure = labjack_data_1[4]
         thermocouple = labjack_data_1[5]
-        logger.debug(f"Pressure 1: {root_exhaust_pressure}, Pressure 2: {buffer_pressure}, Pressure 3: {magnet_pressure}, Pressure 4: {purifier_inlet_pressure}, Pressure 5: {fridge_vapor_pressure}, Thermocouple: {thermocouple}")
+        logger.debug(f"LabJack 1 data: {labjack_data_1}")
         if insert_labjack_1_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple]):
             labjack_1_status = 'success'
+            logger.debug("Successfully inserted LabJack 1 data")
         else:
             labjack_1_status = 'error'
-            success = False
             logger.error("Failed to insert LabJack 1 data")
     else:
-        labjack_1_status = 'error'
-        success = False
-        logger.error("No LabJack 1 data to insert or insufficient data points")
+        logger.debug("No LabJack 1 data available or insufficient data points")
 
-    # Insert combined flow data (Teledyne + LabJack 2)
-    logger.debug("Attempting to insert combined flow data")
-    teledyne_status = 'none'
-    labjack_2_status = 'none'
-    
-    # Check if we have any flow data to insert
-    has_teledyne = teledyne_data is not None and any(v is not None for v in teledyne_data[:3])
-    has_labjack_2 = labjack_data_2 is not None and len(labjack_data_2) >= 2
-    
-    if has_teledyne or has_labjack_2:
-        if insert_flow_data_combined(teledyne_data, labjack_data_2):
-            if has_teledyne:
-                teledyne_status = 'success'
-            if has_labjack_2:
-                labjack_2_status = 'success'
+    # Handle Teledyne and LabJack 2 flow data separately for better status tracking
+    logger.debug("Attempting to insert Teledyne flow data")
+    if teledyne_data is not None and any(v is not None for v in teledyne_data[:3]):
+        if insert_teledyne_data(teledyne_data):
+            teledyne_status = 'success'
+            logger.debug("Successfully inserted Teledyne data")
         else:
-            if has_teledyne:
-                teledyne_status = 'error'
-            if has_labjack_2:
-                labjack_2_status = 'error'
-            success = False
-            logger.error("Failed to insert combined flow data")
+            teledyne_status = 'error'
+            logger.error("Failed to insert Teledyne data")
     else:
-        logger.debug("No flow data to insert from either Teledyne or LabJack 2")
-    # Insert Lakeshore data
+        logger.debug("No Teledyne data available")
+
+    logger.debug("Attempting to insert LabJack 2 flow data")
+    if labjack_data_2 is not None and len(labjack_data_2) >= 2:
+        if insert_labjack_2_data(labjack_data_2):
+            labjack_2_status = 'success'
+            logger.debug("Successfully inserted LabJack 2 data")
+        else:
+            labjack_2_status = 'error'
+            logger.error("Failed to insert LabJack 2 data")
+    else:
+        logger.debug("No LabJack 2 data available")
+
+    # Insert Lakeshore Target Stick data
     logger.debug("Attempting to insert Target Stick Data")
     if lakeshore_data_target_stick is not None:
         if insert_lakeshore_data_target_stick(lakeshore_data_target_stick):
             lakeshore_target_stick_status = 'success'
+            logger.debug("Successfully inserted Target Stick data")
         else:
             lakeshore_target_stick_status = 'error'
-            success = False
             logger.error("Failed to insert Target Stick Data")
     else:
-        lakeshore_target_stick_status = 'error'
-        success = False
-        logger.error("No Target Stick data to insert")
+        logger.debug("No Target Stick data available")
 
+    # Insert Lakeshore Fridge Temp data
+    logger.debug("Attempting to insert Fridge Temp Data")
     if lakeshore_data_fridge_temp is not None:
         if insert_lakeshore_data_fridge_temp(lakeshore_data_fridge_temp):
             lakeshore_fridge_temp_status = 'success'
+            logger.debug("Successfully inserted Fridge Temp data")
         else:
             lakeshore_fridge_temp_status = 'error'
-            success = False
             logger.error("Failed to insert Fridge Temp Data")
+    else:
+        logger.debug("No Fridge Temp data available")
 
+    # Insert Lakeshore Magnet Temp data
+    logger.debug("Attempting to insert Magnet Temp Data")
     if lakeshore_data_magnet_temp is not None:
         if insert_lakeshore_data_magnet_temp(lakeshore_data_magnet_temp):
             lakeshore_magnet_temp_status = 'success'
+            logger.debug("Successfully inserted Magnet Temp data")
         else:
             lakeshore_magnet_temp_status = 'error'
-            success = False
             logger.error("Failed to insert Magnet Temp Data")
+    else:
+        logger.debug("No Magnet Temp data available")
 
     # Insert MaxiGauge data
     logger.debug("Attempting to insert MaxiGauge data")
     if maxigauge_data is not None:
-        # Validate that we have the correct data format
         if isinstance(maxigauge_data, list) and len(maxigauge_data) == 6:
-            logger.debug(f"MaxiGauge data is valid format: {maxigauge_data}")
+            logger.debug(f"MaxiGauge data: {maxigauge_data}")
             if insert_maxigauge_data(maxigauge_data):
                 maxigauge_status = 'success'
+                logger.debug("Successfully inserted MaxiGauge data")
             else:
                 maxigauge_status = 'error'
-                success = False
-                logger.error(f"Failed to insert MaxiGauge data: {maxigauge_data}")
+                logger.error("Failed to insert MaxiGauge data")
         else:
             maxigauge_status = 'error'
-            success = False
             logger.error(f"MaxiGauge data has invalid format - expected list of 6 values, got: {type(maxigauge_data)} with value: {maxigauge_data}")
     else:
-        maxigauge_status = 'error'
-        success = False
-        logger.error("No MaxiGauge data to insert")
+        logger.debug("No MaxiGauge data available")
 
     # Insert IVC data
     logger.debug("Attempting to insert IVC data")
     if ivc_data is not None:
-        # Validate that we have a numeric value
         if isinstance(ivc_data, (int, float)):
-            logger.debug(f"IVC data is valid: {ivc_data}")
+            logger.debug(f"IVC data: {ivc_data}")
             if insert_ivc_data(ivc_data):
                 ivc_status = 'success'
+                logger.debug("Successfully inserted IVC data")
             else:
                 ivc_status = 'error'
-                success = False
-                logger.error(f"Failed to insert IVC data: {ivc_data}")
+                logger.error("Failed to insert IVC data")
         else:
             ivc_status = 'error'
-            success = False
             logger.error(f"IVC data has invalid format - expected numeric value, got: {type(ivc_data)} with value: {ivc_data}")
     else:
-        ivc_status = 'error'
-        success = False
-        logger.error("No IVC data to insert")
+        logger.debug("No IVC data available")
 
-    return success, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status
+    # Calculate overall success based on whether any data was successfully inserted
+    successful_inserts = sum(1 for status in [QT_status, teledyne_status, labjack_1_status, labjack_2_status, 
+                                             lakeshore_target_stick_status, lakeshore_fridge_temp_status, 
+                                             lakeshore_magnet_temp_status, maxigauge_status, ivc_status] 
+                           if status == 'success')
+    
+    overall_success = successful_inserts > 0
+
+    return overall_success, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status
 
 
 def main():
@@ -939,7 +951,7 @@ def main():
             except Exception as e:
                 logger.error(f"Unexpected error in main loop: {e}")
                 if not args.verbose and not args.terminal_log:
-                    print_status_update(iteration, 'error', 'error', 'error', 'error', 'error', 'error', 'error', 'error')
+                    print_status_update(iteration, 'error', 'error', 'error', 'error', 'error', 'error', 'error', 'error', 'error')
                 time.sleep(SLEEP_INTERVAL)
                 
     finally:

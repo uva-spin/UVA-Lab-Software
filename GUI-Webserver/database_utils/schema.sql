@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS Flow_Rates (
   seperator_flow FLOAT,
   magnet_flow FLOAT,
   main_flow FLOAT,
-  seperator_flow_meter FLOAT,
+  microwave_flow_meter FLOAT,
   heat_exchanger_flow_meter FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
