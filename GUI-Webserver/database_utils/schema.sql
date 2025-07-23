@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS HMI (
+CREATE TABLE IF NOT EXISTS QT (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
 
   fc501_ai FLOAT NOT NULL,
@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS Flow_Rates (
   seperator_flow FLOAT,
   magnet_flow FLOAT,
   main_flow FLOAT,
+  seperator_flow_meter FLOAT,
+  heat_exchanger_flow_meter FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 

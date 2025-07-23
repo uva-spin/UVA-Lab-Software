@@ -11,8 +11,7 @@ Usage:
     python standalone_data_acquisition.py --verbose --terminal-log  # Verbose mode with terminal output
 """
 
-from pyQTTCP.client import QTClient
-from pyQTTCP import utils
+from pyModbusTCP.client import ModbusClient
 import struct
 import time
 import csv
@@ -31,6 +30,7 @@ from _LabJackReader import LabJackReader_1, LabJackReader_2
 from _LakeShoreReader import LakeShoreReader
 from _MaxiGaugeReader import MaxiGaugeReader
 from _IVCReader import IVCReader
+from _QTReader import QTReader
 
 
 # Global args variable for command line arguments
@@ -201,6 +201,9 @@ maxigauge_reader = None
 # Global IVC reader instance
 ivc_reader = None
 
+# Global QT reader instance
+qt_reader = None
+
 def ensure_database_directory():
     """Ensure the database directory exists"""
     db_dir = os.path.dirname(DATABASE_PATH)
@@ -237,80 +240,14 @@ def setup_database():
         conn.close()
 
 def _read_QT():
-    """Read data from QT TCP server"""
-    plc_ip = PLC_IP
-    unit_id = UNIT_ID
-    int_port = INT_PORT
-    float_port = FLOAT_PORT
-    num_reg_to_read = NUM_REG_TO_READ
-
-    logger.info(f"=== Starting QT Read ===")
-    logger.info(f"PLC IP: {plc_ip}")
-    logger.info(f"Unit ID: {unit_id}")
-    logger.info(f"Integer Port: {int_port}")
-    logger.info(f"Float Port: {float_port}")
-
-    try:
-        # Read integer values
-        logger.info("Reading integer values")
-        client = QTClient(host=plc_ip, port=int_port, unit_id=unit_id, auto_open=True, auto_close=False)
-        int_regs = client.read_holding_registers(0, num_reg_to_read)
-        if int_regs:
-            int_values = utils.get_list_2comp(int_regs, 16)
-            logger.info(f'Successfully read integer values: {int_values[:3]}... ({len(int_values)} values)')
-        else:
-            logger.warning(f"Failed to read integer registers from {plc_ip}:{int_port}")
-
-        # Read float values
-        logger.info("Reading float values")
-        client = QTClient(host=plc_ip, port=float_port, unit_id=unit_id, auto_open=True, auto_close=False)
-        float_regs = client.read_holding_registers(0, num_reg_to_read)
-        
-        if not float_regs:
-            logger.error(f"Failed to read float registers from {plc_ip}:{float_port}")
-            return None
-            
-        logger.info(f"Successfully read {len(float_regs)} float registers")
-            
-        float_values = []
-        logger.info("Converting register pairs to float values...")
-        for i in range(0, num_reg_to_read - 1, 2):
-            raw = struct.pack(">HH", float_regs[i], float_regs[i + 1])  # Big Endian format
-            float_values.append(struct.unpack(">f", raw)[0])  # Convert to float
-        
-        # Round float values to 2 decimal places
-        rounded_float_values = [round(value, 10) for value in float_values]
-        logger.info(f"Processed {len(rounded_float_values)} float values")
-        
-        # Log each value with its corresponding label
-        logger.debug("QT Data Values:")
-        for label, value in zip(labels, rounded_float_values[:18]):
-            logger.debug(f"{label}: {value}")
-        
-        # Ensure we have exactly 18 values for QT data
-        if len(rounded_float_values) >= 18:
-            QT_data = rounded_float_values[:18]
-            logger.info("Successfully read all QT data")
-            logger.debug("First 3 values:")
-            for i in range(3):
-                logger.debug(f"  {labels[i]}: {QT_data[i]}")
-            logger.debug("... (15 more values)")
-            return QT_data
-        else:
-            logger.error(f"Not enough float values: got {len(rounded_float_values)}, need 18")
-            return None
-        
-    except Exception as e:
-        logger.error(f"Error reading QT data: {e}")
-        logger.debug("Exception details:", exc_info=True)  # This will log the full traceback
+    """Read data from QT TCP server using QTReader class"""
+    global qt_reader
+    
+    if qt_reader is None:
+        logger.error("QT reader not initialized")
         return None
-    finally:
-        try:
-            if not client or not client.is_open:
-                client.close()
-                logger.info("Closed QT connection")
-        except:
-            pass
+        
+    return qt_reader.read_qt_data()
 
 def read_teledyne_data():
     """Read latest teledyne flow data"""
@@ -457,6 +394,45 @@ def insert_teledyne_data(flow_data):
     finally:
         conn.close()
 
+def insert_flow_data_combined(teledyne_data=None, labjack_2_data=None):
+    """
+    Insert flow data from both Teledyne and LabJack 2 sources into the Flow_Rates table.
+    This function handles the coordination between the two data sources.
+    
+    Args:
+        teledyne_data (list): [seperator_flow, magnet_flow, main_flow] or None
+        labjack_2_data (list): [flow_meter_1, flow_meter_2] or None
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        # Prepare the data for insertion
+        seperator_flow = teledyne_data[0] if teledyne_data and len(teledyne_data) >= 1 else None
+        magnet_flow = teledyne_data[1] if teledyne_data and len(teledyne_data) >= 2 else None
+        main_flow = teledyne_data[2] if teledyne_data and len(teledyne_data) >= 3 else None
+        flow_meter_1 = labjack_2_data[0] if labjack_2_data and len(labjack_2_data) >= 1 else None
+        flow_meter_2 = labjack_2_data[1] if labjack_2_data and len(labjack_2_data) >= 2 else None
+        
+        cursor.execute('''
+            INSERT INTO Flow_Rates (
+                seperator_flow, magnet_flow, main_flow, 
+                seperator_flow_meter, heat_exchanger_flow_meter, "Timestamp"
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        ''', (seperator_flow, magnet_flow, main_flow, flow_meter_1, flow_meter_2, get_current_est_time()))
+        
+        conn.commit()
+        logger.debug(f"Inserted combined flow data - Teledyne: {teledyne_data}, LabJack2: {labjack_2_data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting combined flow data: {e}")
+        return False
+    finally:
+        conn.close()
+
 def insert_labjack_1_data(pressure_data):
     """Insert LabJack data into the pressures table"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -473,6 +449,28 @@ def insert_labjack_1_data(pressure_data):
         return True
     except Exception as e:
         logger.error(f"Error inserting LabJack data: {e}")
+        return False
+    finally:
+        conn.close()
+
+def insert_labjack_2_data(flow_data):
+    """Insert LabJack 2 data into the Flow_Rates table"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        # Insert LabJack 2 flow meter data into the Flow_Rates table
+        # This will create a new row with flow_meter_1 and flow_meter_2 values
+        cursor.execute('''
+            INSERT INTO Flow_Rates (seperator_flow_meter, heat_exchanger_flow_meter, "Timestamp") 
+            VALUES (?, ?, ?)
+        ''', (flow_data[0], flow_data[1], get_current_est_time()))
+        
+        conn.commit()
+        logger.debug(f"Inserted LabJack 2 data into Flow_Rates: {flow_data}")
+        return True
+    except Exception as e:
+        logger.error(f"Error inserting LabJack 2 data: {e}")
         return False
     finally:
         conn.close()
@@ -630,34 +628,8 @@ def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2,
         QT_status = 'none'
         logger.warning("No QT data available - QT connection may be down. Other data sources will continue to be processed.")
     
-    # Insert Teledyne data
-    logger.debug("Attempting to insert Teledyne data")
-    if teledyne_data is not None:
-        seperator_flow = teledyne_data[0]
-        magnet_flow = teledyne_data[1]
-        main_flow = teledyne_data[2]
-        if any(v is not None for v in [seperator_flow, magnet_flow, main_flow]):
-            if insert_teledyne_data([seperator_flow, magnet_flow, main_flow]):
-                teledyne_status = 'success'
-            else:
-                teledyne_status = 'error'
-                success = False
-                logger.error("Failed to insert Teledyne data")
-        else:
-            logger.warning("Missing required teledyne flow values. Inserting None values instead...")
-            seperator_flow = magnet_flow = main_flow = None
-            if insert_teledyne_data([seperator_flow, magnet_flow, main_flow]):
-                teledyne_status = 'warning'
-            else:
-                teledyne_status = 'error'
-                success = False
-    else:
-        teledyne_status = 'none'
-        logger.debug("No Teledyne data to insert")
-            
-    
-    # Insert LabJack data
-    logger.debug("Attempting to insert LabJack data")
+    # Insert LabJack 1 data (pressure data)
+    logger.debug("Attempting to insert LabJack 1 data")
     if labjack_data_1 is not None and len(labjack_data_1) >= 6:
         root_exhaust_pressure = labjack_data_1[0]
         buffer_pressure = labjack_data_1[1]
@@ -671,26 +643,36 @@ def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2,
         else:
             labjack_1_status = 'error'
             success = False
-            logger.error("Failed to insert LabJack data")
+            logger.error("Failed to insert LabJack 1 data")
     else:
         labjack_1_status = 'error'
         success = False
-        logger.error("No LabJack data to insert or insufficient data points")
+        logger.error("No LabJack 1 data to insert or insufficient data points")
 
-    if labjack_data_2 is not None and len(labjack_data_2) >= 2:
-        flow_meter_1 = labjack_data_2[0]
-        flow_meter_2 = labjack_data_2[1]
-        logger.debug(f"Flow Meter 1: {flow_meter_1}, Flow Meter 2: {flow_meter_2}")
-        if insert_labjack_2_data([flow_meter_1, flow_meter_2]):
-            labjack_2_status = 'success'
+    # Insert combined flow data (Teledyne + LabJack 2)
+    logger.debug("Attempting to insert combined flow data")
+    teledyne_status = 'none'
+    labjack_2_status = 'none'
+    
+    # Check if we have any flow data to insert
+    has_teledyne = teledyne_data is not None and any(v is not None for v in teledyne_data[:3])
+    has_labjack_2 = labjack_data_2 is not None and len(labjack_data_2) >= 2
+    
+    if has_teledyne or has_labjack_2:
+        if insert_flow_data_combined(teledyne_data, labjack_data_2):
+            if has_teledyne:
+                teledyne_status = 'success'
+            if has_labjack_2:
+                labjack_2_status = 'success'
         else:
-            labjack_2_status = 'error'  
+            if has_teledyne:
+                teledyne_status = 'error'
+            if has_labjack_2:
+                labjack_2_status = 'error'
             success = False
-            logger.error("Failed to insert LabJack data")
+            logger.error("Failed to insert combined flow data")
     else:
-        labjack_2_status = 'error'
-        success = False
-        logger.error("No LabJack data to insert or insufficient data points")
+        logger.debug("No flow data to insert from either Teledyne or LabJack 2")
     # Insert Lakeshore data
     logger.debug("Attempting to insert Target Stick Data")
     if lakeshore_data_target_stick is not None:
@@ -777,7 +759,7 @@ def main():
     # Setup logging with terminal output if requested
     setup_logging(verbose=args.verbose, terminal_output=args.terminal_log)
 
-    global teledyne_reader, labjack_reader_1, labjack_reader_2, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp, lakeshore_reader_magnet_temp, ivc_reader
+    global teledyne_reader, labjack_reader_1, labjack_reader_2, maxigauge_reader, lakeshore_reader_target_stick, lakeshore_reader_fridge_temp, lakeshore_reader_magnet_temp, ivc_reader, qt_reader
 
     # Print beautiful header if not in verbose mode
     if not args.verbose and not args.terminal_log:
@@ -803,6 +785,20 @@ def main():
     except Exception as e:
         logger.error(f"Failed to setup database: {e}")
         return
+    
+    # Initialize QT reader
+    try:
+        qt_reader = QTReader(
+            plc_ip=PLC_IP,
+            unit_id=UNIT_ID,
+            int_port=INT_PORT,
+            float_port=FLOAT_PORT,
+            num_reg_to_read=NUM_REG_TO_READ,
+            labels=labels
+        )
+        logger.info("QT reader initialized")
+    except Exception as e:
+        logger.error(f"Error initializing QT reader: {e}")
     
     try:
         teledyne_reader = TeledyneDataReader(TELEDYNE_CHECK_INTERVAL)
@@ -980,6 +976,10 @@ def main():
         if ivc_reader:
             ivc_reader.stop()
             logger.info("IVC data reader stopped")
+
+        if qt_reader:
+            qt_reader.close_connections()
+            logger.info("QT reader connections closed")
 
         if not args.verbose and not args.terminal_log:
             print("\n\n✅ Data acquisition system shutdown complete")
