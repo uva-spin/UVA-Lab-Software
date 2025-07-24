@@ -22,6 +22,7 @@ class LakeShoreReader:
         self.data_queue = [0.0] * 8
         self._lock = threading.Lock()
 
+
     def start(self):
         """Start the LakeShore reader and open the serial port."""
         try:
@@ -173,7 +174,7 @@ class LakeShoreReader:
                         if parsed_data:
                             with self._lock:
                                 self.data_queue = parsed_data
-                            logger.info(f"Updated data queue: {parsed_data}")
+                            logger.debug(f"Updated data queue: {parsed_data}")
                         else:
                             logger.warning("No valid data received after parsing")
                     else:
