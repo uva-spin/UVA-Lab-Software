@@ -2,7 +2,7 @@ import sys
 import traceback
 from datetime import datetime
 import u3
-import ljm
+from labjack import ljm
 import numpy as np
 import logging
 import os
