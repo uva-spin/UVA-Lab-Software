@@ -38,21 +38,23 @@ def quick_test():
         
         # Wait a moment for data to start flowing
         print("Waiting for data to start flowing...")
-        time.sleep(2)
+        time.sleep(3)
         
         # Collect a few data points
         print("\nCollecting data...")
-        for i in range(5):
+        successful_readings = 0
+        for i in range(10):
             data = reader.get_latest_data()
             
             if data is not None:
                 print(f"Reading {i+1}: {data}")
+                successful_readings += 1
             else:
                 print(f"Reading {i+1}: No data received")
             
-            time.sleep(1)
+            time.sleep(0.5)
         
-        print("\nTest completed successfully!")
+        print(f"\nTest completed! Successful readings: {successful_readings}/10")
         
     except KeyboardInterrupt:
         print("\nStopped by user")
