@@ -210,13 +210,9 @@ class IVCReader:
             return None
     
     def get_latest_data(self):
-        """Get the latest data from the IVC reader with retry logic for valid numeric data"""
-        max_attempts = 5
-        attempt_delay = 0.1  # 100ms between attempts
-        
-        for attempt in range(max_attempts):
-            with self._lock:
-                current_data = self.data_queue
+        """Get the latest data from the IVC reader for valid numeric data"""
+        with self._lock:
+            current_data = self.data_queue
                 
             # Check if we have valid numeric data
             if current_data is not None and isinstance(current_data, (int, float)):
@@ -224,17 +220,14 @@ class IVCReader:
                 return current_data
             
             # If no valid data, try to get fresh data directly
-            if attempt < max_attempts - 1:  # Don't wait on the last attempt
-                logger.debug(f"No valid IVC data yet (attempt {attempt + 1}/{max_attempts}), trying to get fresh data...")
-                fresh_data = self._get_fresh_data()
-                if fresh_data is not None and isinstance(fresh_data, (int, float)):
-                    with self._lock:
-                        self.data_queue = fresh_data
-                    logger.debug(f"Got fresh IVC data: {fresh_data}")
-                    return fresh_data
-                
-                time.sleep(attempt_delay)
-        
+            logger.debug(f"No valid IVC data yet, trying to get fresh data...")
+            fresh_data = self._get_fresh_data()
+            if fresh_data is not None and isinstance(fresh_data, (int, float)):
+                with self._lock:
+                    self.data_queue = fresh_data
+                logger.debug(f"Got fresh IVC data: {fresh_data}")
+                return fresh_data
+            
         logger.warning("Could not get valid numeric IVC data after multiple attempts")
         return None
     
@@ -250,10 +243,8 @@ class IVCReader:
             
             # Send command and read response
             self.serialPort.write(b'PRX\r\n')
-            time.sleep(0.1)
             self.serialPort.write(b'\x05')
-            time.sleep(0.1)
-            
+            time.sleep(0.1)            
             raw_data = self.serialPort.readline()
             if raw_data:
                 logger.debug(f"Fresh raw data received: {raw_data}")
