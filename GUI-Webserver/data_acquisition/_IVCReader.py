@@ -86,24 +86,38 @@ class IVCReader:
         """Read data from the IVC reader"""
         logger.info("Starting data reading thread")
         try:
+            # Clear the buffer first by sending PRX
+            if self.serialPort and self.serialPort.is_open:
+                logger.info("Clearing buffer with PRX command")
+                self.serialPort.write(b'PRX')
+                time.sleep(0.1)
+                
+                # Read any pending data to clear the buffer
+                while self.serialPort.in_waiting:
+                    self.serialPort.readline()
+                time.sleep(1)
+            
             while self.running:
                 if not self.serialPort or not self.serialPort.is_open:
                     logger.error("Serial port is not open")
                     break
                 
                 try:
-                    self.serialPort.write(b'PRX\r\n')
+                    # Request data transmission using the pattern from the reference code
+                    self.serialPort.write(b'\x05\r\n')
                     time.sleep(0.1)
-                    self.serialPort.write(b'\x05')
-                    raw_data = self.serialPort.readline()
-                    if raw_data:
-                        logger.debug(f"Raw data received: {raw_data}")
-                        with self._lock:
-                            self.data_queue = self._parse_ivc_data(raw_data)
-                    else:
-                        logger.warning("No raw data received from device")
-                        
-                    time.sleep(0.1)
+                    
+                    # Read available data
+                    while self.serialPort.in_waiting > 0:
+                        raw_data = self.serialPort.readline()
+                        if raw_data:
+                            logger.debug(f"Raw data received: {raw_data}")
+                            with self._lock:
+                                self.data_queue = self._parse_ivc_data(raw_data)
+                        else:
+                            logger.warning("No raw data received from device")
+                    
+                    time.sleep(1)
                     
                 except serial.SerialException as e:
                     logger.error(f"Serial communication error: {e}")
@@ -149,20 +163,43 @@ class IVCReader:
             
             logger.debug(f"Decoded data string: {data_str}")
             
-            # Parse the comma-separated data format: 1,<number>,5,<number>
-            # We want the second entry (index 1 after splitting)
+            # Parse the comma-separated data format: statusCode_p1,p1,statusCode_p2,p2
+            # We only want the first pressure (p1) with its status code
             if data_str:
                 parts = data_str.split(',')
                 logger.debug(f"Split data parts: {parts}")
                 
-                # Check if we have enough parts and extract the second number
+                # Check if we have enough parts for at least the first pressure
                 if len(parts) >= 2:
                     try:
-                        second_value = float(parts[1].strip())
-                        logger.debug(f"Extracted second value: {second_value}")
-                        return second_value
+                        status_code_p1 = int(parts[0].strip())
+                        p1 = float(parts[1].strip())
+                        
+                        logger.debug(f"Status code p1: {status_code_p1}, Pressure p1: {p1}")
+                        
+                        # Check status code and return pressure only if data is good quality
+                        if status_code_p1 == 0 and p1 >= 0.0:
+                            logger.debug(f"Valid pressure reading: {p1} mbar")
+                            return p1
+                        elif status_code_p1 == 1:
+                            logger.warning("Sensor 1: Underrange")
+                        elif status_code_p1 == 2:
+                            logger.warning("Sensor 1: Overrange")
+                        elif status_code_p1 == 3:
+                            logger.warning("Sensor 1: Sensor error")
+                        elif status_code_p1 == 4:
+                            logger.warning("Sensor 1: Sensor off")
+                        elif status_code_p1 == 5:
+                            logger.warning("Sensor 1: No sensor (output: 5,2000E-2)")
+                        elif status_code_p1 == 6:
+                            logger.warning("Sensor 1: Identification error")
+                        else:
+                            logger.warning(f"Unknown status code for sensor 1: {status_code_p1}")
+                        
+                        return None
+                        
                     except (ValueError, TypeError) as e:
-                        logger.warning(f"Could not convert '{parts[1]}' to float: {e}")
+                        logger.warning(f"Could not convert data parts to numbers: {e}")
                         return None
                 else:
                     logger.warning(f"Insufficient data parts. Expected at least 2, got {len(parts)}: {parts}")
