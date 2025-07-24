@@ -149,10 +149,10 @@ except ImportError:
     LOCAL_CSV_DIR = "data_logs"
     SLEEP_INTERVAL = 5
     MAX_CONSECUTIVE_FAILURES = 10
-    PLC_IP = "192.168.0.1"
+    PLC_IP = "172.29.36.195"
     UNIT_ID = 2
-    INT_PORT = 503
-    FLOAT_PORT = 502
+    INT_PORT = 502
+    FLOAT_PORT = 503
     NUM_REG_TO_READ = 36
 
     LOG_LEVEL = "INFO"
