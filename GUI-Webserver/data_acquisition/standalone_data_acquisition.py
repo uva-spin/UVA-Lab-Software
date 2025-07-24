@@ -864,7 +864,10 @@ def main():
     try:
         ivc_reader = IVCReader(port="COM7")
         ivc_reader.start()
-        logger.info("IVC data reader started")
+        if ivc_reader.data_stream():
+            logger.info("IVC data reader started and data stream initiated")
+        else:
+            logger.error("IVC data reader started but failed to start data stream")
     except Exception as e:
         logger.error(f"Error starting ivc data reader: {e}")
 

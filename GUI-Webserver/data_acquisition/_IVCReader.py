@@ -105,17 +105,24 @@ class IVCReader:
                 try:
                     # Request data transmission using the pattern from the reference code
                     self.serialPort.write(b'\x05\r\n')
-                    time.sleep(0.1)
                     
-                    # Read available data
-                    while self.serialPort.in_waiting > 0:
+                    # Wait for the device to respond - use a longer timeout
+                    time.sleep(0.5)
+                    
+                    # Try to read data with a timeout
+                    try:
+                        # Use readline with timeout to wait for data
                         raw_data = self.serialPort.readline()
                         if raw_data:
                             logger.debug(f"Raw data received: {raw_data}")
                             with self._lock:
                                 self.data_queue = self._parse_ivc_data(raw_data)
                         else:
-                            logger.warning("No raw data received from device")
+                            logger.warning("No raw data received from device - timeout or empty response")
+                    except serial.SerialTimeoutException:
+                        logger.warning("Timeout waiting for IVC device response")
+                    except Exception as e:
+                        logger.error(f"Error reading from serial port: {e}")
                     
                     time.sleep(1)
                     
