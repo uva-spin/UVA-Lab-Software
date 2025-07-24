@@ -162,42 +162,39 @@ class IVCReader:
             clean_data = re.sub(r'[^\x20-\x7E]', '', data_str)
             logger.debug(f"Cleaned data string: {clean_data}")
             
-            # Parse the comma-separated data format: 1,<number>,5,<number>
-            # We want the second entry (index 1 after splitting)
+            # Parse the comma-separated data format: 0.,1.456E-4, 5, 2.000E-2
+            # We want the first scientific notation value (1.456E-4)
             if clean_data:
                 parts = clean_data.split(',')
                 logger.debug(f"Split data parts: {parts}")
                 
-                # Look for numeric values in all parts, not just the second one
+                # Look for the first scientific notation value
                 for i, part in enumerate(parts):
                     part = part.strip()
                     if part:
                         try:
-                            # Try to extract scientific notation or regular float
+                            # Check if this part contains scientific notation (E or e)
                             if 'E' in part.upper() or 'e' in part:
-                                # Scientific notation
                                 numeric_value = float(part)
                                 logger.debug(f"Extracted scientific notation value from part {i}: {numeric_value}")
                                 return numeric_value
-                            else:
-                                # Regular number
-                                numeric_value = float(part)
-                                # Skip obvious status codes like 1, 5, etc. (usually single digits)
-                                if abs(numeric_value) > 10 or (numeric_value != int(numeric_value) if numeric_value == int(numeric_value) else True):
-                                    logger.debug(f"Extracted numeric value from part {i}: {numeric_value}")
-                                    return numeric_value
                         except (ValueError, TypeError) as e:
                             logger.debug(f"Could not convert part '{part}' to float: {e}")
                             continue
                 
-                # If we couldn't find a good numeric value, try the traditional second position
-                if len(parts) >= 2:
-                    try:
-                        second_value = float(parts[1].strip())
-                        logger.debug(f"Fallback: extracted second value: {second_value}")
-                        return second_value
-                    except (ValueError, TypeError) as e:
-                        logger.warning(f"Could not convert fallback value '{parts[1]}' to float: {e}")
+                # If no scientific notation found, try to get the first valid numeric value
+                for i, part in enumerate(parts):
+                    part = part.strip()
+                    if part:
+                        try:
+                            numeric_value = float(part)
+                            # Skip obvious status codes (single digits like 0, 1, 5)
+                            if abs(numeric_value) > 1 or (numeric_value != int(numeric_value) if numeric_value == int(numeric_value) else True):
+                                logger.debug(f"Extracted numeric value from part {i}: {numeric_value}")
+                                return numeric_value
+                        except (ValueError, TypeError) as e:
+                            logger.debug(f"Could not convert part '{part}' to float: {e}")
+                            continue
                 
                 logger.warning(f"No valid numeric data found in parts: {parts}")
                 return None
