@@ -118,7 +118,7 @@ class IVCReader:
                             with self._lock:
                                 self.data_queue = self._parse_ivc_data(raw_data)
                         else:
-                            logger.warning("No raw data received from device - timeout or empty response")
+                            logger.debug("No raw data received from IVC - timeout or empty response")
                     except serial.SerialTimeoutException:
                         logger.warning("Timeout waiting for IVC device response")
                     except Exception as e:
