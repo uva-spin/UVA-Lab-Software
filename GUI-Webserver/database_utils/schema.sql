@@ -97,3 +97,29 @@ CREATE TABLE IF NOT EXISTS IVC (
   ivc_pressure FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
+
+CREATE TABLE IF NOT EXISTS NMR (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+run_number INTEGER,
+measurement_type TEXT,
+peak_amp FLOAT,
+peak_center FLOAT,
+beam_on INTEGER,
+rf_level FLOAT,
+if_atten FLOAT,
+he_temperature FLOAT,
+he_pressure FLOAT,
+nmr_channel INTEGER,
+temperature FLOAT,
+calibration_constant FLOAT,
+polarization FLOAT,
+polarization_std FLOAT,
+snr FLOAT,
+step_width FLOAT,
+center_freq FLOAT,
+freq_span FLOAT,
+area FLOAT,
+phase_voltage FLOAT,
+tune_voltage FLOAT
+"Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+);

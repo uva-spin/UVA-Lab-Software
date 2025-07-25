@@ -175,7 +175,7 @@ class MaxiGaugeReader:
         try:
             # Add proper protocol: command<CR><LF><ENQ>
             full_command = f"{command}\r\n\x05"
-            logger.debug(f"Sending command: {repr(full_command)}")
+            logger.debug(f"Sending command to MaxiGauge: {repr(full_command)}")
             
             # Send command
             self.socket.send(full_command.encode('ascii'))
@@ -187,17 +187,17 @@ class MaxiGaugeReader:
             data = self.socket.recv(1024)
             if data:
                 response = data.decode('ascii', errors='ignore').strip()
-                logger.debug(f"Command response: {repr(response)}")
+                logger.debug(f"Command response from MaxiGauge: {repr(response)}")
                 return response
             else:
-                logger.warning("No response received for command")
+                logger.warning("No response received for command from MaxiGauge")
                 return None
                 
         except socket.timeout:
-            logger.debug("Socket timeout when sending command")
+            logger.debug("Socket timeout when sending command to MaxiGauge")
             return None
         except Exception as e:
-            logger.error(f"Error sending command '{command}': {e}")
+            logger.error(f"Error sending command '{command}' to MaxiGauge: {e}")
             self.connected = False
             return None
 

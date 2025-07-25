@@ -178,7 +178,7 @@ class LakeShoreReader:
                         else:
                             logger.warning("No valid data received after parsing")
                     else:
-                        logger.warning("No raw data received from device")
+                        logger.debug("No raw data received from Lakeshore - timeout or empty response")
                     
                     time.sleep(0.1)
                     

@@ -80,7 +80,7 @@ class LabJackReader_1:
     def _check_data(self, data):
         """ Check if the channels are getting data """
         if data is None or len(data) == 0:
-            logger.warning(f"No data from channel at {datetime.now()}")
+            logger.warning(f"No data from Labjack 1 channel at {datetime.now()}")
             return False
         return True
 
@@ -275,12 +275,12 @@ class LabJackReader_2:
     def _check_data(self, data):
         """ Check if the channels are getting data """
         if data is None:
-            logger.warning(f"No data from channel at {datetime.now()}")
+            logger.warning(f"No data from Labjack 2 channel at {datetime.now()}")
             return False
         # Handle both single values and arrays
         if isinstance(data, (list, np.ndarray)):
             if len(data) == 0:
-                logger.warning(f"Empty data array from channel at {datetime.now()}")
+                logger.warning(f"Empty data array from Labjack 2 channel at {datetime.now()}")
                 return False
         return True
 
