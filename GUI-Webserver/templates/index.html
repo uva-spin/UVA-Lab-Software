@@ -471,6 +471,30 @@
             }
         }
 
+        // Dropdown functions
+        function toggleDropdown() {
+            const dropdown = document.getElementById('control-dropdown');
+            const dropdownContent = document.getElementById('dropdown-content');
+            
+            dropdown.classList.toggle('active');
+            if (dropdown.classList.contains('active')) {
+                dropdownContent.style.display = 'block';
+            } else {
+                dropdownContent.style.display = 'none';
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('control-dropdown');
+            const dropdownContent = document.getElementById('dropdown-content');
+            
+            if (!dropdown.contains(event.target)) {
+                dropdown.classList.remove('active');
+                dropdownContent.style.display = 'none';
+            }
+        });
+
         // Floating Action Button functions
         function toggleFabMenu() {
             const fabMenu = document.querySelector('.fab-menu');
@@ -757,7 +781,7 @@
                     <div class="time-controls">
                         <div class="time-input">
                             <label for="hours">H</label>
-                            <input type="number" id="hours" name="hours" min="0", value="0" step="1">
+                            <input type="number" id="hours" name="hours" min="0", value="1" step="1", default="1">
                         </div>
                         <div class="time-input">
                             <label for="minutes">M</label>
@@ -789,9 +813,29 @@
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
                     <i id="theme-icon" class="fas fa-moon"></i>
                 </button>
-                <button class="shutdown-btn" onclick="shutdownServer()" title="Shutdown Server">
-                    <i class="fas fa-power-off"></i>
-                </button>
+                <div class="control-group-dropdown" id="control-dropdown">
+                    <button class="control-group-dropdown-btn" onclick="toggleDropdown()" title="Dropdown Menu">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div class="control-group-dropdown-content" id="dropdown-content">
+                        <button class="control-group-dropdown-item" onclick="shutdownServer()" title="Shutdown Server">
+                            <i class="fas fa-power-off"></i>
+                            <span>Shutdown Server</span>
+                        </button>
+                        <button class="control-group-dropdown-item" onclick="selectAllData()" title="Select All Data">
+                            <i class="fas fa-check-double"></i>
+                            <span>Select All Data</span>
+                        </button>
+                        <button class="control-group-dropdown-item" onclick="clearAllData()" title="Clear All Data">
+                            <i class="fas fa-times"></i>
+                            <span>Clear All Data</span>
+                        </button>
+                        <button class="control-group-dropdown-item" onclick="refreshData()" title="Refresh Data">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Refresh Data</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
