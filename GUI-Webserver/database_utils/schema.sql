@@ -123,3 +123,5 @@ phase_voltage FLOAT,
 tune_voltage FLOAT
 "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
+
+PRAGMA journal_mode = WAL;
