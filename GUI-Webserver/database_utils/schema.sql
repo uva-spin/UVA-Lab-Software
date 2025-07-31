@@ -1,3 +1,23 @@
+
+PRAGMA journal_mode = WAL;
+
+PRAGMA synchronous = NORMAL;
+
+PRAGMA mmap_size = 268435456; -- 256MB
+
+
+PRAGMA cache_size = -64000; 
+
+PRAGMA foreign_keys = ON;
+
+PRAGMA temp_store = MEMORY;
+
+PRAGMA page_size = 4096;
+
+PRAGMA auto_vacuum = INCREMENTAL;
+
+PRAGMA busy_timeout = 30000;
+
 CREATE TABLE IF NOT EXISTS QT (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -120,8 +140,25 @@ center_freq FLOAT,
 freq_span FLOAT,
 area FLOAT,
 phase_voltage FLOAT,
-tune_voltage FLOAT
+tune_voltage FLOAT,
 "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
-PRAGMA journal_mode = WAL;
+CREATE INDEX IF NOT EXISTS idx_qt_timestamp ON QT("Timestamp");
+CREATE INDEX IF NOT EXISTS idx_labjack_timestamp ON Labjack("Timestamp");
+CREATE INDEX IF NOT EXISTS idx_flow_rates_timestamp ON Flow_Rates("Timestamp");
+CREATE INDEX IF NOT EXISTS idx_lakeshore_target_stick_timestamp ON Lakeshore_Target_Stick("Timestamp");
+CREATE INDEX IF NOT EXISTS idx_lakeshore_fridge_temp_timestamp ON Lakeshore_Fridge_Temp("Timestamp");
+CREATE INDEX IF NOT EXISTS idx_lakeshore_magnet_temp_timestamp ON Lakeshore_Magnet_Temp("Timestamp");
+CREATE INDEX IF NOT EXISTS idx_maxigauge_timestamp ON MaxiGauge("Timestamp");
+CREATE INDEX IF NOT EXISTS idx_ivc_timestamp ON IVC("Timestamp");
+CREATE INDEX IF NOT EXISTS idx_nmr_timestamp ON NMR("Timestamp");
+
+CREATE INDEX IF NOT EXISTS idx_nmr_run_number ON NMR(run_number);
+CREATE INDEX IF NOT EXISTS idx_nmr_measurement_type ON NMR(measurement_type);
+CREATE INDEX IF NOT EXISTS idx_nmr_beam_on ON NMR(beam_on);
+
+CREATE INDEX IF NOT EXISTS idx_nmr_run_timestamp ON NMR(run_number, "Timestamp");
+CREATE INDEX IF NOT EXISTS idx_nmr_type_timestamp ON NMR(measurement_type, "Timestamp");
+
+ANALYZE;

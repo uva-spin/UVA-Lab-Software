@@ -32,7 +32,6 @@ from _MaxiGaugeReader import MaxiGaugeReader
 from _IVCReader import IVCReader
 from _QTReader import QTReader
 
-
 # Global args variable for command line arguments
 args = None
 
@@ -159,10 +158,10 @@ except ImportError:
     LOG_FILE = "data_acquisition.log"
     TWIST_PATH = "//twist.phys.virginia.edu/www/spin"  
     DATABASE_DIR = f"{TWIST_PATH}/instance"
-    TELEDYNE_CHECK_INTERVAL = 10  # Check for new data every second
-    LABJACK_CHECK_INTERVAL = 1  # Check for new data every second
-    LAKESHORE_CHECK_INTERVAL = 1  # Check for new data every second
-    MAXIGAUGE_CHECK_INTERVAL = 1  # Check for new data every second
+    TELEDYNE_CHECK_INTERVAL = 10  # Check for new data every 10 seconds
+    LABJACK_CHECK_INTERVAL = 1  # Check for new data every 1 second
+    LAKESHORE_CHECK_INTERVAL = 1  # Check for new data every 1 second
+    MAXIGAUGE_CHECK_INTERVAL = 1  # Check for new data every 1 second
 
 # Define the labels for the float values
 labels = [
@@ -412,11 +411,11 @@ def insert_flow_data_combined(teledyne_data=None, labjack_2_data=None):
     
     try:
         # Prepare the data for insertion
-        seperator_flow = teledyne_data[0] if teledyne_data and len(teledyne_data) >= 1 else None
-        magnet_flow = teledyne_data[1] if teledyne_data and len(teledyne_data) >= 2 else None
-        main_flow = teledyne_data[2] if teledyne_data and len(teledyne_data) >= 3 else None
-        flow_meter_1 = labjack_2_data[0] if labjack_2_data and len(labjack_2_data) >= 1 else None
-        flow_meter_2 = labjack_2_data[1] if labjack_2_data and len(labjack_2_data) >= 2 else None
+        seperator_flow = teledyne_data[0] 
+        magnet_flow = teledyne_data[1] 
+        main_flow = teledyne_data[2] 
+        flow_meter_1 = labjack_2_data[0] 
+        flow_meter_2 = labjack_2_data[1]
         
         cursor.execute('''
             INSERT INTO Flow_Rates (
@@ -573,10 +572,10 @@ def insert_maxigauge_data(data):
             INSERT INTO MaxiGauge (
                 "maxigauge_seperator_inlet_pressure",
                 "maxigauge_upper_roots_pressure",
-                "channel_3",
-                "channel_4",
-                "channel_5",
-                "channel_6",
+                "maxigauge_channel_3",
+                "maxigauge_channel_4",
+                "maxigauge_channel_5",
+                "maxigauge_channel_6",
                 "Timestamp"
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], get_current_est_time()))
