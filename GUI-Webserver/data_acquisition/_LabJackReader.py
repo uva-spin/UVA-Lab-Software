@@ -195,7 +195,7 @@ class LabJackReader_1:
                     self.avg_Fridge_Vapor_Pressure = np.average(Fridge_Vapor_Pressure)
                     self.avg_Thermocouple = np.average(Thermocouple)
                     self.data_queue[0] = self.psi_to_torr(self.ROOT_EXHAUST_SCALE_FACTOR * self.avg_Root_Exhausted_Pressure) ## In Torr
-                    self.data_queue[1] = self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure ## In PSI
+                    self.data_queue[1] = self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure - 4.22 ## In PSI
                     self.data_queue[2] = self.MAGNET_SCALE_FACTOR * self.avg_Magnet_Pressure ## In PSI
                     self.data_queue[3] = self.PURIFIER_INLET_SCALE_FACTOR * self.avg_Purifier_Inlet_Pressure ## In PSI
                     self.data_queue[4] = self.FRIDGE_VAPOR_SCALE_FACTOR * self.avg_Fridge_Vapor_Pressure + self.FRIDGE_VAPOR_SHIFT ## In Torr
@@ -305,17 +305,17 @@ class LabJackReader_2:
                     break
 
                 try:
-                    # Read AIN1 (Flow Meter 1)
-                    vOut_Flow_Meter_1 = ljm.eReadName(self.device, "AIN1")
-                    if self._check_data(vOut_Flow_Meter_1):
-                        Flow_Meter_1[i] = vOut_Flow_Meter_1
+                    # Read AIN1 (Microwave Flow Meter)
+                    vOut_Microwave_Flow_Meter = ljm.eReadName(self.device, "AIN1")
+                    if self._check_data(vOut_Microwave_Flow_Meter):
+                        Flow_Meter_1[i] = vOut_Microwave_Flow_Meter
                     else:
                         logger.warning(f"No data for Flow Meter 1 at {datetime.now()}")
 
-                    # Read AIN2 (Flow Meter 2)
-                    vOut_Flow_Meter_2 = ljm.eReadName(self.device, "AIN2")
-                    if self._check_data(vOut_Flow_Meter_2):
-                        Flow_Meter_2[i] = vOut_Flow_Meter_2
+                    # Read AIN2 (Heat Exchanger Flow Meter)
+                    vOut_Heat_Exchanger_Flow_Meter = ljm.eReadName(self.device, "AIN2")
+                    if self._check_data(vOut_Heat_Exchanger_Flow_Meter):
+                        Flow_Meter_2[i] = vOut_Heat_Exchanger_Flow_Meter
                     else:
                         logger.warning(f"No data for Flow Meter 2 at {datetime.now()}")
 
@@ -329,10 +329,10 @@ class LabJackReader_2:
                     break
 
             if dataCount > 0:
-                self.avg_Flow_Meter_1 = np.average(Flow_Meter_1[:dataCount])
-                self.avg_Flow_Meter_2 = np.average(Flow_Meter_2[:dataCount])
-                self.data_queue[0] = self.avg_Flow_Meter_1
-                self.data_queue[1] = self.avg_Flow_Meter_2
+                self.avg_Microwave_Flow_Meter = np.average(Flow_Meter_1[:dataCount])
+                self.avg_Heat_Exchanger_Flow_Meter = np.average(Flow_Meter_2[:dataCount])
+                self.data_queue[0] = self.avg_Microwave_Flow_Meter - 10.650 # slm 
+                self.data_queue[1] = self.avg_Heat_Exchanger_Flow_Meter # slm
                 logger.info(f"Flow Meter 1 average: {self.avg_Flow_Meter_1}")
                 logger.info(f"Flow Meter 2 average: {self.avg_Flow_Meter_2}")
         except Exception as e:

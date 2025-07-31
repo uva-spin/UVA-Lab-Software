@@ -47,7 +47,6 @@ def NMR_DB(StringData, NumericData, SignalData):
         schema_sql = f.read()
         cursor.executescript(schema_sql)
     
-
     cursor.execute('''INSERT INTO NMR ( 
                    run_number, measurement_type, peak_amp, peak_center,
                    beam_on, rf_level, if_atten, nmr_channel, temperature, calibration_constant, 
