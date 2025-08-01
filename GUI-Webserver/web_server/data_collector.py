@@ -312,7 +312,8 @@ def query_db():
                     # Add data for each key
                     for i, key in enumerate(table_keys, 1):
                         try:
-                            all_data[timestamp][key] = round(float(row[i]), 2)
+                            # Don't round the values - let the frontend handle formatting
+                            all_data[timestamp][key] = float(row[i])
                         except (ValueError, TypeError):
                             logger.warning(f"Could not convert value for {key}: {row[i]}")
                             all_data[timestamp][key] = None
