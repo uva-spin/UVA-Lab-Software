@@ -227,7 +227,7 @@
                     $("#chart").bind("plothover", function (event, pos, item) {
                         if (item) {
                             const x = new Date(item.datapoint[0]).toLocaleTimeString();
-                            const y = item.datapoint[1].toFixed(3);
+                            const y = formatNumber(item.datapoint[1]);
                             const series = item.series.label;
                             
                             $("#tooltip").remove();
@@ -262,6 +262,16 @@
                 titleElement.textContent = 'No Data Selected';
             } else {
                 titleElement.textContent = `Multiple Signals vs. Time`;
+            }
+        }
+
+        // Helper function to format numbers with scientific notation for small values
+        function formatNumber(value) {
+            const absValue = Math.abs(value);
+            if (absValue > 0 && absValue < 0.001 || absValue > 1000) {
+                return value.toExponential(3);
+            } else {
+                return value.toFixed(3);
             }
         }
 
