@@ -302,7 +302,7 @@
                         
                         for (let i = 0; i <= 5; i++) {
                             const val = min + i * step;
-                            ticks.push([val, val.toExponential(6)]);
+                            ticks.push([val, val.toExponential(3)]);
                         }
                         return ticks;
                     }
@@ -318,7 +318,7 @@
                     },
                     tickColor: isDarkMode ? '#ffffff' : '#333333',
                     tickFormatter: function(val, axis) {
-                        return val.toFixed(8);
+                        return val.toFixed(3);
                     }
                 };
             }
