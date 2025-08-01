@@ -1,23 +1,3 @@
-
--- PRAGMA journal_mode = WAL;
-
--- PRAGMA synchronous = NORMAL;
-
--- PRAGMA mmap_size = 268435456; -- 256MB
-
-
--- PRAGMA cache_size = -64000; 
-
--- PRAGMA foreign_keys = ON;
-
--- PRAGMA temp_store = MEMORY;
-
--- PRAGMA page_size = 4096;
-
--- PRAGMA auto_vacuum = INCREMENTAL;
-
--- PRAGMA busy_timeout = 30000;
-
 CREATE TABLE IF NOT EXISTS QT (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -160,5 +140,3 @@ CREATE INDEX IF NOT EXISTS idx_nmr_beam_on ON NMR(beam_on);
 
 CREATE INDEX IF NOT EXISTS idx_nmr_run_timestamp ON NMR(run_number, "Timestamp");
 CREATE INDEX IF NOT EXISTS idx_nmr_type_timestamp ON NMR(measurement_type, "Timestamp");
-
-ANALYZE;
