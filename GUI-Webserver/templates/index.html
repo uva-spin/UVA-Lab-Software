@@ -158,7 +158,10 @@
             // Collect all values to determine y-axis formatting
             const allValues = [];
             selectedColumns.forEach(column => {
-                const values = data.map(point => point[column]).filter(val => val !== null && val !== undefined);
+                const values = data.map(point => {
+                    const val = point[column];
+                    return val !== null && val !== undefined ? Number(val) : null;
+                }).filter(val => val !== null && !isNaN(val));
                 allValues.push(...values);
             });
 
@@ -275,12 +278,16 @@
         function needsScientificNotation(values) {
             if (!values || values.length === 0) return false;
             
+            console.log('Checking scientific notation for values:', values.slice(0, 10));
+            
             for (let value of values) {
                 const absValue = Math.abs(value);
                 if (absValue > 0 && (absValue < 0.001 || absValue > 1000)) {
+                    console.log('Found value needing scientific notation:', value, 'absValue:', absValue);
                     return true;
                 }
             }
+            console.log('No values need scientific notation');
             return false;
         }
 
@@ -288,7 +295,14 @@
         function getYAxisConfig(values) {
             const needsSciNotation = needsScientificNotation(values);
             
+            console.log('Y-axis config check:', {
+                values: values.slice(0, 10), // Log first 10 values
+                needsSciNotation: needsSciNotation,
+                valueRange: values.length > 0 ? { min: Math.min(...values), max: Math.max(...values) } : 'no values'
+            });
+            
             if (needsSciNotation) {
+                console.log('Using scientific notation for y-axis');
                 return {
                     axisLabel: 'Value',
                     axisLabelUseCanvas: true,
@@ -298,10 +312,26 @@
                     },
                     tickColor: isDarkMode ? '#ffffff' : '#333333',
                     tickFormatter: function(val, axis) {
-                        return val.toExponential(2);
+                        console.log('Tick formatter called with:', val);
+                        return val.toExponential(3);
+                    },
+                    transform: function(v) { return v; },
+                    inverseTransform: function(v) { return v; },
+                    ticks: function(axis) {
+                        const ticks = [];
+                        const min = axis.min;
+                        const max = axis.max;
+                        const step = (max - min) / 5;
+                        
+                        for (let i = 0; i <= 5; i++) {
+                            const val = min + i * step;
+                            ticks.push([val, val.toExponential(3)]);
+                        }
+                        return ticks;
                     }
                 };
             } else {
+                console.log('Using decimal notation for y-axis');
                 return {
                     axisLabel: 'Value',
                     axisLabelUseCanvas: true,
