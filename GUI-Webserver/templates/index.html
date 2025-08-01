@@ -267,8 +267,17 @@
         // Helper function to format numbers with scientific notation for small values
         function formatNumber(value) {
             const absValue = Math.abs(value);
-            if (absValue < 0.001 || absValue > 1000) {
-                return value.toExponential(3);
+            if (absValue === 0) {
+                return '0.000';
+            } else if (absValue < 0.001 || absValue > 1000) {
+                // For very small values, use more precision in scientific notation
+                if (absValue < 1e-10) {
+                    return value.toExponential(8);
+                } else if (absValue < 1e-6) {
+                    return value.toExponential(8);
+                } else {
+                    return value.toExponential(8);
+                }
             } else {
                 return value.toFixed(3);
             }
