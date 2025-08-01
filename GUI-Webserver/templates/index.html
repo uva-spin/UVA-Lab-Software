@@ -268,7 +268,7 @@
         // Helper function to format numbers with scientific notation for small values
         function formatNumber(value) {
             const absValue = Math.abs(value);
-            if (absValue > 0 && absValue < 0.001 || absValue > 1000) {
+            if (absValue < 0.001 || absValue > 1000) {
                 return value.toExponential(3);
             } else {
                 return value.toFixed(3);
