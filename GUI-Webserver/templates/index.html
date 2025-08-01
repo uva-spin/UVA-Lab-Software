@@ -267,14 +267,12 @@
         // Helper function to format numbers with scientific notation for small values
         function formatNumber(value) {
             const absValue = Math.abs(value);
-            if (absValue === 0) {
-                return '0.000';
-            } else if (absValue < 0.001 || absValue > 1000) {
+            if (absValue < 0.001 || absValue > 1000) {
                 // For very small values, use more precision in scientific notation
                 if (absValue < 1e-10) {
-                    return value.toExponential(8);
+                    return value.toExponential(10);
                 } else if (absValue < 1e-6) {
-                    return value.toExponential(8);
+                    return value.toExponential(10);
                 } else {
                     return value.toExponential(8);
                 }
@@ -334,7 +332,7 @@
                         
                         for (let i = 0; i <= 5; i++) {
                             const val = min + i * step;
-                            ticks.push([val, val.toExponential(3)]);
+                            ticks.push([val, val.toExponential(8)]);
                         }
                         return ticks;
                     }
@@ -350,7 +348,7 @@
                     },
                     tickColor: isDarkMode ? '#ffffff' : '#333333',
                     tickFormatter: function(val, axis) {
-                        return val.toFixed(3);
+                        return val.toFixed(8);
                     }
                 };
             }
