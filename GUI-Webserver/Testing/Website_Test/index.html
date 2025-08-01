@@ -128,6 +128,16 @@
                 };
             });
 
+            // Collect all values to determine y-axis formatting
+            const allValues = [];
+            selectedColumns.forEach(column => {
+                const values = data.map(point => {
+                    const val = point[column];
+                    return val !== null && val !== undefined ? Number(val) : null;
+                }).filter(val => val !== null && !isNaN(val));
+                allValues.push(...values);
+            });
+
             // Get actual timestamps from data for ticks
             const sortedTimestamps = [...timestamps].sort((a, b) => a - b);
             const minTime = sortedTimestamps[0];
@@ -152,18 +162,7 @@
                     },
                     tickColor: isDarkMode ? '#ffffff' : '#333333',
                 },
-                yaxis: {
-                    axisLabel: 'Value',
-                    axisLabelUseCanvas: true,
-                    color: isDarkMode ? '#ffffff' : '#333333',
-                    font: {
-                        color: isDarkMode ? '#ffffff' : '#333333'
-                    },
-                    tickColor: isDarkMode ? '#ffffff' : '#333333',
-                    tickFormatter: function(val, axis) {
-                        return val.toFixed(2);
-                    }
-                },
+                yaxis: getYAxisConfig(allValues),
                 legend: {
                     position: 'ne',
                     backgroundOpacity: 0,
@@ -199,7 +198,7 @@
                     $("#chart").bind("plothover", function (event, pos, item) {
                         if (item) {
                             const x = new Date(item.datapoint[0]).toLocaleTimeString();
-                            const y = item.datapoint[1].toFixed(2);
+                            const y = formatNumber(item.datapoint[1]);
                             const series = item.series.label;
                             
                             $("#tooltip").remove();
@@ -232,6 +231,96 @@
                 titleElement.textContent = 'No Data Selected';
             } else {
                 titleElement.textContent = `Multiple Signals vs. Time`;
+            }
+        }
+
+        // Helper function to format numbers with scientific notation for small values
+        function formatNumber(value) {
+            const absValue = Math.abs(value);
+            if (absValue < 0.001 || absValue > 1000) {
+                // For very small values, use more precision in scientific notation
+                if (absValue < 1e-10) {
+                    return value.toExponential(10);
+                } else if (absValue < 1e-6) {
+                    return value.toExponential(10);
+                } else {
+                    return value.toExponential(8);
+                }
+            } else {
+                return value.toFixed(3);
+            }
+        }
+
+        // Helper function to check if data needs scientific notation formatting
+        function needsScientificNotation(values) {
+            if (!values || values.length === 0) return false;
+            
+            console.log('Checking scientific notation for values:', values.slice(0, 10));
+            
+            for (let value of values) {
+                const absValue = Math.abs(value);
+                if (absValue > 0 && (absValue < 0.001 || absValue > 1000)) {
+                    console.log('Found value needing scientific notation:', value, 'absValue:', absValue);
+                    return true;
+                }
+            }
+            console.log('No values need scientific notation');
+            return false;
+        }
+
+        // Helper function to get appropriate y-axis configuration based on data
+        function getYAxisConfig(values) {
+            const needsSciNotation = needsScientificNotation(values);
+            
+            console.log('Y-axis config check:', {
+                values: values.slice(0, 10), // Log first 10 values
+                needsSciNotation: needsSciNotation,
+                valueRange: values.length > 0 ? { min: Math.min(...values), max: Math.max(...values) } : 'no values'
+            });
+            
+            if (needsSciNotation) {
+                console.log('Using scientific notation for y-axis');
+                return {
+                    axisLabel: 'Value',
+                    axisLabelUseCanvas: true,
+                    color: isDarkMode ? '#ffffff' : '#333333',
+                    font: {
+                        color: isDarkMode ? '#ffffff' : '#333333'
+                    },
+                    tickColor: isDarkMode ? '#ffffff' : '#333333',
+                    tickFormatter: function(val, axis) {
+                        console.log('Tick formatter called with:', val);
+                        return val.toExponential(8);
+                    },
+                    transform: function(v) { return v; },
+                    inverseTransform: function(v) { return v; },
+                    ticks: function(axis) {
+                        const ticks = [];
+                        const min = axis.min;
+                        const max = axis.max;
+                        const step = (max - min) / 5;
+                        
+                        for (let i = 0; i <= 5; i++) {
+                            const val = min + i * step;
+                            ticks.push([val, val.toExponential(8)]);
+                        }
+                        return ticks;
+                    }
+                };
+            } else {
+                console.log('Using decimal notation for y-axis');
+                return {
+                    axisLabel: 'Value',
+                    axisLabelUseCanvas: true,
+                    color: isDarkMode ? '#ffffff' : '#333333',
+                    font: {
+                        color: isDarkMode ? '#ffffff' : '#333333'
+                    },
+                    tickColor: isDarkMode ? '#ffffff' : '#333333',
+                    tickFormatter: function(val, axis) {
+                        return val.toFixed(8);
+                    }
+                };
             }
         }
 

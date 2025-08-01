@@ -1,22 +1,22 @@
 
-PRAGMA journal_mode = WAL;
+-- PRAGMA journal_mode = WAL;
 
-PRAGMA synchronous = NORMAL;
+-- PRAGMA synchronous = NORMAL;
 
-PRAGMA mmap_size = 268435456; -- 256MB
+-- PRAGMA mmap_size = 268435456; -- 256MB
 
 
-PRAGMA cache_size = -64000; 
+-- PRAGMA cache_size = -64000; 
 
-PRAGMA foreign_keys = ON;
+-- PRAGMA foreign_keys = ON;
 
-PRAGMA temp_store = MEMORY;
+-- PRAGMA temp_store = MEMORY;
 
-PRAGMA page_size = 4096;
+-- PRAGMA page_size = 4096;
 
-PRAGMA auto_vacuum = INCREMENTAL;
+-- PRAGMA auto_vacuum = INCREMENTAL;
 
-PRAGMA busy_timeout = 30000;
+-- PRAGMA busy_timeout = 30000;
 
 CREATE TABLE IF NOT EXISTS QT (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
