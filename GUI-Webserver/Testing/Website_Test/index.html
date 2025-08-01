@@ -240,11 +240,11 @@
             if (absValue < 0.001 || absValue > 1000) {
                 // For very small values, use more precision in scientific notation
                 if (absValue < 1e-10) {
-                    return value.toExponential(10);
+                    return value.toExponential(6);
                 } else if (absValue < 1e-6) {
-                    return value.toExponential(10);
+                    return value.toExponential(6);
                 } else {
-                    return value.toExponential(8);
+                    return value.toExponential(6);
                 }
             } else {
                 return value.toFixed(3);
@@ -290,7 +290,7 @@
                     tickColor: isDarkMode ? '#ffffff' : '#333333',
                     tickFormatter: function(val, axis) {
                         console.log('Tick formatter called with:', val);
-                        return val.toExponential(8);
+                        return val.toExponential(3);
                     },
                     transform: function(v) { return v; },
                     inverseTransform: function(v) { return v; },
@@ -302,7 +302,7 @@
                         
                         for (let i = 0; i <= 5; i++) {
                             const val = min + i * step;
-                            ticks.push([val, val.toExponential(8)]);
+                            ticks.push([val, val.toExponential(6)]);
                         }
                         return ticks;
                     }

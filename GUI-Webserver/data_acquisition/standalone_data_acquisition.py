@@ -150,8 +150,8 @@ except ImportError:
     MAX_CONSECUTIVE_FAILURES = 10
     PLC_IP = "172.29.36.195"
     UNIT_ID = 2
-    INT_PORT = 502
-    FLOAT_PORT = 503
+    INT_PORT = 503
+    FLOAT_PORT = 502
     NUM_REG_TO_READ = 36
 
     LOG_LEVEL = "INFO"
