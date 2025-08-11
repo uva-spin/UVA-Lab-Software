@@ -7,22 +7,26 @@ Tests connection, data reading, and proper cleanup for Modbus TCP-based PLC:
 """
 
 import sys
+import os
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
+print(f"Added to path: {project_root}")
 import time
+import os
 import logging
 import traceback
 from datetime import datetime
-from _QTReader import QTReader
+from data_acquisition.daq._QTReader import QTReader
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('qt_comprehensive_test.log')
-    ]
-)
 logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(os.path.dirname(current_dir), 'data_logs', 'qt_debug.log')
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
+logger.addHandler(logging.FileHandler(log_path))
 
 def test_qt_connection():
     """Test basic connection to QT PLC"""

@@ -2,12 +2,22 @@ import serial
 import time
 import logging
 import threading
+import os
 
 logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
-logger.addHandler(logging.FileHandler('data_logs/lakeshore_debug.log'))
+
+# Create the data_logs directory and set up file logging
+try:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    log_dir = os.path.join(os.path.dirname(current_dir), 'data_logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, 'lakeshore_debug.log')
+    logger.addHandler(logging.FileHandler(log_path))
+except Exception as e:
+    logger.warning(f"Could not set up file logging: {e}")
 
 class LakeShoreReader:
     def __init__(self, port="COM4", baudrate=9600, bytesize=7, timeout=2, stopbits=1):

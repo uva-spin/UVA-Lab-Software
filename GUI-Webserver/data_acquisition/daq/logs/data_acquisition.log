@@ -1,0 +1,6 @@
+2025-08-11 15:22:34,391 - __main__ - INFO - [standalone_data_acquisition.py:779] - Starting Data Acquisition System with Direct Database Pipeline
+2025-08-11 15:22:34,391 - __main__ - INFO - [standalone_data_acquisition.py:793] - Setting up database
+2025-08-11 15:22:34,391 - __main__ - ERROR - [standalone_data_acquisition.py:797] - Failed to setup database: [Errno 30] Read-only file system: '//twist.phys.virginia.edu'
+2025-08-11 15:22:46,742 - __main__ - INFO - [standalone_data_acquisition.py:779] - Starting Data Acquisition System with Direct Database Pipeline
+2025-08-11 15:22:46,742 - __main__ - INFO - [standalone_data_acquisition.py:793] - Setting up database
+2025-08-11 15:22:46,742 - __main__ - ERROR - [standalone_data_acquisition.py:797] - Failed to setup database: [Errno 30] Read-only file system: '//twist.phys.virginia.edu'

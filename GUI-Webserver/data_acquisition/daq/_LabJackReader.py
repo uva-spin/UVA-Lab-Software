@@ -12,6 +12,13 @@ import time
 
 logger = logging.getLogger(__name__)
 
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(os.path.dirname(current_dir), 'data_logs', 'labjack_debug.log')
+logger.addHandler(logging.FileHandler(log_path))
+
 class LabJackReader_1:
 
     def __init__(self, check_interval=1):

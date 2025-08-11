@@ -5,16 +5,21 @@ Tests reading from AIN1 and AIN2 channels
 """
 
 import sys
+import os
+sys.path.append('../../')
 import time
 import logging
 from _LabJackReader import LabJackReader_2
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(os.path.dirname(current_dir), 'data_logs', 'labjack_debug.log')
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
+logger.addHandler(logging.FileHandler(log_path))
 
 def test_labjack_t4():
     """Test LabJackReader_2 with T4 model"""

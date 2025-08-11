@@ -6,22 +6,27 @@ Tests connection, data reading, and proper cleanup for serial-based pressure con
 """
 
 import sys
+import os
 import time
 import logging
 import traceback
 from datetime import datetime
-from _IVCReader import IVCReader
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('ivc_comprehensive_test.log')
-    ]
-)
+# Add the GUI-Webserver directory to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
+print(f"Added to path: {project_root}")
+from data_acquisition.daq._IVCReader import IVCReader
+
 logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(os.path.dirname(current_dir), 'data_logs', 'ivc_debug.log')
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
+logger.addHandler(logging.FileHandler(log_path))
 
 def test_ivc_connection():
     """Test basic connection to IVC"""

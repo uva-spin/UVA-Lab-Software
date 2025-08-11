@@ -5,22 +5,28 @@ Tests reading QT data using the new QTReader class
 """
 
 import sys
+import os
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
+print(f"Added to path: {project_root}")
 import time
 import logging
-from _QTReader import QTReader
+from data_acquisition.daq._QTReader import QTReader
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(os.path.dirname(current_dir), 'data_logs', 'qt_debug.log')
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
+logger.addHandler(logging.FileHandler(log_path))
 
 def test_qt_reader():
     """Test QTReader class"""
     try:
-        # Test configuration (you may need to adjust these values)
-        plc_ip = "192.168.0.1"  # Default from config
+        plc_ip = "172.29.36.195"  
         unit_id = 2
         int_port = 503
         float_port = 502

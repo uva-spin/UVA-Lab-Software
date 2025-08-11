@@ -2,9 +2,16 @@ import serial
 import time
 import logging
 import threading
+import os
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(os.path.dirname(current_dir), 'data_logs', 'ivc_debug.log')
+logger.addHandler(logging.FileHandler(log_path))
 
 class IVCReader:
     def __init__(self, port='COM7', baudrate=9600, bytesize=8, timeout=1, stopbits=1):

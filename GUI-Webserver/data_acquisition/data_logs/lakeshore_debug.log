@@ -1,0 +1,120 @@
+Starting LakeShore Comprehensive Test Suite
+Test started at: 2025-08-11 15:17:45.010493
+
+==================== Serial Configuration Test ====================
+============================================================
+Testing LakeShore Serial Configuration
+============================================================
+Serial Configuration:
+  Port: COM4
+  Baudrate: 9600
+  Timeout: 2 seconds
+✗ Serial Configuration Test FAILED with exception: 'LakeShoreReader' object has no attribute 'check_interval'
+Traceback: Traceback (most recent call last):
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/device_testing/test_lakeshore_comprehensive.py", line 222, in main
+    if test_func():
+       ^^^^^^^^^^^
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/device_testing/test_lakeshore_comprehensive.py", line 141, in test_lakeshore_serial_config
+    logger.info(f"  Check Interval: {reader.check_interval} seconds")
+                                     ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'LakeShoreReader' object has no attribute 'check_interval'
+
+Stopping LakeShore reader
+LakeShore reader stopped
+
+==================== Error Handling Test ====================
+============================================================
+Testing LakeShore Error Handling
+============================================================
+Testing with invalid port...
+Opening serial port INVALID_PORT
+Error handling test PASSED - exception caught: module 'serial' has no attribute 'SerialException'
+Stopping LakeShore reader
+LakeShore reader stopped
+✓ Error Handling Test PASSED
+
+==================== Connection Test ====================
+============================================================
+Testing LakeShore Connection
+============================================================
+Initializing LakeShoreReader
+Starting LakeShoreReader
+Opening serial port COM4
+Connection test failed: module 'serial' has no attribute 'SerialException'
+Traceback: Traceback (most recent call last):
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/daq/_LakeShoreReader.py", line 50, in start
+    self.serialPort = serial.Serial(
+                      ^^^^^^^^^^^^^
+AttributeError: module 'serial' has no attribute 'Serial'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/device_testing/test_lakeshore_comprehensive.py", line 42, in test_lakeshore_connection
+    if not reader.start():
+           ^^^^^^^^^^^^^^
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/daq/_LakeShoreReader.py", line 75, in start
+    except serial.SerialException as e:
+           ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'serial' has no attribute 'SerialException'
+
+Cleaning up connection test
+Stopping LakeShore reader
+LakeShore reader stopped
+Stopping LakeShore reader
+LakeShore reader stopped
+✗ Connection Test FAILED
+
+==================== Data Reading Test ====================
+============================================================
+Testing LakeShore Data Reading
+============================================================
+Initializing LakeShoreReader for data reading test
+Starting LakeShoreReader
+Opening serial port COM4
+Data reading test failed: module 'serial' has no attribute 'SerialException'
+Traceback: Traceback (most recent call last):
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/daq/_LakeShoreReader.py", line 50, in start
+    self.serialPort = serial.Serial(
+                      ^^^^^^^^^^^^^
+AttributeError: module 'serial' has no attribute 'Serial'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/device_testing/test_lakeshore_comprehensive.py", line 70, in test_lakeshore_data_reading
+    if not reader.start():
+           ^^^^^^^^^^^^^^
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/daq/_LakeShoreReader.py", line 75, in start
+    except serial.SerialException as e:
+           ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'serial' has no attribute 'SerialException'
+
+Cleaning up data reading test
+Stopping LakeShore reader
+LakeShore reader stopped
+Stopping LakeShore reader
+LakeShore reader stopped
+✗ Data Reading Test FAILED
+
+==================== Stress Test ====================
+============================================================
+Testing LakeShore Stress Test (Start/Stop Cycles)
+============================================================
+Stress test cycle 1/3
+Stopping LakeShore reader
+Stress test failed: LakeShoreReader.__init__() got an unexpected keyword argument 'check_interval'
+Traceback: Traceback (most recent call last):
+  File "/Users/alephnot/Documents/Work/UVA-Lab-Software/GUI-Webserver/data_acquisition/device_testing/test_lakeshore_comprehensive.py", line 155, in test_lakeshore_stress
+    reader = LakeShoreReader(port="COM4", check_interval=0.5)  # Adjust port as needed
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: LakeShoreReader.__init__() got an unexpected keyword argument 'check_interval'
+
+✗ Stress Test FAILED
+
+============================================================
+TEST SUMMARY
+============================================================
+Tests passed: 1/5
+Success rate: 20.0%
+❌ 4 test(s) failed. Please check the logs.

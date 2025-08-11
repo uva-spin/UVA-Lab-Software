@@ -3,12 +3,18 @@ import time
 import socket
 import logging
 import re
+import os
 
 logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
-logger.addHandler(logging.FileHandler('data_logs/maxigauge_debug.log'))
+
+# Get the directory where this file is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up one level to data_acquisition, then into data_logs
+log_path = os.path.join(os.path.dirname(current_dir), 'data_logs', 'maxigauge_debug.log')
+logger.addHandler(logging.FileHandler(log_path))
 
 class MaxiGaugeReader:
     def __init__(self, baudrate=9600, timeout=1, check_interval=1):
