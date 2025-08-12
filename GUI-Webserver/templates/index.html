@@ -756,6 +756,9 @@
 
                 const mainContent = document.createElement('div');
                 mainContent.className = 'section-content main-content';
+                // Ensure main content is hidden by default
+                mainContent.style.display = 'none';
+                mainContent.style.maxHeight = '0';
 
                 if (mainCategory === 'QT') {
                     // QT has subcategories
@@ -766,7 +769,7 @@
                         }
                     });
                 } else {
-                    // Other main categories are direct arrays
+                    // Other main categories are direct arrays - create parameter items directly
                     if (subCategories.length > 0) {
                         subCategories.forEach(columnName => {
                             const parameterItem = document.createElement('div');
@@ -802,6 +805,9 @@
 
             const subContent = document.createElement('div');
             subContent.className = 'section-content sub-content';
+            // Ensure sub content is hidden by default
+            subContent.style.display = 'none';
+            subContent.style.maxHeight = '0';
 
             columns.forEach(columnName => {
                 const parameterItem = document.createElement('div');
