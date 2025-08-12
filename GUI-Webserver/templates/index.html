@@ -841,16 +841,25 @@
             const content = section.querySelector('.main-content');
             const icon = header.querySelector('i');
 
-            if (content.style.display === 'none' || content.style.display === '') {
-                content.style.display = 'block';
-                content.style.maxHeight = 'none';
-                icon.className = 'fas fa-chevron-down';
-                section.classList.add('expanded');
-            } else {
-                content.style.display = 'none';
+            if (section.classList.contains('expanded')) {
+                // Collapse the section
                 content.style.maxHeight = '0';
                 icon.className = 'fas fa-chevron-right';
                 section.classList.remove('expanded');
+                // Use setTimeout to ensure the transition completes before hiding
+                setTimeout(() => {
+                    if (!section.classList.contains('expanded')) {
+                        content.style.display = 'none';
+                    }
+                }, 300);
+            } else {
+                // Expand the section
+                content.style.display = 'block';
+                // Force a reflow to ensure display: block is applied
+                content.offsetHeight;
+                content.style.maxHeight = 'none';
+                icon.className = 'fas fa-chevron-down';
+                section.classList.add('expanded');
             }
         }
 
@@ -861,22 +870,34 @@
             const content = section.querySelector('.sub-content');
             const icon = header.querySelector('i');
 
-            if (content.style.display === 'none' || content.style.display === '') {
-                content.style.display = 'block';
-                content.style.maxHeight = 'none';
-                icon.className = 'fas fa-chevron-down';
-                section.classList.add('expanded');
-            } else {
-                content.style.display = 'none';
+            if (section.classList.contains('expanded')) {
+                // Collapse the section
                 content.style.maxHeight = '0';
                 icon.className = 'fas fa-chevron-right';
                 section.classList.remove('expanded');
+                // Use setTimeout to ensure the transition completes before hiding
+                setTimeout(() => {
+                    if (!section.classList.contains('expanded')) {
+                        content.style.display = 'none';
+                    }
+                }, 300);
+            } else {
+                // Expand the section
+                content.style.display = 'block';
+                // Force a reflow to ensure display: block is applied
+                content.offsetHeight;
+                content.style.maxHeight = 'none';
+                icon.className = 'fas fa-chevron-down';
+                section.classList.add('expanded');
             }
         }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('DOM loaded, initializing...');
+            
+            // Show the rainbow text immediately when page loads
+            updateEmptyChartDisplay();
             
             // Show loading state for data selection
             const sidebar = document.getElementById('data-sidebar');
