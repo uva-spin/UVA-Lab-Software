@@ -743,7 +743,8 @@
             Object.entries(nestedStructure).forEach(([mainCategory, subCategories]) => {
                 const mainSection = document.createElement('div');
                 mainSection.className = 'data-section main-category';
-                mainSection.id = mainCategory.toLowerCase().replace(/\s+/g, '-');
+                // Ensure unique IDs for main categories
+                mainSection.id = `main-${mainCategory.toLowerCase().replace(/\s+/g, '-')}`;
 
                 const mainHeader = document.createElement('div');
                 mainHeader.className = 'section-header main-header';
@@ -764,7 +765,8 @@
                     // QT has subcategories
                     Object.entries(subCategories).forEach(([subCategory, subItems]) => {
                         if (subItems.length > 0) {
-                            const subSection = createSubSection(subCategory, subItems);
+                            // Use a unique prefix to avoid ID collisions with main categories
+                            const subSection = createSubSection(subCategory, subItems, 'qt');
                             mainContent.appendChild(subSection);
                         }
                     });
