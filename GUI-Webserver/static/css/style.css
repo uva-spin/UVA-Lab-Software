@@ -617,6 +617,12 @@ body {
     overflow: hidden;
     transition: max-height 0.3s ease;
     padding: 0.25rem 0;
+    display: none; /* Hide by default */
+}
+
+.data-section.expanded .section-content {
+    max-height: none;
+    display: block;
 }
 
 .parameter-item {
