@@ -678,63 +678,158 @@
                 return;
             }
 
-            // Group columns by type for better organization
-            const columnGroups = {
-                'Flow Controllers': columns.filter(col => col.includes('fc')),
-                'QT Pressures Indicators': columns.filter(col => col.includes('pt')),
-                'Temperature Indicators': columns.filter(col => col.includes('ti')),
-                'Level Indicators': columns.filter(col => col.includes('lit')),
-                'Purity Meter': columns.filter(col => col.includes('ait')),
-                'Flow Meters': columns.filter(col => col.includes('flow')),
-                'Fridge Section Pressures': columns.filter(col => col.includes('pressure')),
-                'Target Stick Temperature': columns.filter(col => col.includes('target_stick')),
-                'Fridge Temperature': columns.filter(col => col.includes('fridge')),
-                'Magnet Temperature': columns.filter(col => col.includes('magnet')),
-                'MaxiGauge': columns.filter(col => col.includes('maxigauge')),
-                'Thermocouple': columns.filter(col => col.includes('thermocouple')),
-                'IVC': columns.filter(col => col.includes('ivc')),
+            // Define the nested dropdown structure according to the new schema
+            const nestedStructure = {
+                'QT': {
+                    'Pressures': columns.filter(col => col.includes('pt')),
+                    'Flows': columns.filter(col => col.includes('fc')),
+                    'Temperatures': columns.filter(col => col.includes('ti')),
+                    'Level Indicators': columns.filter(col => col.includes('li')),
+                    'Purity Meter': columns.filter(col => col.includes('ait'))
+                },
+                'Pressures': columns.filter(col => 
+                    !col.includes('pt') && 
+                    (col.includes('pressure') || col.includes('maxigauge') || col.includes('ivc'))
+                ),
+                'Temperatures': columns.filter(col => 
+                    !col.includes('ti') && 
+                    (col.includes('temperature') || col.includes('fridge') || col.includes('magnet') || col.includes('purifier') || col.includes('target_stick'))
+                ),
+                'Flows': columns.filter(col => 
+                    !col.includes('fc') && 
+                    col.includes('flow')
+                )
             };
 
-            // Create sections for each group
-            Object.entries(columnGroups).forEach(([groupName, groupColumns]) => {
-                console.log(`Processing group "${groupName}" with ${groupColumns.length} columns:`, groupColumns);
-                
-                if (groupColumns.length === 0) {
-                    console.log(`Skipping group "${groupName}" - no columns found`);
-                    return;
-                }
+            // Create nested dropdown structure
+            Object.entries(nestedStructure).forEach(([mainCategory, subCategories]) => {
+                const mainSection = document.createElement('div');
+                mainSection.className = 'data-section main-category';
+                mainSection.id = mainCategory.toLowerCase().replace(/\s+/g, '-');
 
-                console.log(`Creating section for "${groupName}"`);
-                const sectionId = groupName.toLowerCase().replace(/\s+/g, '-');
-                const section = document.createElement('div');
-                section.className = 'data-section';
-                section.id = sectionId;
-
-                const header = document.createElement('div');
-                header.className = 'section-header';
-                header.onclick = () => toggleSection(sectionId);
-                header.innerHTML = `
+                const mainHeader = document.createElement('div');
+                mainHeader.className = 'section-header main-header';
+                mainHeader.onclick = () => toggleMainSection(mainSection.id);
+                mainHeader.innerHTML = `
                     <i class="fas fa-chevron-right"></i>
-                    <span>${groupName}</span>
-                    <span class="section-count">${groupColumns.length}</span>
+                    <span>${mainCategory}</span>
+                    <span class="section-count">${getTotalColumnCount(subCategories)}</span>
                 `;
 
-                const content = document.createElement('div');
-                content.className = 'section-content';
+                const mainContent = document.createElement('div');
+                mainContent.className = 'section-content main-content';
 
-                groupColumns.forEach(columnName => {
-                    const parameterItem = document.createElement('div');
-                    parameterItem.className = 'parameter-item';
-                    parameterItem.dataset.key = columnName;
-                    parameterItem.onclick = () => toggleParameter(parameterItem);
-                    parameterItem.textContent = columnName;
-                    content.appendChild(parameterItem);
-                });
+                if (mainCategory === 'QT') {
+                    // QT has subcategories
+                    Object.entries(subCategories).forEach(([subCategory, subItems]) => {
+                        if (subItems.length > 0) {
+                            const subSection = createSubSection(subCategory, subItems);
+                            mainContent.appendChild(subSection);
+                        }
+                    });
+                } else {
+                    // Other main categories are direct arrays
+                    if (subCategories.length > 0) {
+                        subCategories.forEach(columnName => {
+                            const parameterItem = document.createElement('div');
+                            parameterItem.className = 'parameter-item';
+                            parameterItem.dataset.key = columnName;
+                            parameterItem.onclick = () => toggleParameter(parameterItem);
+                            parameterItem.textContent = columnName;
+                            mainContent.appendChild(parameterItem);
+                        });
+                    }
+                }
 
-                section.appendChild(header);
-                section.appendChild(content);
-                sidebar.appendChild(section);
+                mainSection.appendChild(mainHeader);
+                mainSection.appendChild(mainContent);
+                sidebar.appendChild(mainSection);
             });
+        }
+
+        // Helper function to create a sub-section
+        function createSubSection(categoryName, columns) {
+            const subSection = document.createElement('div');
+            subSection.className = 'data-section sub-section';
+            subSection.id = categoryName.toLowerCase().replace(/\s+/g, '-');
+
+            const subHeader = document.createElement('div');
+            subHeader.className = 'section-header sub-header';
+            subHeader.onclick = () => toggleSubSection(subSection.id);
+            subHeader.innerHTML = `
+                <i class="fas fa-chevron-right"></i>
+                <span>${categoryName}</span>
+                <span class="section-count">${columns.length}</span>
+            `;
+
+            const subContent = document.createElement('div');
+            subContent.className = 'section-content sub-content';
+
+            columns.forEach(columnName => {
+                const parameterItem = document.createElement('div');
+                parameterItem.className = 'parameter-item';
+                parameterItem.dataset.key = columnName;
+                parameterItem.onclick = () => toggleParameter(parameterItem);
+                parameterItem.textContent = columnName;
+                subContent.appendChild(parameterItem);
+            });
+
+            subSection.appendChild(subHeader);
+            subSection.appendChild(subContent);
+            return subSection;
+        }
+
+        // Helper function to get total column count from nested structure
+        function getTotalColumnCount(items) {
+            if (Array.isArray(items)) {
+                return items.length;
+            } else {
+                let total = 0;
+                Object.values(items).forEach(item => {
+                    if (Array.isArray(item)) {
+                        total += item.length;
+                    } else {
+                        total += getTotalColumnCount(item);
+                    }
+                });
+                return total;
+            }
+        }
+
+        // Function to toggle main section
+        function toggleMainSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const header = section.querySelector('.main-header');
+            const content = section.querySelector('.main-content');
+            const icon = header.querySelector('i');
+
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                icon.className = 'fas fa-chevron-down';
+                section.classList.add('expanded');
+            } else {
+                content.style.display = 'none';
+                icon.className = 'fas fa-chevron-right';
+                section.classList.remove('expanded');
+            }
+        }
+
+        // Function to toggle sub section
+        function toggleSubSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const header = section.querySelector('.sub-header');
+            const content = section.querySelector('.sub-content');
+            const icon = header.querySelector('i');
+
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                icon.className = 'fas fa-chevron-down';
+                section.classList.add('expanded');
+            } else {
+                content.style.display = 'none';
+                icon.className = 'fas fa-chevron-right';
+                section.classList.remove('expanded');
+            }
         }
 
         // Initialize on page load

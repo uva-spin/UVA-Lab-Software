@@ -655,6 +655,115 @@ body {
     background: var(--accent-secondary);
 }
 
+/* Nested Dropdown Styles */
+.main-category {
+    border: 2px solid var(--accent-primary);
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-md);
+}
+
+.main-header {
+    background: var(--accent-primary);
+    color: white;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.main-header:hover {
+    background: var(--accent-secondary);
+}
+
+.main-content {
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+}
+
+.sub-category {
+    border: 1px solid var(--border-hover);
+    margin: 0.5rem 0;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.sub-header {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0.875rem 1.25rem;
+}
+
+.sub-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.sub-content {
+    padding: 0.5rem;
+    background: var(--bg-tertiary);
+}
+
+.sub-section {
+    border: 1px solid var(--border-color);
+    margin: 0.25rem 0;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.sub-section .section-header {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.75rem 1.25rem;
+}
+
+.sub-section .section-header:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.sub-section .section-content {
+    padding: 0.25rem;
+    background: var(--bg-primary);
+}
+
+/* Indentation for nested levels */
+.sub-content {
+    padding-left: 1rem;
+}
+
+/* Section expansion states */
+.data-section.expanded .section-header i {
+    transform: rotate(90deg);
+}
+
+.main-category.expanded .main-header i {
+    transform: rotate(90deg);
+}
+
+.sub-category.expanded .sub-header i {
+    transform: rotate(90deg);
+}
+
+/* Parameter item styling for nested levels */
+.sub-section .parameter-item {
+    padding: 0.625rem 1rem;
+    font-size: 0.85rem;
+    margin: 0.125rem 0;
+    border-radius: 6px;
+    border: 1px solid transparent;
+}
+
+.sub-section .parameter-item:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-secondary);
+}
+
+.sub-section .parameter-item.selected {
+    border-color: var(--accent-secondary);
+    background: var(--accent-primary);
+}
+
 /* Animations */
 @keyframes pulse {
     0%, 100% { transform: scale(1); }
