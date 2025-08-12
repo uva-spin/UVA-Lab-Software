@@ -26,9 +26,8 @@
         let selectedKeys = [];
         let isDarkMode = false;
         let availableColumns = [];
+        let columnsByTable = {};
         let plotInstance = null;
-
-        // Utils object for common functions
         const Utils = {
             showToast: function(message, type = 'info') {
                 const toast = document.createElement('div');
@@ -491,7 +490,9 @@
                 
                 const result = await response.json();
                 console.log('Available columns response:', result);
-                
+                // Store table->columns map for NMR section
+                columnsByTable = result.tables || {};
+        
                 if (result.columns && result.columns.length > 0) {
                     return result.columns;
                 } else {
@@ -716,12 +717,15 @@
                 return;
             }
 
-            // Define the nested dropdown structure according to the new schema
             const nestedStructure = {
                 'QT': {
                     'Pressures': columns.filter(col => col.includes('pt')),
                     'Flows': columns.filter(col => col.includes('fc')),
-                    'Temperatures': columns.filter(col => col.includes('ti')),
+                    // Exclude non-QT temperature-like fields
+                    'Temperatures': columns.filter(col => {
+                        const EXCLUDE_QT_TI = ['calibration_constant', 'polarization_std', 'polarization'];
+                        return col.includes('ti') && !col.includes('target_stick') && !EXCLUDE_QT_TI.includes(col);
+                    }),
                     'Level Indicators': columns.filter(col => col.includes('li')),
                     'Purity Meter': columns.filter(col => col.includes('ait'))
                 },
@@ -736,7 +740,9 @@
                 'Flows': columns.filter(col => 
                     !col.includes('fc') && 
                     col.includes('flow')
-                )
+                ),
+                // New NMR main section (no sub-groups)
+                'NMR': (columnsByTable['NMR'] || [])
             };
 
             // Create nested dropdown structure
