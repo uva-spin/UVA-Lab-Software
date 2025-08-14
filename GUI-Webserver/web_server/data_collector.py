@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-import sqlite3
-import json
+import aiomysql
 import time
 import threading
 import os
@@ -8,12 +7,11 @@ import signal
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import requests
 from flask import Flask, request, jsonify, render_template
 import logging
 import pytz
 
-from config import DATABASE_PATH, DATABASE_NAME, DATABASE_DIR
+from config import DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -58,15 +56,25 @@ def convert_frontend_timestamp_to_db_format(timestamp_str):
         return timestamp_str
 
 class DataCollector:
-    def __init__(self, db_path=f"/var/www/spin/instance/flaskr.sqlite"):
-        self.db_path = db_path
-
-        print(f"Database path: {self.db_path}")
+    def __init__(self):
+        print(f"Database IP: {DATABASE_HOST}")
+        print(f"Database port: {DATABASE_PORT}")
+        print(f"Database user: {DATABASE_USER}")
+        print(f"Database password: {DATABASE_PASSWORD}")
+        print(f"Database name: {DATABASE_NAME}")
         self.setup_database()
         
     def setup_database(self):
         """Initialize the database with the schema-defined tables"""
-        conn = sqlite3.connect(self.db_path)
+        
+        conn = aiomysql.connect(
+            host=DATABASE_HOST,
+            port=DATABASE_PORT,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            db=DATABASE_NAME,
+            autocommit=True
+        )
         cursor = conn.cursor()
         
         try:
@@ -78,7 +86,7 @@ class DataCollector:
             
             conn.commit()
             logger.info("Database setup completed using schema.sql")
-        except sqlite3.OperationalError as e:
+        except aiomysql.OperationalError as e:
             if "already exists" in str(e):
                 logger.info("Tables already exist, skipping creation")
             else:
@@ -92,7 +100,14 @@ class DataCollector:
 
     def get_data_by_time_range(self, start_time=None, end_time=None, table_name=None):
         """Get data from specific table(s) within a time range"""
-        conn = sqlite3.connect(self.db_path)
+        conn = aiomysql.connect(
+            host=DATABASE_HOST,
+            port=DATABASE_PORT,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            db=DATABASE_NAME,
+            autocommit=True
+        )
         cursor = conn.cursor()
         
         try:
@@ -160,7 +175,14 @@ class DataCollector:
 
     def get_available_columns_by_table(self):
         """Get all available columns organized by table"""
-        conn = sqlite3.connect(self.db_path)
+        conn = aiomysql.connect(
+            host=DATABASE_HOST,
+            port=DATABASE_PORT,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            db=DATABASE_NAME,
+            autocommit=True
+        )
         cursor = conn.cursor()
         
         try:
@@ -255,8 +277,14 @@ def query_db():
         logger.info(f"Fetching data for keys: {keys}")
         logger.info(f"Time range (EST): {db_start_time} to {db_end_time}")
         
-        # Connect to database
-        conn = sqlite3.connect(collector.db_path)
+        conn = aiomysql.connect(
+            host=DATABASE_HOST,
+            port=DATABASE_PORT,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            db=DATABASE_NAME,
+            autocommit=True
+        )
         cursor = conn.cursor()
         
         all_data = {}
@@ -388,7 +416,14 @@ def get_available_columns():
 def get_db_status():
     """Check database status and available tables"""
     try:
-        conn = sqlite3.connect(collector.db_path)
+        conn = aiomysql.connect(
+            host=DATABASE_HOST,
+            port=DATABASE_PORT,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            db=DATABASE_NAME,
+            autocommit=True
+        )
         cursor = conn.cursor()
         
         # Get all tables, excluding system tables
@@ -434,7 +469,14 @@ def get_db_status():
 def test_db():
     """Test database connection and data availability"""
     try:
-        conn = sqlite3.connect(collector.db_path)
+        conn = aiomysql.connect(
+            host=DATABASE_HOST,
+            port=DATABASE_PORT,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            db=DATABASE_NAME,
+            autocommit=True
+        )
         cursor = conn.cursor()
         
         # Get all tables, excluding system tables

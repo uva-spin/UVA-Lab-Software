@@ -3,14 +3,9 @@
 Start script for the data collector
 """
 
-import os
-import sys
-import subprocess
-import time
-import signal
 import logging
 
-from config import DATABASE_PATH, DATABASE_NAME, DATABASE_DIR
+from config import DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
 
 
 
@@ -18,34 +13,15 @@ from config import DATABASE_PATH, DATABASE_NAME, DATABASE_DIR
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def check_dependencies():
-    """Check if required dependencies are installed"""
-    try:
-        import flask
-        import sqlite3
-        import requests
-        logger.info("✓ All required dependencies are available")
-        return True
-    except ImportError as e:
-        logger.error(f"✗ Missing dependency: {e}")
-        logger.error("Please install required packages: pip install flask requests")
-        return False
-
-def check_database_directory():
-    """Ensure the database directory exists"""
-    db_dir = f"{DATABASE_DIR}"
-    if not os.path.exists(db_dir):
-        os.makedirs(db_dir)
-        logger.info(f"Created database directory: {db_dir}")
-    else:
-        logger.info(f"Database directory exists: {db_dir}")
 
 def start_data_collector():
     """Start the data collector Flask application"""
-    if not check_dependencies():
-        return False
-    
-    check_database_directory()
+
+    logger.info(f"Database IP: {DATABASE_HOST}")
+    logger.info(f"Database port: {DATABASE_PORT}")
+    logger.info(f"Database user: {DATABASE_USER}")
+    logger.info(f"Database password: {DATABASE_PASSWORD}")
+    logger.info(f"Database name: {DATABASE_NAME}")
     
     logger.info("🚀 Starting Data Collector...")
     logger.info("=" * 60)
