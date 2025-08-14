@@ -238,12 +238,14 @@ class LabJackReader_2:
     def __init__(self, check_interval=1):
         self.check_interval = check_interval
         self.last_position = 0
-        self.data_queue = [None, None, None, None, None, None]
+        self.data_queue = [None, None, None, None]
         self.running = False
         self.thread = None
         self.device = None
         self.avg_Flow_Meter_1 = None
         self.avg_Flow_Meter_2 = None
+        self.avg_magnet_bottom_temperature = None
+        self.avg_magnet_top_temperature = None
 
     def start(self):
         """Start the labjack data reading thread"""
@@ -304,6 +306,8 @@ class LabJackReader_2:
 
             Flow_Meter_1 = np.zeros(MAX_REQUESTS)
             Flow_Meter_2 = np.zeros(MAX_REQUESTS)
+            Magnet_Bottom_Temperature = np.zeros(MAX_REQUESTS)
+            Magnet_Top_Temperature = np.zeros(MAX_REQUESTS)
             dataCount = 0
 
             # Read data from AIN1 and AIN2
@@ -326,6 +330,19 @@ class LabJackReader_2:
                     else:
                         logger.warning(f"No data for Flow Meter 2 at {datetime.now()}")
 
+                    vOut_Magnet_Bottom_Temperature = ljm.eReadName(self.device, "AIN4")
+                    if self._check_data(vOut_Magnet_Bottom_Temperature):
+                        Magnet_Bottom_Temperature[i] = vOut_Magnet_Bottom_Temperature
+                    else:
+                        logger.warning(f"No data for Magnet Bottom Temperature at {datetime.now()}")
+
+                    vOut_Magnet_Top_Temperature = ljm.eReadName(self.device, "AIN5")
+                    if self._check_data(vOut_Magnet_Top_Temperature):
+                        Magnet_Top_Temperature[i] = vOut_Magnet_Top_Temperature
+                    else:
+                        logger.warning(f"No data for Magnet Top Temperature at {datetime.now()}")
+                        
+
                     dataCount += 1
                     
                     # Small delay between readings
@@ -338,8 +355,12 @@ class LabJackReader_2:
             if dataCount > 0:
                 self.avg_Microwave_Flow_Meter = np.average(Flow_Meter_1[:dataCount])
                 self.avg_Heat_Exchanger_Flow_Meter = np.average(Flow_Meter_2[:dataCount])
+                self.avg_Magnet_Bottom_Temperature = np.average(Magnet_Bottom_Temperature[:dataCount])
+                self.avg_Magnet_Top_Temperature = np.average(Magnet_Top_Temperature[:dataCount])
                 self.data_queue[0] = self.avg_Microwave_Flow_Meter - 10.650 # slm 
                 self.data_queue[1] = self.avg_Heat_Exchanger_Flow_Meter # slm
+                self.data_queue[2] = self.avg_Magnet_Bottom_Temperature # C
+                self.data_queue[3] = self.avg_Magnet_Top_Temperature # C
                 logger.info(f"Flow Meter 1 average: {self.avg_Flow_Meter_1}")
                 logger.info(f"Flow Meter 2 average: {self.avg_Flow_Meter_2}")
         except Exception as e:
@@ -361,7 +382,7 @@ class LabJackReader_2:
     def get_latest_data(self):
         """Get the latest data from the data queue"""
         try:
-            return [self.data_queue[0], self.data_queue[1]]
+            return [self.data_queue[0], self.data_queue[1], self.data_queue[2], self.data_queue[3]]
         except Exception as e:
             logger.error(f"Error getting latest labjack data: {e}")
-            return [None] * 2
+            return [None] * 4

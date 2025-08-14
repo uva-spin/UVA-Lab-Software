@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS Labjack (
   purifier_inlet_pressure FLOAT,
   fridge_vapor_pressure FLOAT,
   thermocouple FLOAT,
+  magnet_bottom_temperature FLOAT,
+  magnet_top_temperature FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -37,8 +39,8 @@ CREATE TABLE IF NOT EXISTS Flow_Rates (
   seperator_flow FLOAT,
   magnet_flow FLOAT,
   main_flow FLOAT,
-  microwave_flow_meter FLOAT,
-  heat_exchanger_flow_meter FLOAT,
+  microwave_flow FLOAT,
+  heat_exchanger_flow FLOAT,
   "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
 );
 

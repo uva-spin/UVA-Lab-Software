@@ -11,19 +11,16 @@ Usage:
     python standalone_data_acquisition.py --verbose --terminal-log  # Verbose mode with terminal output
 """
 
-from pyModbusTCP.client import ModbusClient
-import struct
-import time
-import csv
-import json
 import logging
 from datetime import datetime, timezone
 import os
-import threading
-import sqlite3
 import argparse
 import sys
 import pytz
+import asyncio
+import aiomysql
+import signal
+from concurrent.futures import ThreadPoolExecutor
 
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader_1, LabJackReader_2
@@ -38,19 +35,45 @@ args = None
 # Configure timezone
 EST = pytz.timezone('America/New_York')
 
-def get_current_est_time():
+# Thread pool executor for blocking operations
+executor = ThreadPoolExecutor(max_workers=10)
+
+# Global shutdown flag
+shutdown_event = asyncio.Event()
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully"""
+    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+    shutdown_event.set()
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+async def get_database_connection():
+    """Get a database connection to MariaDB"""
+    return await aiomysql.connect(
+        host=DATABASE_HOST,
+        port=DATABASE_PORT,
+        user=DATABASE_USER,
+        password=DATABASE_PASSWORD,
+        db=DATABASE_NAME,
+        autocommit=True
+    )
+
+async def get_current_est_time():
     """Get current time in EST timezone"""
     now = datetime.now(EST)
     return now.strftime('%Y-%m-%d %H:%M:%S')
 
-def utc_to_est_str(utc_dt):
+async def utc_to_est_str(utc_dt):
     """Convert UTC datetime to EST string format"""
     if utc_dt.tzinfo is None:
         utc_dt = utc_dt.replace(tzinfo=timezone.utc)
     est_dt = utc_dt.astimezone(EST)
     return est_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-def print_status_header():
+async def print_status_header():
     """Print a beautiful status header for the data acquisition system"""
     print("\n" + "="*80)
     print("🚀 UVA Lab Data Acquisition System")
@@ -65,10 +88,10 @@ def print_status_header():
     print("="*80)
     print("💾 Data is being saved to database")
     print("📝 Logs are being written to data_acquisition.log")
-    print("⏰ Started at:", get_current_est_time())
+    print("⏰ Started at:", await get_current_est_time())
     print("="*80 + "\n")
 
-def print_status_update(iteration, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status):
+async def print_status_update(iteration, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status):
     """Print a beautiful status update"""
     status_symbols = {
         'success': '✅',
@@ -77,6 +100,7 @@ def print_status_update(iteration, QT_status, teledyne_status, labjack_1_status,
         'none': '⏸️'
     }
     
+    current_time = await get_current_est_time()
     print(f"\r🔄 {iteration:4d} | "
           f"QT:{status_symbols.get(QT_status, '❓')} | "
           f"TDY:{status_symbols.get(teledyne_status, '❓')} | "
@@ -87,9 +111,9 @@ def print_status_update(iteration, QT_status, teledyne_status, labjack_1_status,
           f"LS-MT:{status_symbols.get(lakeshore_magnet_temp_status, '❓')} | "
           f"MG:{status_symbols.get(maxigauge_status, '❓')} | "
           f"IVC:{status_symbols.get(ivc_status, '❓')} | "
-          f"{get_current_est_time()}", end='', flush=True)
+          f"{current_time}", end='', flush=True)
 
-def setup_logging(verbose=False, terminal_output=False):
+async def setup_logging(verbose=False, terminal_output=False):
     """Setup logging configuration"""
     # Create logs directory if it doesn't exist
     os.makedirs('logs', exist_ok=True)
@@ -105,30 +129,25 @@ def setup_logging(verbose=False, terminal_output=False):
         '%(asctime)s - %(levelname)s - %(message)s'
     )
     
-    # Create handlers
     handlers = []
     
-    # File handler for all logs
     file_handler = logging.FileHandler('logs/data_acquisition.log')
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(file_formatter)
     handlers.append(file_handler)
     
-    # Debug file handler if verbose
     if verbose:
         debug_handler = logging.FileHandler('logs/data_acquisition_debug.log')
         debug_handler.setLevel(logging.DEBUG)
         debug_handler.setFormatter(file_formatter)
         handlers.append(debug_handler)
     
-    # Console handler if terminal output requested
     if terminal_output:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(log_level)
         console_handler.setFormatter(console_formatter)
         handlers.append(console_handler)
     
-    # Configure root logger
     logging.basicConfig(
         level=logging.DEBUG,  # Set to lowest level to capture all
         handlers=handlers,
@@ -138,30 +157,7 @@ def setup_logging(verbose=False, terminal_output=False):
 setup_logging(verbose=False, terminal_output=False)
 logger = logging.getLogger(__name__)
 
-# Import configuration
-try:
-    from config import *
-except ImportError:
-    print("No config.py file found, using default configuration")
-    # Default configuration if config.py doesn't exist
-    DATABASE_PATH = f"{DATABASE_DIR}/{DATABASE_NAME}"
-    LOCAL_CSV_DIR = "data_logs"
-    SLEEP_INTERVAL = 5
-    MAX_CONSECUTIVE_FAILURES = 10
-    PLC_IP = "172.29.36.195"
-    UNIT_ID = 2
-    INT_PORT = 503
-    FLOAT_PORT = 502
-    NUM_REG_TO_READ = 36
-
-    LOG_LEVEL = "INFO"
-    LOG_FILE = "data_acquisition.log"
-    TWIST_PATH = "//twist.phys.virginia.edu/www/spin"  
-    DATABASE_DIR = f"{TWIST_PATH}/instance"
-    TELEDYNE_CHECK_INTERVAL = 10  # Check for new data every 10 seconds
-    LABJACK_CHECK_INTERVAL = 1  # Check for new data every 1 second
-    LAKESHORE_CHECK_INTERVAL = 1  # Check for new data every 1 second
-    MAXIGAUGE_CHECK_INTERVAL = 1  # Check for new data every 1 second
+from config import *
 
 # Define the labels for the float values
 labels = [
@@ -204,415 +200,355 @@ ivc_reader = None
 # Global QT reader instance
 qt_reader = None
 
-def ensure_database_directory():
-    """Ensure the database directory exists"""
-    db_dir = os.path.dirname(DATABASE_PATH)
-    if not os.path.exists(db_dir):
-        os.makedirs(db_dir)
-        logger.info(f"Database directory created: {db_dir}")
+async def ensure_database_directory():
+    """Ensure the database directory exists (for local file storage, not needed for MariaDB)"""
+    # This function is no longer needed for MariaDB, but kept for compatibility
+    pass
 
-def setup_database():
-    """Initialize the database with the schema-defined tables"""
-    ensure_database_directory()
-    
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
+async def setup_database():
+    """Initialize the database connection and verify connectivity"""
     try:
-        # Use the schema.sql file to create tables
-        schema_path = "../database_utils/schema.sql"
-        with open(schema_path, 'r') as f:
-            schema_sql = f.read()
-            cursor.executescript(schema_sql)
-        
-        conn.commit()
-        logger.info("Database setup completed using schema.sql")
-    except sqlite3.OperationalError as e:
-        if "already exists" in str(e):
-            logger.info("Tables already exist, skipping creation")
-        else:
-            logger.error(f"Database setup error: {e}")
-            raise
-    except Exception as e:
-        logger.error(f"Unexpected error during database setup: {e}")
-        raise
-    finally:
-        conn.close()
 
-def _read_QT():
+        async with await get_database_connection() as conn:
+
+            async with conn.cursor() as cursor:
+                await cursor.execute("SELECT 1")
+                result = await cursor.fetchone()
+                if result and result[0] == 1:
+                    logger.info(f"Successfully connected to MariaDB at {DATABASE_HOST}:{DATABASE_PORT}")
+                    logger.info(f"Database: {DATABASE_NAME}")
+                else:
+                    raise Exception("Database connectivity test failed")
+            
+
+            logger.info("Database setup completed - connectivity verified")
+            
+    except Exception as e:
+        logger.error(f"Database setup error: {e}")
+        logger.error("Please check your MariaDB connection parameters:")
+        logger.error(f"  Host: {DATABASE_HOST}")
+        logger.error(f"  Port: {DATABASE_PORT}")
+        logger.error(f"  User: {DATABASE_USER}")
+        logger.error(f"  Database: {DATABASE_NAME}")
+        raise
+
+async def _read_QT():
     """Read data from QT TCP server using QTReader class"""
     global qt_reader
     
     if qt_reader is None:
         logger.error("QT reader not initialized")
         return None
-        
-    return qt_reader.read_qt_data()
+    
+    # Run blocking QT read operation in thread pool
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, qt_reader.read_qt_data)
 
-def read_teledyne_data():
+async def read_teledyne_data():
     """Read latest teledyne flow data"""
     global teledyne_reader
     
-    # if teledyne_reader is None:
-    #     return [None] * 3  # Return None for 3 flow values
-        
-    return teledyne_reader.get_latest_data()
+    if teledyne_reader is None:
+        return [None] * 3  # Return None for 3 flow values
+    
+    # Run blocking teledyne read operation in thread pool
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, teledyne_reader.get_latest_data)
 
-def read_labjack_data():
+async def read_labjack_data_1():
     """Read latest labjack pressure data"""
     global labjack_reader_1
     
     if labjack_reader_1 is None:
-        return [None] * 6  # Return None for 4 pressure values
-        
-    return labjack_reader_1.get_latest_data()
+        return [None] * 6  # Return None for 6 pressure values
+    
+    # Run blocking labjack read operation in thread pool
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, labjack_reader_1.get_latest_data)
 
-def read_labjack_data_2():
+async def read_labjack_data_2():
     """Read latest labjack pressure data"""
     global labjack_reader_2
 
     if labjack_reader_2 is None:
-        return [None] * 2  # Return None for 2 pressure values
-        
-    return labjack_reader_2.get_latest_data()
+        return [None] * 4  # Return None for 4 pressure values
+    
+    # Run blocking labjack read operation in thread pool
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, labjack_reader_2.get_latest_data)
 
-def read_lakeshore_data_target_stick():
+async def read_lakeshore_data_target_stick():
     """Read latest lakeshore data from target stick"""
     global lakeshore_reader_target_stick
 
     if lakeshore_reader_target_stick is None:
         return [None] * 8  # Return None for 8 lakeshore values
-        
     
-    return lakeshore_reader_target_stick.get_latest_data()
+    # Run blocking lakeshore read operation in thread pool
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, lakeshore_reader_target_stick.get_latest_data)
 
-def read_lakeshore_data_fridge_temp():
+async def read_lakeshore_data_fridge_temp():
     """Read latest lakeshore data from fridge temperature"""
     global lakeshore_reader_fridge_temp
 
     if lakeshore_reader_fridge_temp is None:
         return [None] * 8  # Return None for 8 lakeshore values
     
-    return lakeshore_reader_fridge_temp.get_latest_data()
+    # Run blocking lakeshore read operation in thread pool
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, lakeshore_reader_fridge_temp.get_latest_data)
 
-def read_lakeshore_data_magnet_temp():
+async def read_lakeshore_data_magnet_temp():
     """Read latest lakeshore data from magnet temperature"""
     global lakeshore_reader_magnet_temp
 
     if lakeshore_reader_magnet_temp is None:
         return [None] * 8  # Return None for 8 lakeshore values
     
-    return lakeshore_reader_magnet_temp.get_latest_data()
+    # Run blocking lakeshore read operation in thread pool
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, lakeshore_reader_magnet_temp.get_latest_data)
 
-def read_maxigauge_data():
+async def read_maxigauge_data():
     """Read latest maxigauge data"""
     global maxigauge_reader
 
     if maxigauge_reader is None:
         return [None] * 6  # Return None for 6 maxigauge values
     
-    return maxigauge_reader.get_latest_data()
+    # Run blocking maxigauge read operation in thread pool
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, maxigauge_reader.get_latest_data)
 
-def read_ivc_data():
+async def read_ivc_data():
     """Read latest IVC data"""
     global ivc_reader
 
     if ivc_reader is None:
         return None  # Return None for IVC value when reader is not available
     
-    data = ivc_reader.get_latest_data()
+    # Run blocking IVC read operation in thread pool
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(executor, ivc_reader.get_latest_data)
     if data is not None and isinstance(data, (int, float)):
         return data
     else:
         return None
 
-def insert_QT_data(data):
+async def insert_QT_data(data):
     """Insert QT data into the QT table"""
     if len(data) != 18:
         logger.error(f"Expected 18 QT values, got {len(data)}")
         return False
         
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-
-    fc501_ai = data[0]
-    fc501_out = data[1]
-    fc502_ai = data[2]
-    fc502_out = data[3]
-    lit501_ai = data[4]
-    pt501_ai = data[5]
-    pt502_ai = data[6]
-    pt503_ai = data[7]
-    pt504_ai = data[8]
-    ait501_ai = data[11]
-    ti501_ai = data[12]
-    ti502_ai = data[13]
-    ti503_ai = data[14]
-    ti504_ai = data[15]
-    ti505_ai = data[16]
-    ti523_ai = data[17]
-
-    # Exclue pruity upstream and downstream
-    
     try:
-        cursor.execute('''
-            INSERT INTO QT (
-                fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                pt501_ai, pt502_ai, pt503_ai, pt504_ai,
-                ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                ti504_ai, ti505_ai, ti523_ai, "Timestamp"
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai, get_current_est_time()))
-        
-        conn.commit()
-        logger.debug(f"Inserted QT data: {data[:3]}...")
-        return True
+        async with await get_database_connection() as conn:
+            fc501_ai = data[0]
+            fc501_out = data[1]
+            fc502_ai = data[2]
+            fc502_out = data[3]
+            lit501_ai = data[4]
+            pt501_ai = data[5]
+            pt502_ai = data[6]
+            pt503_ai = data[7]
+            pt504_ai = data[8]
+            ait501_ai = data[11]
+            ti501_ai = data[12]
+            ti502_ai = data[13]
+            ti503_ai = data[14]
+            ti504_ai = data[15]
+            ti505_ai = data[16]
+            ti523_ai = data[17]
+
+            
+            await conn.execute('''
+                INSERT INTO QT (
+                    fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                    pt501_ai, pt502_ai, pt503_ai, pt504_ai,
+                    ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                    ti504_ai, ti505_ai, ti523_ai, "Timestamp"
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai, await get_current_est_time()))
+            
+            await conn.commit()
+            logger.debug(f"Inserted QT data: {data[:3]}...")
+            return True
     except Exception as e:
         logger.error(f"Error inserting QT data: {e}")
         return False
-    finally:
-        conn.close()
 
-def insert_teledyne_data(flow_data):
+async def insert_teledyne_data(flow_data):
     """Insert Teledyne data into the flow_rates table"""
-        
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute('''
-            INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, "Timestamp") 
-            VALUES (?, ?, ?, ?)
-        ''', flow_data + [get_current_est_time()])
-        
-        conn.commit()
-        logger.debug(f"Inserted Teledyne data: {flow_data}")
-        return True
+        async with await get_database_connection() as conn:
+            await conn.execute('''
+                INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, "Timestamp") 
+                VALUES (%s, %s, %s, %s)
+            ''', flow_data + [await get_current_est_time()])
+            
+            await conn.commit()
+            logger.debug(f"Inserted Teledyne data: {flow_data}")
+            return True
     except Exception as e:
         logger.error(f"Error inserting Teledyne data: {e}")
         return False
-    finally:
-        conn.close()
 
-def insert_flow_data_combined(teledyne_data=None, labjack_2_data=None):
-    """
-    Insert flow data from both Teledyne and LabJack 2 sources into the Flow_Rates table.
-    This function handles the coordination between the two data sources.
-    
-    Args:
-        teledyne_data (list): [seperator_flow, magnet_flow, main_flow] or None
-        labjack_2_data (list): [flow_meter_1, flow_meter_2] or None
-    
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
-    try:
-        # Prepare the data for insertion
-        seperator_flow = teledyne_data[0] 
-        magnet_flow = teledyne_data[1] 
-        main_flow = teledyne_data[2] 
-        flow_meter_1 = labjack_2_data[0] 
-        flow_meter_2 = labjack_2_data[1]
-        
-        cursor.execute('''
-            INSERT INTO Flow_Rates (
-                seperator_flow, magnet_flow, main_flow, 
-                microwave_flow_meter, heat_exchanger_flow_meter, "Timestamp"
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        ''', (seperator_flow, magnet_flow, main_flow, flow_meter_1, flow_meter_2, get_current_est_time()))
-        
-        conn.commit()
-        logger.debug(f"Inserted combined flow data - Teledyne: {teledyne_data}, LabJack2: {labjack_2_data}")
-        return True
-    except Exception as e:
-        logger.error(f"Error inserting combined flow data: {e}")
-        return False
-    finally:
-        conn.close()
-
-def insert_labjack_1_data(pressure_data):
+async def insert_labjack_1_data(pressure_data):
     """Insert LabJack data into the pressures table"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute('''
-            INSERT INTO Labjack (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple, "Timestamp") 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], pressure_data[5], get_current_est_time()))
-        
-        conn.commit()
-        logger.debug(f"Inserted LabJack data: {pressure_data}")
-        return True
+        async with await get_database_connection() as conn:
+            await conn.execute('''
+                INSERT INTO Labjack (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple, "Timestamp") 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], pressure_data[5], await get_current_est_time()))
+            
+            await conn.commit()
+            logger.debug(f"Inserted LabJack data: {pressure_data}")
+            return True
     except Exception as e:
         logger.error(f"Error inserting LabJack data: {e}")
         return False
-    finally:
-        conn.close()
 
-def insert_labjack_2_data(flow_data):
+async def insert_labjack_2_data(flow_data):
     """Insert LabJack 2 data into the Flow_Rates table"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
     try:
-        # Insert LabJack 2 flow meter data into the Flow_Rates table
-        # This will create a new row with flow_meter_1 and flow_meter_2 values
-        cursor.execute('''
-            INSERT INTO Flow_Rates (microwave_flow_meter, heat_exchanger_flow_meter, "Timestamp") 
-            VALUES (?, ?, ?)
-        ''', (flow_data[0], flow_data[1], get_current_est_time()))
-        
-        conn.commit()
-        logger.debug(f"Inserted LabJack 2 data into Flow_Rates: {flow_data}")
-        return True
+        async with await get_database_connection() as conn:
+            await conn.execute('''
+                INSERT INTO Flow_Rates (microwave_flow, heat_exchanger_flow) 
+                VALUES (%s, %s)
+            ''', (flow_data[0], flow_data[1]))
+
+            await conn.execute('''
+                INSERT INTO Labjack (magnet_bottom_temperature, magnet_top_temperature) 
+                VALUES (%s, %s)
+            ''', (flow_data[2], flow_data[3]))
+            
+            await conn.commit()
+            logger.debug(f"Inserted LabJack 2 data into Flow_Rates: {flow_data}")
+            return True
     except Exception as e:
         logger.error(f"Error inserting LabJack 2 data: {e}")
         return False
-    finally:
-        conn.close()
 
-def insert_lakeshore_data_target_stick(data):
+async def insert_lakeshore_data_target_stick(data):
     """Insert Lakeshore data into the lakeshore_target_stick table"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute('''
-            INSERT INTO Lakeshore_Target_Stick (
-                "target_stick_buffle_top_temperature",
-                "target_stick_buffle_bottom_temperature",
-                "target_stick_seperator_top_temperature",
-                "target_stick_seperator_bottom_temperature",
-                "target_stick_heat_exchanger_top_temperature",
-                "target_stick_heat_exchanger_bottom_temperature",
-                "target_stick_annealing_plate_bar_temperature",
-                "target_stick_annealing_plate_top_temperature",
-                "Timestamp"
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
-        
-        conn.commit()
-        logger.debug(f"Inserted Target Stick Lakeshore data: {data}")
-        return True
+        async with await get_database_connection() as conn:
+            await conn.execute('''
+                INSERT INTO Lakeshore_Target_Stick (
+                    "target_stick_buffle_top_temperature",
+                    "target_stick_buffle_bottom_temperature",
+                    "target_stick_seperator_top_temperature",
+                    "target_stick_seperator_bottom_temperature",
+                    "target_stick_heat_exchanger_top_temperature",
+                    "target_stick_heat_exchanger_bottom_temperature",
+                    "target_stick_annealing_plate_bar_temperature",
+                    "target_stick_annealing_plate_top_temperature",
+                    "Timestamp"
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], await get_current_est_time()))
+            
+            await conn.commit()
+            logger.debug(f"Inserted Target Stick Lakeshore data: {data}")
+            return True
     except Exception as e:
         logger.error(f"Error inserting Target Stick Lakeshore data: {e}")
         return False
-    finally:
-        conn.close()
 
-def insert_lakeshore_data_fridge_temp(data):
+async def insert_lakeshore_data_fridge_temp(data):
     """Insert Lakeshore data into the lakeshore_fridge_temp table"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute('''
-            INSERT INTO Lakeshore_Fridge_Temp (
-                "fridge_target_top_up_temperature",
-                "fridge_target_top_up_center_temperature",
-                "fridge_target_top_down_temperature",
-                "fridge_target_bottom_up_temperature",
-                "fridge_target_bottom_up_center_temperature",
-                "fridge_target_bottom_down_temperature",
-                "fridge_target_top_cernox_temperature",
-                "fridge_target_bottom_cernox_temperature",
-                "Timestamp"
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
+        async with await get_database_connection() as conn:
+            await conn.execute('''
+                INSERT INTO Lakeshore_Fridge_Temp (
+                    "fridge_target_top_up_temperature",
+                    "fridge_target_top_up_center_temperature",
+                    "fridge_target_top_down_temperature",
+                    "fridge_target_bottom_up_temperature",
+                    "fridge_target_bottom_up_center_temperature",
+                    "fridge_target_bottom_down_temperature",
+                    "fridge_target_top_cernox_temperature",
+                    "fridge_target_bottom_cernox_temperature",
+                    "Timestamp"
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], await get_current_est_time()))
 
-        conn.commit()
-        logger.debug(f"Inserted Fridge Lakeshore data: {data}")
-        return True
+            await conn.commit()
+            logger.debug(f"Inserted Fridge Lakeshore data: {data}")
+            return True
     except Exception as e:
         logger.error(f"Error inserting Fridge Lakeshore data: {e}")
         return False
-    finally:
-        conn.close()
 
-def insert_lakeshore_data_magnet_temp(data):
+async def insert_lakeshore_data_magnet_temp(data):
     """Insert Lakeshore data into the lakeshore_magnet_temp table"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute('''
-            INSERT INTO Lakeshore_Magnet_Temp (
-                "magnet_channel_1",
-                "magnet_channel_2",
-                "magnet_channel_3",
-                "magnet_channel_4",
-                "magnet_channel_5",
-                "magnet_channel_6",
-                "magnet_channel_7",
-                "magnet_channel_8",
-                "Timestamp"
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], get_current_est_time()))
-        
-        conn.commit()
-        logger.debug(f"Inserted Magnet Lakeshore data: {data}")
-        return True
+        async with await get_database_connection() as conn:
+            await conn.execute('''
+                INSERT INTO Lakeshore_Magnet_Temp (
+                    "magnet_channel_1",
+                    "magnet_channel_2",
+                    "magnet_channel_3",
+                    "magnet_channel_4",
+                    "magnet_channel_5",
+                    "magnet_channel_6",
+                    "magnet_channel_7",
+                    "magnet_channel_8",
+                    "Timestamp"
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], await get_current_est_time()))
+            
+            await conn.commit()
+            logger.debug(f"Inserted Magnet Lakeshore data: {data}")
+            return True
     except Exception as e:
         logger.error(f"Error inserting Magnet Lakeshore data: {e}")
         return False
-    finally:
-        conn.close()
 
-def insert_maxigauge_data(data):
+async def insert_maxigauge_data(data):
     """Insert MaxiGauge data into the maxigauge table"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute('''
-            INSERT INTO MaxiGauge (
-                "maxigauge_seperator_inlet_pressure",
-                "maxigauge_upper_roots_pressure",
-                "maxigauge_channel_3",
-                "maxigauge_channel_4",
-                "maxigauge_channel_5",
-                "maxigauge_channel_6",
-                "Timestamp"
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (data[0], data[1], data[2], data[3], data[4], data[5], get_current_est_time()))
+        async with await get_database_connection() as conn:
+            await conn.execute('''
+                INSERT INTO MaxiGauge (
+                    "maxigauge_seperator_inlet_pressure",
+                    "maxigauge_upper_roots_pressure",
+                    "maxigauge_channel_3",
+                    "maxigauge_channel_4",
+                    "maxigauge_channel_5",
+                    "maxigauge_channel_6",
+                    "Timestamp"
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ''', (data[0], data[1], data[2], data[3], data[4], data[5], await get_current_est_time()))
 
-        conn.commit()
-        logger.debug(f"Inserted MaxiGauge data: {data}")
-        return True
+            await conn.commit()
+            logger.debug(f"Inserted MaxiGauge data: {data}")
+            return True
     except Exception as e:
         logger.error(f"Error inserting MaxiGauge data: {e}")
         return False
-    finally:
-        conn.close()
 
-def insert_ivc_data(data):
+async def insert_ivc_data(data):
     """Insert IVC data into the ivc table"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute('''
-            INSERT INTO IVC (
-                "ivc_pressure",
-                "Timestamp"
-            ) VALUES (?, ?)
-        ''', (data, get_current_est_time()))
-        
-        conn.commit()
-        logger.debug(f"Inserted IVC data: {data}")
-        return True
+        async with await get_database_connection() as conn:
+            await conn.execute('''
+                INSERT INTO IVC (
+                    "ivc_pressure",
+                    "Timestamp"
+                ) VALUES (%s, %s)
+            ''', (data, await get_current_est_time()))
+            
+            await conn.commit()
+            logger.debug(f"Inserted IVC data: {data}")
+            return True
     except Exception as e:
         logger.error(f"Error inserting IVC data: {e}")
         return False
-    finally:
-        conn.close()
 
-def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
-    """Pipeline data directly to the database"""
+async def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
+    """Pipeline data directly to the database using concurrent operations"""
     # Initialize all statuses to 'none' - each data source is independent
     QT_status = 'none'
     teledyne_status = 'none'
@@ -624,20 +560,14 @@ def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2,
     maxigauge_status = 'none'
     ivc_status = 'none'
     
-    # Insert QT data
-    logger.debug("Attempting to insert QT data")
-    if QT_data is not None:
-        if insert_QT_data(QT_data):
-            QT_status = 'success'
-            logger.debug("Successfully inserted QT data")
-        else:
-            QT_status = 'error'
-            logger.error("Failed to insert QT data")
-    else:
-        logger.debug("No QT data available - QT connection may be down")
+    # Prepare database operations
+    db_operations = []
     
-    # Insert LabJack 1 data (pressure data)
-    logger.debug("Attempting to insert LabJack 1 data")
+    # Add QT data operation
+    if QT_data is not None:
+        db_operations.append(('QT', insert_QT_data(QT_data)))
+    
+    # Add LabJack 1 data operation
     if labjack_data_1 is not None and len(labjack_data_1) >= 6:
         root_exhaust_pressure = labjack_data_1[0]
         buffer_pressure = labjack_data_1[1]
@@ -646,108 +576,122 @@ def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2,
         fridge_vapor_pressure = labjack_data_1[4]
         thermocouple = labjack_data_1[5]
         logger.debug(f"LabJack 1 data: {labjack_data_1}")
-        if insert_labjack_1_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple]):
-            labjack_1_status = 'success'
-            logger.debug("Successfully inserted LabJack 1 data")
-        else:
-            labjack_1_status = 'error'
-            logger.error("Failed to insert LabJack 1 data")
-    else:
-        logger.debug("No LabJack 1 data available or insufficient data points")
-
-    # Handle Teledyne and LabJack 2 flow data separately for better status tracking
-    logger.debug("Attempting to insert Teledyne flow data")
+        db_operations.append(('LabJack_1', insert_labjack_1_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple])))
+    
+    # Add Teledyne data operation
     if teledyne_data is not None and any(v is not None for v in teledyne_data[:3]):
-        if insert_teledyne_data(teledyne_data):
-            teledyne_status = 'success'
-            logger.debug("Successfully inserted Teledyne data")
-        else:
-            teledyne_status = 'error'
-            logger.error("Failed to insert Teledyne data")
-    else:
-        logger.debug("No Teledyne data available")
-
-    logger.debug("Attempting to insert LabJack 2 flow data")
+        db_operations.append(('Teledyne', insert_teledyne_data(teledyne_data)))
+    
+    # Add LabJack 2 data operation
     if labjack_data_2 is not None and len(labjack_data_2) >= 2:
-        if insert_labjack_2_data(labjack_data_2):
-            labjack_2_status = 'success'
-            logger.debug("Successfully inserted LabJack 2 data")
-        else:
-            labjack_2_status = 'error'
-            logger.error("Failed to insert LabJack 2 data")
-    else:
-        logger.debug("No LabJack 2 data available")
-
-    # Insert Lakeshore Target Stick data
-    logger.debug("Attempting to insert Target Stick Data")
+        db_operations.append(('LabJack_2', insert_labjack_2_data(labjack_data_2)))
+    
+    # Add Lakeshore Target Stick data operation
     if lakeshore_data_target_stick is not None:
-        if insert_lakeshore_data_target_stick(lakeshore_data_target_stick):
-            lakeshore_target_stick_status = 'success'
-            logger.debug("Successfully inserted Target Stick data")
-        else:
-            lakeshore_target_stick_status = 'error'
-            logger.error("Failed to insert Target Stick Data")
-    else:
-        logger.debug("No Target Stick data available")
-
-    # Insert Lakeshore Fridge Temp data
-    logger.debug("Attempting to insert Fridge Temp Data")
+        db_operations.append(('Lakeshore_TS', insert_lakeshore_data_target_stick(lakeshore_data_target_stick)))
+    
+    # Add Lakeshore Fridge Temp data operation
     if lakeshore_data_fridge_temp is not None:
-        if insert_lakeshore_data_fridge_temp(lakeshore_data_fridge_temp):
-            lakeshore_fridge_temp_status = 'success'
-            logger.debug("Successfully inserted Fridge Temp data")
-        else:
-            lakeshore_fridge_temp_status = 'error'
-            logger.error("Failed to insert Fridge Temp Data")
-    else:
-        logger.debug("No Fridge Temp data available")
-
-    # Insert Lakeshore Magnet Temp data
-    logger.debug("Attempting to insert Magnet Temp Data")
+        db_operations.append(('Lakeshore_FT', insert_lakeshore_data_fridge_temp(lakeshore_data_fridge_temp)))
+    
+    # Add Lakeshore Magnet Temp data operation
     if lakeshore_data_magnet_temp is not None:
-        if insert_lakeshore_data_magnet_temp(lakeshore_data_magnet_temp):
-            lakeshore_magnet_temp_status = 'success'
-            logger.debug("Successfully inserted Magnet Temp data")
-        else:
+        db_operations.append(('Lakeshore_MT', insert_lakeshore_data_magnet_temp(lakeshore_data_magnet_temp)))
+    
+    # Add MaxiGauge data operation
+    if maxigauge_data is not None and isinstance(maxigauge_data, list) and len(maxigauge_data) == 6:
+        logger.debug(f"MaxiGauge data: {maxigauge_data}")
+        db_operations.append(('MaxiGauge', insert_maxigauge_data(maxigauge_data)))
+    
+    # Add IVC data operation
+    if ivc_data is not None and isinstance(ivc_data, (int, float)):
+        logger.debug(f"IVC data: {ivc_data}")
+        db_operations.append(('IVC', insert_ivc_data(ivc_data)))
+    
+    # Execute all database operations concurrently
+    if db_operations:
+        try:
+            # Run all operations concurrently
+            results = await asyncio.gather(*[op[1] for op in db_operations], return_exceptions=True)
+            
+            # Process results and update statuses
+            for i, (operation_name, _) in enumerate(db_operations):
+                result = results[i]
+                
+                if isinstance(result, Exception):
+                    logger.error(f"Error in {operation_name} operation: {result}")
+                    if operation_name == 'QT':
+                        QT_status = 'error'
+                    elif operation_name == 'Teledyne':
+                        teledyne_status = 'error'
+                    elif operation_name == 'LabJack_1':
+                        labjack_1_status = 'error'
+                    elif operation_name == 'LabJack_2':
+                        labjack_2_status = 'error'
+                    elif operation_name == 'Lakeshore_TS':
+                        lakeshore_target_stick_status = 'error'
+                    elif operation_name == 'Lakeshore_FT':
+                        lakeshore_fridge_temp_status = 'error'
+                    elif operation_name == 'Lakeshore_MT':
+                        lakeshore_magnet_temp_status = 'error'
+                    elif operation_name == 'MaxiGauge':
+                        maxigauge_status = 'error'
+                    elif operation_name == 'IVC':
+                        ivc_status = 'error'
+                elif result:
+                    logger.debug(f"Successfully inserted {operation_name} data")
+                    if operation_name == 'QT':
+                        QT_status = 'success'
+                    elif operation_name == 'Teledyne':
+                        teledyne_status = 'success'
+                    elif operation_name == 'LabJack_1':
+                        labjack_1_status = 'success'
+                    elif operation_name == 'LabJack_2':
+                        labjack_2_status = 'success'
+                    elif operation_name == 'Lakeshore_TS':
+                        lakeshore_target_stick_status = 'success'
+                    elif operation_name == 'Lakeshore_FT':
+                        lakeshore_fridge_temp_status = 'success'
+                    elif operation_name == 'Lakeshore_MT':
+                        lakeshore_magnet_temp_status = 'success'
+                    elif operation_name == 'MaxiGauge':
+                        maxigauge_status = 'success'
+                    elif operation_name == 'IVC':
+                        ivc_status = 'success'
+                else:
+                    logger.error(f"Failed to insert {operation_name} data")
+                    if operation_name == 'QT':
+                        QT_status = 'error'
+                    elif operation_name == 'Teledyne':
+                        teledyne_status = 'error'
+                    elif operation_name == 'LabJack_1':
+                        labjack_1_status = 'error'
+                    elif operation_name == 'LabJack_2':
+                        labjack_2_status = 'error'
+                    elif operation_name == 'Lakeshore_TS':
+                        lakeshore_target_stick_status = 'error'
+                    elif operation_name == 'Lakeshore_FT':
+                        lakeshore_fridge_temp_status = 'error'
+                    elif operation_name == 'Lakeshore_MT':
+                        lakeshore_magnet_temp_status = 'error'
+                    elif operation_name == 'MaxiGauge':
+                        maxigauge_status = 'error'
+                    elif operation_name == 'IVC':
+                        ivc_status = 'error'
+                        
+        except Exception as e:
+            logger.error(f"Error during concurrent database operations: {e}")
+            # Set all statuses to error if there's a general failure
+            QT_status = 'error'
+            teledyne_status = 'error'
+            labjack_1_status = 'error'
+            labjack_2_status = 'error'
+            lakeshore_target_stick_status = 'error'
+            lakeshore_fridge_temp_status = 'error'
             lakeshore_magnet_temp_status = 'error'
-            logger.error("Failed to insert Magnet Temp Data")
-    else:
-        logger.debug("No Magnet Temp data available")
-
-    # Insert MaxiGauge data
-    logger.debug("Attempting to insert MaxiGauge data")
-    if maxigauge_data is not None:
-        if isinstance(maxigauge_data, list) and len(maxigauge_data) == 6:
-            logger.debug(f"MaxiGauge data: {maxigauge_data}")
-            if insert_maxigauge_data(maxigauge_data):
-                maxigauge_status = 'success'
-                logger.debug("Successfully inserted MaxiGauge data")
-            else:
-                maxigauge_status = 'error'
-                logger.error("Failed to insert MaxiGauge data")
-        else:
             maxigauge_status = 'error'
-            logger.error(f"MaxiGauge data has invalid format - expected list of 6 values, got: {type(maxigauge_data)} with value: {maxigauge_data}")
-    else:
-        logger.debug("No MaxiGauge data available")
-
-    # Insert IVC data
-    logger.debug("Attempting to insert IVC data")
-    if ivc_data is not None:
-        if isinstance(ivc_data, (int, float)):
-            logger.debug(f"IVC data: {ivc_data}")
-            if insert_ivc_data(ivc_data):
-                ivc_status = 'success'
-                logger.debug("Successfully inserted IVC data")
-            else:
-                ivc_status = 'error'
-                logger.error("Failed to insert IVC data")
-        else:
             ivc_status = 'error'
-            logger.error(f"IVC data has invalid format - expected numeric value, got: {type(ivc_data)} with value: {ivc_data}")
-    else:
-        logger.debug("No IVC data available")
-
+    
     # Calculate overall success based on whether any data was successfully inserted
     successful_inserts = sum(1 for status in [QT_status, teledyne_status, labjack_1_status, labjack_2_status, 
                                              lakeshore_target_stick_status, lakeshore_fridge_temp_status, 
@@ -759,7 +703,7 @@ def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2,
     return overall_success, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status
 
 
-def main():
+async def main():
     """Main data acquisition loop"""
     global args
     parser = argparse.ArgumentParser(description='Data Acquisition System')
@@ -774,13 +718,15 @@ def main():
 
     # Print beautiful header if not in verbose mode
     if not args.verbose and not args.terminal_log:
-        print_status_header()
+        await print_status_header()
 
     logger.info("Starting Data Acquisition System with Direct Database Pipeline")
     if args.verbose:
         logger.info("VERBOSE: Verbose mode enabled")
-        logger.info(f"VERBOSE: Database path: {DATABASE_PATH}")
-        logger.info(f"VERBOSE: Sleep interval: {SLEEP_INTERVAL} seconds")
+        logger.info(f"VERBOSE: Database host: {DATABASE_HOST}")
+        logger.info(f"VERBOSE: Database port: {DATABASE_PORT}")
+        logger.info(f"VERBOSE: Database user: {DATABASE_USER}")
+        logger.info(f"VERBOSE: Database name: {DATABASE_NAME}")
         logger.info(f"VERBOSE: PLC IP: {PLC_IP}")
         logger.info(f"VERBOSE: Unit ID: {UNIT_ID}")
         logger.info(f"VERBOSE: Integer Port: {INT_PORT}")
@@ -792,7 +738,7 @@ def main():
     # Setup database
     logger.info("Setting up database")
     try:
-        setup_database()
+        await setup_database()
     except Exception as e:
         logger.error(f"Failed to setup database: {e}")
         return
@@ -873,38 +819,56 @@ def main():
     iteration = 0
     
     try:
-        while True:
+        while not shutdown_event.is_set():
             try:
                 iteration += 1
                 
-                # Read data from QT()
-                QT_data = _read_QT()
+                QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data = await asyncio.gather(
+                    _read_QT(),
+                    read_teledyne_data(),
+                    read_labjack_data_1(),
+                    read_labjack_data_2(),
+                    read_lakeshore_data_target_stick(),
+                    read_lakeshore_data_fridge_temp(),
+                    read_lakeshore_data_magnet_temp(),
+                    read_maxigauge_data(),
+                    read_ivc_data(),
+                    return_exceptions=True
+                )
+                
+                if isinstance(QT_data, Exception):
+                    logger.error(f"Error reading QT data: {QT_data}")
+                    QT_data = None
+                if isinstance(teledyne_data, Exception):
+                    logger.error(f"Error reading Teledyne data: {teledyne_data}")
+                    teledyne_data = None
+                if isinstance(labjack_data_1, Exception):
+                    logger.error(f"Error reading LabJack 1 data: {labjack_data_1}")
+                    labjack_data_1 = None
+                if isinstance(labjack_data_2, Exception):
+                    logger.error(f"Error reading LabJack 2 data: {labjack_data_2}")
+                    labjack_data_2 = None
+                if isinstance(lakeshore_data_target_stick, Exception):
+                    logger.error(f"Error reading Lakeshore Target Stick data: {lakeshore_data_target_stick}")
+                    lakeshore_data_target_stick = None
+                if isinstance(lakeshore_data_fridge_temp, Exception):
+                    logger.error(f"Error reading Lakeshore Fridge Temp data: {lakeshore_data_fridge_temp}")
+                    lakeshore_data_fridge_temp = None
+                if isinstance(lakeshore_data_magnet_temp, Exception):
+                    logger.error(f"Error reading Lakeshore Magnet Temp data: {lakeshore_data_magnet_temp}")
+                    lakeshore_data_magnet_temp = None
+                if isinstance(maxigauge_data, Exception):
+                    logger.error(f"Error reading MaxiGauge data: {maxigauge_data}")
+                    maxigauge_data = None
+                if isinstance(ivc_data, Exception):
+                    logger.error(f"Error reading IVC data: {ivc_data}")
+                    ivc_data = None
                 
                 if QT_data is None:
                     logger.warning(f"Failed to read QT data. Continuing with other data sources (Teledyne, LabJack, LakeShore, MaxiGauge, IVC)...")
                 
-                # Read teledyne data
-                teledyne_data = read_teledyne_data()
-
-                # Read labjack data
-                labjack_data_1 = read_labjack_data()
-                labjack_data_2 = read_labjack_data_2()
-                
-                # Read lakeshore data
-                lakeshore_data_target_stick = read_lakeshore_data_target_stick()
-                
-                lakeshore_data_fridge_temp = read_lakeshore_data_fridge_temp()
-                
-                lakeshore_data_magnet_temp = read_lakeshore_data_magnet_temp()
-                
-                # Read maxigauge data
-                maxigauge_data = read_maxigauge_data()
-
-                # Read ivc data
-                ivc_data = read_ivc_data()
-
                 # Pipeline data directly to database
-                db_success, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status = pipeline_to_database(
+                db_success, QT_status, teledyne_status, labjack_1_status, labjack_2_status, lakeshore_target_stick_status, lakeshore_fridge_temp_status, lakeshore_magnet_temp_status, maxigauge_status, ivc_status = await pipeline_to_database(
                     QT_data, 
                     teledyne_data, 
                     labjack_data_1, 
@@ -918,7 +882,7 @@ def main():
                 
                 # Print status update if not in verbose mode
                 if not args.verbose and not args.terminal_log:
-                    print_status_update(iteration, 
+                    await print_status_update(iteration, 
                                         QT_status, 
                                         teledyne_status, 
                                         labjack_1_status, 
@@ -942,8 +906,10 @@ def main():
                            f"LakeShore-TS:{lakeshore_target_stick_status}, LakeShore-FT:{lakeshore_fridge_temp_status}, "
                            f"LakeShore-MT:{lakeshore_magnet_temp_status}, MaxiGauge:{maxigauge_status}, IVC:{ivc_status}")
                 
-                # Wait before next reading
-                time.sleep(SLEEP_INTERVAL)
+                if shutdown_event.is_set():
+                    break
+                    
+                # await asyncio.sleep(SLEEP_INTERVAL)
                 
             except KeyboardInterrupt:
                 logger.info("Data acquisition stopped by user")
@@ -953,11 +919,19 @@ def main():
             except Exception as e:
                 logger.error(f"Unexpected error in main loop: {e}")
                 if not args.verbose and not args.terminal_log:
-                    print_status_update(iteration, 'error', 'error', 'error', 'error', 'error', 'error', 'error', 'error', 'error')
-                time.sleep(SLEEP_INTERVAL)
+                    await print_status_update(iteration, 'error', 'error', 'error', 'error', 'error', 'error', 'error', 'error', 'error')
+                
+                # Continue with next iteration after error
+                if not shutdown_event.is_set():
+                    await asyncio.sleep(SLEEP_INTERVAL)
+        
+        logger.info("Shutdown signal received, cleaning up...")
                 
     finally:
         logger.info("Cleaning up data acquisition system")
+
+        executor.shutdown(wait=True)
+        logger.info("Thread pool executor shutdown")
 
         if teledyne_reader:
             teledyne_reader.stop()
@@ -999,4 +973,4 @@ def main():
             print("\n\n✅ Data acquisition system shutdown complete")
 
 if __name__ == '__main__':
-    main() 
+    asyncio.run(main()) 

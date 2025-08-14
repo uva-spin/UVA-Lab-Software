@@ -3,9 +3,6 @@
 # Remote Flask server configuration
 REMOTE_SERVER_URL = "http://128.143.231.224:5000"  # Flask server's IP and port
 
-# Network share path for the local machine
-TWIST_PATH = "//twist.phys.virginia.edu/www/spin"  # UNC path to the network share
-
 DATA_PATH = f"{REMOTE_SERVER_URL}/data"
 
 # Local data storage
@@ -38,8 +35,44 @@ MAXIGAUGE_CHECK_INTERVAL = 1  # Check for new maxigauge data every second
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log" 
 
+# MariaDB Database Configuration
+DATABASE_HOST = "localhost"          # Your MariaDB server hostname or IP address
+DATABASE_PORT = 3306                 # MariaDB port (default is 3306)
+DATABASE_USER = "labuser"      # Your MariaDB username
+DATABASE_PASSWORD = "mypassword"  # Your MariaDB password
+DATABASE_NAME = "lab_data"           # Your database name
 
-### Database settings
-DATABASE_DIR = "//twist.phys.virginia.edu/www/spin/instance"
-DATABASE_NAME = "flaskr.sqlite"
-DATABASE_PATH = f"{DATABASE_DIR}/{DATABASE_NAME}"
+# Data Collection Settings
+LOCAL_CSV_DIR = "data_logs"
+SLEEP_INTERVAL = 5                   # Seconds between data collection cycles
+MAX_CONSECUTIVE_FAILURES = 10
+
+# PLC Configuration
+PLC_IP = "172.29.36.195"
+UNIT_ID = 2
+INT_PORT = 503
+FLOAT_PORT = 502
+NUM_REG_TO_READ = 36
+
+# Logging Configuration
+LOG_LEVEL = "INFO"
+LOG_FILE = "data_acquisition.log"
+
+# Network Paths
+TWIST_PATH = "//twist.phys.virginia.edu/www/spin"
+
+# Data Collection Intervals
+TELEDYNE_CHECK_INTERVAL = 10        # Check for new data every 10 seconds
+LABJACK_CHECK_INTERVAL = 1          # Check for new data every 1 second
+LAKESHORE_CHECK_INTERVAL = 1        # Check for new data every 1 second
+MAXIGAUGE_CHECK_INTERVAL = 1        # Check for new data every 1 second
+
+# Example MariaDB connection string format:
+# mysql://username:password@hostname:port/database_name
+# Example: mysql://labuser:mypassword@192.168.1.100:3306/lab_data
+
+# Security Notes:
+# - Store passwords securely (consider using environment variables)
+# - Use SSL connections for production environments
+# - Limit database user permissions to only what's necessary
+# - Regularly rotate database passwords
