@@ -36,15 +36,15 @@ LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log" 
 
 # MariaDB Database Configuration
-DATABASE_HOST = "localhost"          # Your MariaDB server hostname or IP address
+DATABASE_HOST = "localhost"          # MariaDB server hostname or IP address
 DATABASE_PORT = 3306                 # MariaDB port (default is 3306)
-DATABASE_USER = "labuser"      # Your MariaDB username
-DATABASE_PASSWORD = "mypassword"  # Your MariaDB password
-DATABASE_NAME = "lab_data"           # Your database name
+DATABASE_USER = "root"      # MariaDB username
+DATABASE_PASSWORD = "pswrd"  # MariaDB password
+DATABASE_NAME = "uvaspin"           # MariaDB database name
 
 # Data Collection Settings
 LOCAL_CSV_DIR = "data_logs"
-SLEEP_INTERVAL = 5                   # Seconds between data collection cycles
+SLEEP_INTERVAL = 5                  
 MAX_CONSECUTIVE_FAILURES = 10
 
 # PLC Configuration
@@ -66,10 +66,6 @@ TELEDYNE_CHECK_INTERVAL = 10        # Check for new data every 10 seconds
 LABJACK_CHECK_INTERVAL = 1          # Check for new data every 1 second
 LAKESHORE_CHECK_INTERVAL = 1        # Check for new data every 1 second
 MAXIGAUGE_CHECK_INTERVAL = 1        # Check for new data every 1 second
-
-# Example MariaDB connection string format:
-# mysql://username:password@hostname:port/database_name
-# Example: mysql://labuser:mypassword@192.168.1.100:3306/lab_data
 
 # Security Notes:
 # - Store passwords securely (consider using environment variables)
