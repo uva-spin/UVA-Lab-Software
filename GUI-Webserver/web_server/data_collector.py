@@ -303,6 +303,38 @@ class DataCollector:
             logger.error(f"Error getting data from {table_name}: {e}")
             return []
 
+    def get_available_columns_by_table(self):
+        """Get available columns organized by table name"""
+        try:
+            conn = mariadb.connect(
+                host=DATABASE_HOST,
+                port=DATABASE_PORT,
+                user=DATABASE_USER,
+                password=DATABASE_PASSWORD,
+                database=DATABASE_NAME,
+                autocommit=True
+            )
+            cursor = conn.cursor()
+            
+            # Get all tables
+            cursor.execute("SHOW TABLES")
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            columns_by_table = {}
+            
+            for table_name in tables:
+                # Get column names for this table
+                cursor.execute(f"DESCRIBE {table_name}")
+                columns = [col[0] for col in cursor.fetchall()]
+                columns_by_table[table_name] = columns
+            
+            conn.close()
+            return columns_by_table
+            
+        except Exception as e:
+            logger.error(f"Error getting columns by table: {e}")
+            return {}
+
 # Create Flask app for receiving QT data
 app = Flask(__name__, 
             template_folder='../templates',
@@ -371,18 +403,15 @@ def query_db():
         available_keys = []
         missing_keys = []
         
-        # Get all tables, excluding system tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        all_tables = [row[0] for row in cursor.fetchall()]
+        # Get all tables - MariaDB equivalent
+        cursor.execute("SHOW TABLES")
+        tables = [row[0] for row in cursor.fetchall()]
         
-        # Filter out system tables
-        system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
-        tables = [table for table in all_tables if table not in system_tables]
         
         # Check each table for the requested columns
         for table in tables:
-            cursor.execute(f"PRAGMA table_info({table})")
-            columns = [col[1] for col in cursor.fetchall()]
+            cursor.execute(f"DESCRIBE {table}")
+            columns = [col[0] for col in cursor.fetchall()]
             
             # Find which keys are in this table
             table_keys = [key for key in keys if key in columns]
@@ -391,13 +420,13 @@ def query_db():
                 
             logger.info(f"Found keys {table_keys} in table {table}")
             
-            # Build the query for this table
-            columns_str = ', '.join(['"Timestamp"'] + table_keys)
+            # Build the query for this table - MariaDB uses %s placeholders and no quotes around column names
+            columns_str = ', '.join(['Timestamp'] + table_keys)
             query = f"""
                 SELECT {columns_str}
                 FROM {table}
-                WHERE "Timestamp" >= ? AND "Timestamp" <= ?
-                ORDER BY "Timestamp" ASC
+                WHERE Timestamp >= %s AND Timestamp <= %s
+                ORDER BY Timestamp ASC
             """
             logger.info(f"DB start time: {db_start_time}")
             logger.info(f"DB end time: {db_end_time}")
@@ -495,7 +524,7 @@ def get_available_columns():
         logger.info(f"Columns by table: {columns_by_table}")
         
         return jsonify({
-            "columns": unique_columns,  # This is what the HTML expects
+            "columns": unique_columns,  
             "tables": columns_by_table,
             "total_columns": len(unique_columns),
             "table_count": len(columns_by_table)
@@ -522,20 +551,16 @@ def get_db_status():
         )
         cursor = conn.cursor()
         
-        # Get all tables, excluding system tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        all_tables = [row[0] for row in cursor.fetchall()]
-        
-        # Filter out system tables
-        system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
-        tables = [table for table in all_tables if table not in system_tables]
+        # Get all tables - MariaDB equivalent  
+        cursor.execute("SHOW TABLES")
+        tables = [row[0] for row in cursor.fetchall()]
         
         table_info = {}
         total_records = 0
         
         for table_name in tables:
-            # Get table schema
-            cursor.execute(f"PRAGMA table_info({table_name})")
+            # Get table schema - MariaDB equivalent
+            cursor.execute(f"DESCRIBE {table_name}")
             table_schema = cursor.fetchall()
             
             # Get total record count
@@ -544,7 +569,7 @@ def get_db_status():
             total_records += record_count
             
             table_info[table_name] = {
-                "columns": [col[1] for col in table_schema],
+                "columns": [col[0] for col in table_schema],
                 "record_count": record_count
             }
             
@@ -576,13 +601,9 @@ def test_db():
         )
         cursor = conn.cursor()
         
-        # Get all tables, excluding system tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        all_tables = [row[0] for row in cursor.fetchall()]
-        
-        # Filter out system tables
-        system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
-        tables = [table for table in all_tables if table not in system_tables]
+        # Get all tables - MariaDB equivalent  
+        cursor.execute("SHOW TABLES")
+        tables = [row[0] for row in cursor.fetchall()]
         
         total_records = 0
         data_sources = []
