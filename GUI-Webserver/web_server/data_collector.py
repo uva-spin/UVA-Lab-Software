@@ -70,7 +70,7 @@ class DataCollector:
             port=DATABASE_PORT,
             user=DATABASE_USER,
             password=DATABASE_PASSWORD,
-            db=DATABASE_NAME,
+            database=DATABASE_NAME,
             autocommit=True
         )
         cursor = conn.cursor()
@@ -111,7 +111,7 @@ class DataCollector:
                 port=DATABASE_PORT,
                 user=DATABASE_USER,
                 password=DATABASE_PASSWORD,
-                db=DATABASE_NAME,
+                database=DATABASE_NAME,
                 autocommit=True
             )
             cursor = conn.cursor()
@@ -119,43 +119,37 @@ class DataCollector:
                 # Query specific table
                 tables = [table_name]
             else:
-                # Query all tables, excluding system tables
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-                all_tables = [row[0] for row in cursor.fetchall()]
-                
-                # Filter out system tables
-                system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
-                tables = [table for table in all_tables if table not in system_tables]
+                # Get all tables
+                cursor.execute("SHOW TABLES")
+                tables = [row[0] for row in cursor.fetchall()]
             
             all_data = {}
             
             for table in tables:
-                # First, get the table schema to understand the structure
-                cursor.execute(f"PRAGMA table_info({table})")
-                table_info = cursor.fetchall()
-                columns = [col[1] for col in table_info]
-                
-                # Check if 'Timestamp' column exists
-                has_timestamp_column = '"Timestamp"' in columns
-                
-                where_clause = ""
+                # Build time range query
+                base_query = f"SELECT * FROM {table}"
+                conditions = []
                 params = []
-                order_clause = ""
                 
-                if has_timestamp_column:
-                    if start_time and end_time:
-                        where_clause = 'WHERE "Timestamp" BETWEEN ? AND ?'
-                        params = [start_time, end_time]
-                    order_clause = 'ORDER BY "Timestamp" ASC'
+                if start_time:
+                    conditions.append("Timestamp >= %s")
+                    params.append(start_time)
+                    
+                if end_time:
+                    conditions.append("Timestamp <= %s")
+                    params.append(end_time)
+                
+                if conditions:
+                    query = f"{base_query} WHERE {' AND '.join(conditions)} ORDER BY Timestamp DESC"
                 else:
-                    # If no Timestamp column, just get all data
-                    order_clause = "ORDER BY id, 'Timestamp' ASC"
-                
-                query = f"SELECT * FROM {table} {where_clause} {order_clause}"
-                logger.debug(f"Executing query: {query} with params: {params}")
+                    query = f"{base_query} ORDER BY Timestamp DESC"
                 
                 cursor.execute(query, params)
                 rows = cursor.fetchall()
+                
+                # Get column names
+                cursor.execute(f"DESCRIBE {table}")
+                columns = [col[0] for col in cursor.fetchall()]
                 
                 # Convert to list of dictionaries
                 table_data = []
@@ -166,64 +160,148 @@ class DataCollector:
                     table_data.append(row_dict)
                 
                 all_data[table] = table_data
-                logger.debug(f"Retrieved {len(table_data)} records from {table} table")
             
+            conn.close()
             return all_data
             
         except Exception as e:
             logger.error(f"Error getting data by time range: {e}")
             return {}
-        finally:
-            cursor.close()
-            conn.close()
 
-
-    def get_available_columns_by_table(self):
-        """Get all available columns organized by table"""
-
+    def get_latest_data_from_all_tables(self):
+        """Get the latest data from all tables and combine them"""
+        
         try:
             conn = mariadb.connect(
                 host=DATABASE_HOST,
                 port=DATABASE_PORT,
                 user=DATABASE_USER,
                 password=DATABASE_PASSWORD,
-                db=DATABASE_NAME,
+                database=DATABASE_NAME,
                 autocommit=True
             )
             cursor = conn.cursor()
-            # Get all tables, excluding system tables
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            all_tables = [row[0] for row in cursor.fetchall()]
             
-            # Filter out system tables
-            system_tables = ['sqlite_sequence', 'sqlite_stat1', 'sqlite_stat2', 'sqlite_stat3', 'sqlite_stat4']
-            tables = [table for table in all_tables if table not in system_tables]
+            # Get all tables
+            cursor.execute("SHOW TABLES")
+            tables = [row[0] for row in cursor.fetchall()]
             
-            columns_by_table = {}
+            combined_data = {}
             
             for table_name in tables:
-                # Get table schema
-                cursor.execute(f"PRAGMA table_info({table_name})")
-                table_info = cursor.fetchall()
-                
-                # Extract column names, excluding metadata columns
-                available_columns = []
-                for col in table_info:
-                    col_name = col[1]
-                    # Exclude metadata columns
-                    if col_name not in ['id', '"Timestamp"']:
-                        available_columns.append(col_name)
-                
-                columns_by_table[table_name] = available_columns
+                try:
+                    # Get the latest record from each table
+                    cursor.execute(f"SELECT * FROM {table_name} ORDER BY Timestamp DESC LIMIT 1")
+                    latest_record = cursor.fetchone()
+                    
+                    if latest_record:
+                        # Get column names for this table
+                        cursor.execute(f"DESCRIBE {table_name}")
+                        columns = [col[0] for col in cursor.fetchall()]
+                        
+                        # Create a dictionary for this record
+                        record_dict = {}
+                        for i, column in enumerate(columns):
+                            record_dict[column] = latest_record[i]
+                        
+                        # Add table prefix to avoid column name conflicts
+                        for key, value in record_dict.items():
+                            if key.lower() not in ['id', 'timestamp', 'created']:
+                                prefixed_key = f"{table_name}_{key}"
+                                combined_data[prefixed_key] = value
+                            else:
+                                # Keep timestamp and id fields without prefix
+                                combined_data[key] = value
+                                
+                except Exception as e:
+                    logger.warning(f"Error getting latest data from {table_name}: {e}")
+                    continue
             
-            return columns_by_table
+            conn.close()
+            return combined_data
             
         except Exception as e:
-            logger.error(f"Error getting available columns by table: {e}")
+            logger.error(f"Error getting latest data from all tables: {e}")
             return {}
-        finally:
-            cursor.close()
+
+    def insert_data(self, table_name, data):
+        """Insert data into the specified table"""
+        try:
+            conn = mariadb.connect(
+                host=DATABASE_HOST,
+                port=DATABASE_PORT,
+                user=DATABASE_USER,
+                password=DATABASE_PASSWORD,
+                database=DATABASE_NAME,
+                autocommit=True
+            )
+            cursor = conn.cursor()
+            
+            # Get the column names for the table (excluding id which is auto-increment)
+            cursor.execute(f"DESCRIBE {table_name}")
+            table_info = cursor.fetchall()
+            columns = [col[0] for col in table_info if col[0].lower() != 'id']
+            
+            # Create placeholders for the SQL query
+            placeholders = ', '.join(['%s' for _ in columns])
+            column_names = ', '.join(columns)
+            
+            # Prepare the data tuple - ensure data order matches column order
+            data_tuple = []
+            for column in columns:
+                if column.lower() == 'timestamp' or column.lower() == 'created':
+                    # Use current timestamp if not provided
+                    data_tuple.append(data.get(column, get_current_est_time()))
+                else:
+                    data_tuple.append(data.get(column))
+            
+            # Insert the data
+            query = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
+            cursor.execute(query, data_tuple)
+            conn.commit()
+            
+            logger.info(f"Successfully inserted data into {table_name}")
             conn.close()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error inserting data into {table_name}: {e}")
+            return False
+
+    def get_table_data(self, table_name, limit=100):
+        """Get recent data from a specific table"""
+        try:
+            conn = mariadb.connect(
+                host=DATABASE_HOST,
+                port=DATABASE_PORT,
+                user=DATABASE_USER,
+                password=DATABASE_PASSWORD,
+                database=DATABASE_NAME,
+                autocommit=True
+            )
+            cursor = conn.cursor()
+            
+            cursor.execute(f"SELECT * FROM {table_name} ORDER BY Timestamp DESC LIMIT %s", (limit,))
+            rows = cursor.fetchall()
+            
+            # Get column names
+            cursor.execute(f"DESCRIBE {table_name}")
+            columns = [col[0] for col in cursor.fetchall()]
+            
+            # Convert to list of dictionaries
+            data = []
+            for row in rows:
+                row_dict = {}
+                for i, column in enumerate(columns):
+                    row_dict[column] = row[i]
+                data.append(row_dict)
+            
+            conn.close()
+            return data
+            
+        except Exception as e:
+            logger.error(f"Error getting data from {table_name}: {e}")
+            return []
 
 # Create Flask app for receiving QT data
 app = Flask(__name__, 
@@ -284,7 +362,7 @@ def query_db():
             port=DATABASE_PORT,
             user=DATABASE_USER,
             password=DATABASE_PASSWORD,
-            db=DATABASE_NAME,
+            database=DATABASE_NAME,
             autocommit=True
         )
         cursor = conn.cursor()
@@ -396,7 +474,7 @@ def get_available_columns():
             port=DATABASE_PORT,
             user=DATABASE_USER,
             password=DATABASE_PASSWORD,
-            db=DATABASE_NAME,
+            database=DATABASE_NAME,
             autocommit=True
         )
         cursor = conn.cursor()
@@ -439,7 +517,7 @@ def get_db_status():
             port=DATABASE_PORT,
             user=DATABASE_USER,
             password=DATABASE_PASSWORD,
-            db=DATABASE_NAME,
+            database=DATABASE_NAME,
             autocommit=True
         )
         cursor = conn.cursor()
@@ -493,7 +571,7 @@ def test_db():
             port=DATABASE_PORT,
             user=DATABASE_USER,
             password=DATABASE_PASSWORD,
-            db=DATABASE_NAME,
+            database=DATABASE_NAME,
             autocommit=True
         )
         cursor = conn.cursor()
