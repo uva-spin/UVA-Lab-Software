@@ -126,20 +126,19 @@ CREATE TABLE IF NOT EXISTS NMR (
   Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create indexes
-CREATE INDEX IF NOT EXISTS idx_qt_timestamp ON QT(Timestamp);
-CREATE INDEX IF NOT EXISTS idx_labjack_timestamp ON Labjack(Timestamp);
-CREATE INDEX IF NOT EXISTS idx_flow_rates_timestamp ON Flow_Rates(Timestamp);
-CREATE INDEX IF NOT EXISTS idx_lakeshore_target_stick_timestamp ON Lakeshore_Target_Stick(Timestamp);
-CREATE INDEX IF NOT EXISTS idx_lakeshore_fridge_temp_timestamp ON Lakeshore_Fridge_Temp(Timestamp);
-CREATE INDEX IF NOT EXISTS idx_lakeshore_magnet_temp_timestamp ON Lakeshore_Magnet_Temp(Timestamp);
-CREATE INDEX IF NOT EXISTS idx_maxigauge_timestamp ON MaxiGauge(Timestamp);
-CREATE INDEX IF NOT EXISTS idx_ivc_timestamp ON IVC(Timestamp);
-CREATE INDEX IF NOT EXISTS idx_nmr_timestamp ON NMR(Timestamp);
+CREATE INDEX idx_qt_timestamp ON QT(Timestamp);
+CREATE INDEX idx_labjack_timestamp ON Labjack(Timestamp);
+CREATE INDEX idx_flow_rates_timestamp ON Flow_Rates(Timestamp);
+CREATE INDEX idx_lakeshore_target_stick_timestamp ON Lakeshore_Target_Stick(Timestamp);
+CREATE INDEX idx_lakeshore_fridge_temp_timestamp ON Lakeshore_Fridge_Temp(Timestamp);
+CREATE INDEX idx_lakeshore_magnet_temp_timestamp ON Lakeshore_Magnet_Temp(Timestamp);
+CREATE INDEX idx_maxigauge_timestamp ON MaxiGauge(Timestamp);
+CREATE INDEX idx_ivc_timestamp ON IVC(Timestamp);
+CREATE INDEX idx_nmr_timestamp ON NMR(Timestamp);
 
-CREATE INDEX IF NOT EXISTS idx_nmr_run_number ON NMR(run_number);
-CREATE INDEX IF NOT EXISTS idx_nmr_measurement_type ON NMR(measurement_type);
-CREATE INDEX IF NOT EXISTS idx_nmr_beam_on ON NMR(beam_on);
+CREATE INDEX idx_nmr_run_number ON NMR(run_number);
+CREATE INDEX idx_nmr_measurement_type ON NMR(measurement_type);
+CREATE INDEX idx_nmr_beam_on ON NMR(beam_on);
 
-CREATE INDEX IF NOT EXISTS idx_nmr_run_timestamp ON NMR(run_number, Timestamp);
-CREATE INDEX IF NOT EXISTS idx_nmr_type_timestamp ON NMR(measurement_type, Timestamp);
+CREATE INDEX idx_nmr_run_timestamp ON NMR(run_number, Timestamp);
+CREATE INDEX idx_nmr_type_timestamp ON NMR(measurement_type, Timestamp);
