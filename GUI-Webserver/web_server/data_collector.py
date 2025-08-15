@@ -80,7 +80,12 @@ class DataCollector:
             schema_path = "../database_utils/schema.sql"
             with open(schema_path, 'r') as f:
                 schema_sql = f.read()
-                cursor.executescript(schema_sql)
+                
+            # Split the SQL into individual statements and execute them
+            statements = [stmt.strip() for stmt in schema_sql.split(';') if stmt.strip()]
+            for statement in statements:
+                if statement and not statement.startswith('--'):
+                    cursor.execute(statement)
             
             conn.commit()
             logger.info("Database setup completed using schema.sql")
