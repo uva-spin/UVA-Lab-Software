@@ -205,11 +205,6 @@ ivc_reader = None
 # Global QT reader instance
 qt_reader = None
 
-async def ensure_database_directory():
-    """Ensure the database directory exists (for local file storage, not needed for MariaDB)"""
-    # This function is no longer needed for MariaDB, but kept for compatibility
-    pass
-
 async def setup_database():
     """Initialize the database connection pool and verify connectivity"""
     global db_pool
@@ -432,7 +427,7 @@ def _insert_teledyne_data_sync(flow_data, timestamp):
         
         cursor.execute('''
             INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, `Timestamp`) 
-            VALUES (%s, %s, %s, %s)
+            VALUES (%f, %f, %f, %s)
         ''', flow_data + [timestamp])
         
         logger.debug(f"Inserted Teledyne data: {flow_data}")
@@ -462,7 +457,7 @@ def _insert_labjack_1_data_sync(pressure_data, timestamp):
         
         cursor.execute('''
             INSERT INTO Labjack (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple, `Timestamp`) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], pressure_data[5], timestamp))
         
         logger.debug(f"Inserted LabJack data: {pressure_data}")
@@ -492,12 +487,12 @@ def _insert_labjack_2_data_sync(labjack_2_data):
         
         cursor.execute('''
             INSERT INTO Flow_Rates (microwave_flow, heat_exchanger_flow) 
-            VALUES (%s, %s)
+            VALUES (?, ?)
         ''', (labjack_2_data[0], labjack_2_data[1]))
 
         cursor.execute('''
             INSERT INTO Labjack (magnet_bottom_temperature, magnet_top_temperature) 
-            VALUES (%s, %s)
+            VALUES (?, ?)
         ''', (labjack_2_data[2], labjack_2_data[3]))
         
         logger.debug(f"Inserted LabJack 2 data into Flow_Rates and Labjack: {labjack_2_data}")

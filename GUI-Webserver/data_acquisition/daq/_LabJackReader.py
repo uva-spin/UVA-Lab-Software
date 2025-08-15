@@ -101,6 +101,8 @@ class LabJackReader_1:
         MAX_REQUESTS = 75
         # SCAN_FREQUENCY is the scan frequency of stream mode in Hz
         SCAN_FREQUENCY = 5000
+        
+
 
         try:
             logger.info("Configuring U3 stream")
@@ -300,6 +302,16 @@ class LabJackReader_2:
             return
 
         MAX_REQUESTS = 75
+        SCAN_FREQUENCY = 5000
+
+        # Flow Meter 1
+        vIn = 2.5 # V
+        RLoad = 1000 # Ohms
+
+        # Flow Meter 2
+        
+        vIn = 2.5 # V
+        RLoad = 1000 # Ohms
 
         try:
             logger.info("Reading from T4 AIN1 and AIN2 channels")
@@ -332,13 +344,13 @@ class LabJackReader_2:
 
                     vOut_Magnet_Bottom_Temperature = ljm.eReadName(self.device, "AIN4")
                     if self._check_data(vOut_Magnet_Bottom_Temperature):
-                        Magnet_Bottom_Temperature[i] = vOut_Magnet_Bottom_Temperature
+                        Magnet_Bottom_Temperature[i] = RLoad * ((vIn / vOut_Magnet_Bottom_Temperature) - 1)
                     else:
                         logger.warning(f"No data for Magnet Bottom Temperature at {datetime.now()}")
 
                     vOut_Magnet_Top_Temperature = ljm.eReadName(self.device, "AIN5")
                     if self._check_data(vOut_Magnet_Top_Temperature):
-                        Magnet_Top_Temperature[i] = vOut_Magnet_Top_Temperature
+                        Magnet_Top_Temperature[i] = RLoad * ((vIn / vOut_Magnet_Top_Temperature) - 1)
                     else:
                         logger.warning(f"No data for Magnet Top Temperature at {datetime.now()}")
                         
