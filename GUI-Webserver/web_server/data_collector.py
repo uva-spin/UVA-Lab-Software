@@ -8,12 +8,16 @@ import sys
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify, render_template
 import logging
+import pytz
 
 from config import DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Configure timezone - Use proper Eastern Time that handles EST/EDT automatically
+EST = pytz.timezone('America/New_York')
 
 # Global variable to track shutdown state
 shutdown_requested = False
@@ -30,8 +34,8 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 def get_current_est_time():
-    """Get the current time in EST"""
-    return datetime.now(timezone(timedelta(hours=-5))).strftime('%Y-%m-%d %H:%M:%S')
+    """Get the current time in EST/EDT (Eastern Time)"""
+    return datetime.now(EST).strftime('%Y-%m-%d %H:%M:%S')
 
 def convert_frontend_timestamp_to_db_format(timestamp_str):
     """
@@ -52,6 +56,40 @@ def convert_frontend_timestamp_to_db_format(timestamp_str):
         logger.warning(f"Could not parse timestamp '{timestamp_str}': {e}")
         # If parsing fails, return the original string and let the database handle it
         return timestamp_str
+
+def convert_db_timestamp_to_js_timestamp(db_timestamp):
+    """
+    Convert database timestamp to JavaScript timestamp (milliseconds since epoch)
+    Assumes database timestamps are in Eastern Time (EST/EDT)
+    
+    Args:
+        db_timestamp: Database timestamp (datetime object or string)
+    
+    Returns:
+        int: JavaScript timestamp (milliseconds since epoch)
+    """
+    try:
+        if isinstance(db_timestamp, str):
+            # Parse string timestamp assuming it's in Eastern Time
+            naive_dt = datetime.strptime(db_timestamp, '%Y-%m-%d %H:%M:%S')
+            # Localize to Eastern Time
+            est_dt = EST.localize(naive_dt)
+        elif hasattr(db_timestamp, 'replace'):  # datetime object
+            if db_timestamp.tzinfo is None:
+                # Assume it's in Eastern Time if no timezone info
+                est_dt = EST.localize(db_timestamp)
+            else:
+                # Convert to Eastern Time if it has timezone info
+                est_dt = db_timestamp.astimezone(EST)
+        else:
+            logger.warning(f"Unknown timestamp format: {type(db_timestamp)}")
+            return None
+        
+        # Convert to JavaScript timestamp (milliseconds since epoch)
+        return int(est_dt.timestamp() * 1000)
+    except Exception as e:
+        logger.error(f"Error converting timestamp {db_timestamp}: {e}")
+        return None
 
 class DataCollector:
     def __init__(self):
@@ -443,23 +481,27 @@ def query_db():
                 for row in rows:
                     timestamp = row[0]
                     
-                    if timestamp not in all_data:
-                        all_data[timestamp] = {'Timestamp': timestamp}
+                    # Convert timestamp to JavaScript-compatible format (milliseconds since epoch)
+                    js_timestamp = convert_db_timestamp_to_js_timestamp(timestamp)
+                    if js_timestamp is None:
+                        logger.warning(f"Could not convert timestamp: {timestamp}")
+                        continue
+                    
+                    if js_timestamp not in all_data:
+                        all_data[js_timestamp] = {'Timestamp': js_timestamp}
                     
                     # Add data for each key
                     for i, key in enumerate(table_keys, 1):
                         try:
                             # Don't round the values - let the frontend handle formatting
-                            all_data[timestamp][key] = float(row[i])
+                            all_data[js_timestamp][key] = float(row[i])
                         except (ValueError, TypeError):
                             logger.warning(f"Could not convert value for {key}: {row[i]}")
-                            all_data[timestamp][key] = None
+                            all_data[js_timestamp][key] = None
                 
                 available_keys.extend(table_keys)
             else:
                 missing_keys.extend(table_keys)
-        
-
         
         # Convert dictionary to list and sort by timestamp
         data = list(all_data.values())
