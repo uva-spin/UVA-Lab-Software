@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-import aiomysql
+import mariadb
 import time
 import threading
 import os
 import signal
 import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from flask import Flask, request, jsonify, render_template
 import logging
-import pytz
 
 from config import DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
 
@@ -67,7 +65,7 @@ class DataCollector:
     def setup_database(self):
         """Initialize the database with the schema-defined tables"""
         
-        conn = aiomysql.connect(
+        conn = mariadb.connect(
             host=DATABASE_HOST,
             port=DATABASE_PORT,
             user=DATABASE_USER,
@@ -86,7 +84,7 @@ class DataCollector:
             
             conn.commit()
             logger.info("Database setup completed using schema.sql")
-        except aiomysql.OperationalError as e:
+        except mariadb.Error as e:
             if "already exists" in str(e):
                 logger.info("Tables already exist, skipping creation")
             else:
@@ -100,17 +98,18 @@ class DataCollector:
 
     def get_data_by_time_range(self, start_time=None, end_time=None, table_name=None):
         """Get data from specific table(s) within a time range"""
-        conn = aiomysql.connect(
-            host=DATABASE_HOST,
-            port=DATABASE_PORT,
-            user=DATABASE_USER,
-            password=DATABASE_PASSWORD,
-            db=DATABASE_NAME,
-            autocommit=True
-        )
-        cursor = conn.cursor()
         
         try:
+            
+            conn = mariadb.connect(
+                host=DATABASE_HOST,
+                port=DATABASE_PORT,
+                user=DATABASE_USER,
+                password=DATABASE_PASSWORD,
+                db=DATABASE_NAME,
+                autocommit=True
+            )
+            cursor = conn.cursor()
             if table_name:
                 # Query specific table
                 tables = [table_name]
@@ -170,22 +169,23 @@ class DataCollector:
             logger.error(f"Error getting data by time range: {e}")
             return {}
         finally:
+            cursor.close()
             conn.close()
 
 
     def get_available_columns_by_table(self):
         """Get all available columns organized by table"""
-        conn = aiomysql.connect(
-            host=DATABASE_HOST,
-            port=DATABASE_PORT,
-            user=DATABASE_USER,
-            password=DATABASE_PASSWORD,
-            db=DATABASE_NAME,
-            autocommit=True
-        )
-        cursor = conn.cursor()
-        
+
         try:
+            conn = mariadb.connect(
+                host=DATABASE_HOST,
+                port=DATABASE_PORT,
+                user=DATABASE_USER,
+                password=DATABASE_PASSWORD,
+                db=DATABASE_NAME,
+                autocommit=True
+            )
+            cursor = conn.cursor()
             # Get all tables, excluding system tables
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             all_tables = [row[0] for row in cursor.fetchall()]
@@ -217,6 +217,7 @@ class DataCollector:
             logger.error(f"Error getting available columns by table: {e}")
             return {}
         finally:
+            cursor.close()
             conn.close()
 
 # Create Flask app for receiving QT data
@@ -270,14 +271,10 @@ def query_db():
         
         logger.info(f"Original timestamps - start: {start_time}, end: {end_time}")
         logger.info(f"Converted timestamps - start: {db_start_time}, end: {db_end_time}")
-
-        # Get EST timezone
-        est = pytz.timezone('America/New_York')
-        
         logger.info(f"Fetching data for keys: {keys}")
         logger.info(f"Time range (EST): {db_start_time} to {db_end_time}")
         
-        conn = aiomysql.connect(
+        conn = mariadb.connect(
             host=DATABASE_HOST,
             port=DATABASE_PORT,
             user=DATABASE_USER,
@@ -349,8 +346,8 @@ def query_db():
                 available_keys.extend(table_keys)
             else:
                 missing_keys.extend(table_keys)
-                
-        conn.close()
+        
+
         
         # Convert dictionary to list and sort by timestamp
         data = list(all_data.values())
@@ -376,15 +373,28 @@ def query_db():
             }
         }), 200
         
-    except Exception as e:
+    except mariadb.Error as e:
         logger.error(f"Error getting recent data: {e}")
         logger.exception("Full traceback:")
         return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/get_available_columns', methods=['GET'])
 def get_available_columns():
     """Get list of available columns from all tables"""
     try:
+        
+        conn = mariadb.connect(
+            host=DATABASE_HOST,
+            port=DATABASE_PORT,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            db=DATABASE_NAME,
+            autocommit=True
+        )
+        cursor = conn.cursor()
         columns_by_table = collector.get_available_columns_by_table()
         
         # Flatten all columns from all tables into a single list
@@ -408,15 +418,18 @@ def get_available_columns():
             "table_count": len(columns_by_table)
         }), 200
         
-    except Exception as e:
+    except mariadb.Error as e:
         logger.error(f"Error getting available columns: {e}")
         return jsonify({"error": str(e), "columns": []}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/db_status', methods=['GET'])
 def get_db_status():
     """Check database status and available tables"""
     try:
-        conn = aiomysql.connect(
+        conn = mariadb.connect(
             host=DATABASE_HOST,
             port=DATABASE_PORT,
             user=DATABASE_USER,
@@ -451,9 +464,7 @@ def get_db_status():
                 "columns": [col[1] for col in table_schema],
                 "record_count": record_count
             }
-        
-        conn.close()
-        
+            
         return jsonify({
             "status": "ok",
             "tables": table_info,
@@ -461,15 +472,18 @@ def get_db_status():
             "has_data": total_records > 0
         }), 200
         
-    except Exception as e:
+    except mariadb.Error as e:
         logger.error(f"Error checking database status: {e}")
         return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/test_db', methods=['GET'])
 def test_db():
     """Test database connection and data availability"""
     try:
-        conn = aiomysql.connect(
+        conn = mariadb.connect(
             host=DATABASE_HOST,
             port=DATABASE_PORT,
             user=DATABASE_USER,
@@ -504,9 +518,7 @@ def test_db():
             latest = cursor.fetchone()
             if latest:
                 logger.info(f"Latest record in {table_name}: {latest[0]}")
-        
-        conn.close()
-        
+                
         return jsonify({
             "status": "ok",
             "total_records": total_records,
@@ -514,9 +526,12 @@ def test_db():
             "tables": tables
         }), 200
         
-    except Exception as e:
+    except mariadb.Error as e:
         logger.error(f"Error testing database: {e}")
         return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
     # Start Flask app

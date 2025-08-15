@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS QT (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INT AUTO_INCREMENT PRIMARY KEY,
 
   fc501_ai FLOAT NOT NULL,
   fc501_out FLOAT NOT NULL,
@@ -18,11 +18,11 @@ CREATE TABLE IF NOT EXISTS QT (
   ti505_ai FLOAT NOT NULL,
   ti523_ai FLOAT NOT NULL,
 
-  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS Labjack (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   root_exhaust_pressure FLOAT,
   buffer_pressure FLOAT,
   magnet_pressure FLOAT,
@@ -31,21 +31,21 @@ CREATE TABLE IF NOT EXISTS Labjack (
   thermocouple FLOAT,
   magnet_bottom_temperature FLOAT,
   magnet_top_temperature FLOAT,
-  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS Flow_Rates (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   seperator_flow FLOAT,
   magnet_flow FLOAT,
   main_flow FLOAT,
   microwave_flow FLOAT,
   heat_exchanger_flow FLOAT,
-  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS Lakeshore_Target_Stick (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   target_stick_buffle_top_temperature FLOAT,
   target_stick_buffle_bottom_temperature FLOAT,
   target_stick_seperator_top_temperature FLOAT,
@@ -54,11 +54,11 @@ CREATE TABLE IF NOT EXISTS Lakeshore_Target_Stick (
   target_stick_heat_exchanger_bottom_temperature FLOAT,
   target_stick_annealing_plate_bar_temperature FLOAT,
   target_stick_annealing_plate_top_temperature FLOAT,
-  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS Lakeshore_Fridge_Temp (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   fridge_target_top_up_temperature FLOAT,
   fridge_target_top_up_center_temperature FLOAT,
   fridge_target_top_down_temperature FLOAT,
@@ -67,11 +67,11 @@ CREATE TABLE IF NOT EXISTS Lakeshore_Fridge_Temp (
   fridge_target_bottom_down_temperature FLOAT,
   fridge_target_top_cernox_temperature FLOAT,
   fridge_target_bottom_cernox_temperature FLOAT,
-  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS Lakeshore_Magnet_Temp (
-  id Integer PRIMARY KEY AUTOINCREMENT,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   magnet_channel_1 FLOAT,
   magnet_channel_2 FLOAT,
   magnet_channel_3 FLOAT,
@@ -80,65 +80,66 @@ CREATE TABLE IF NOT EXISTS Lakeshore_Magnet_Temp (
   magnet_channel_6 FLOAT,
   magnet_channel_7 FLOAT,
   magnet_channel_8 FLOAT,
-  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS MaxiGauge (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   maxigauge_seperator_inlet_pressure FLOAT,
   maxigauge_upper_roots_pressure FLOAT,
   maxigauge_channel_3 FLOAT,
   maxigauge_channel_4 FLOAT,
   maxigauge_channel_5 FLOAT,
   maxigauge_channel_6 FLOAT,
-  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS IVC (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   ivc_pressure FLOAT,
-  "Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS NMR (
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-run_number INTEGER,
-measurement_type TEXT,
-peak_amp FLOAT,
-peak_center FLOAT,
-beam_on INTEGER,
-rf_level FLOAT,
-if_atten FLOAT,
-he_temperature FLOAT,
-he_pressure FLOAT,
-nmr_channel INTEGER,
-temperature FLOAT,
-calibration_constant FLOAT,
-polarization FLOAT,
-polarization_std FLOAT,
-snr FLOAT,
-step_width FLOAT,
-center_freq FLOAT,
-freq_span FLOAT,
-area FLOAT,
-phase_voltage FLOAT,
-tune_voltage FLOAT,
-"Timestamp" TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  run_number INT,
+  measurement_type TEXT,
+  peak_amp FLOAT,
+  peak_center FLOAT,
+  beam_on INT,
+  rf_level FLOAT,
+  if_atten FLOAT,
+  he_temperature FLOAT,
+  he_pressure FLOAT,
+  nmr_channel INT,
+  temperature FLOAT,
+  calibration_constant FLOAT,
+  polarization FLOAT,
+  polarization_std FLOAT,
+  snr FLOAT,
+  step_width FLOAT,
+  center_freq FLOAT,
+  freq_span FLOAT,
+  area FLOAT,
+  phase_voltage FLOAT,
+  tune_voltage FLOAT,
+  Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_qt_timestamp ON QT("Timestamp");
-CREATE INDEX IF NOT EXISTS idx_labjack_timestamp ON Labjack("Timestamp");
-CREATE INDEX IF NOT EXISTS idx_flow_rates_timestamp ON Flow_Rates("Timestamp");
-CREATE INDEX IF NOT EXISTS idx_lakeshore_target_stick_timestamp ON Lakeshore_Target_Stick("Timestamp");
-CREATE INDEX IF NOT EXISTS idx_lakeshore_fridge_temp_timestamp ON Lakeshore_Fridge_Temp("Timestamp");
-CREATE INDEX IF NOT EXISTS idx_lakeshore_magnet_temp_timestamp ON Lakeshore_Magnet_Temp("Timestamp");
-CREATE INDEX IF NOT EXISTS idx_maxigauge_timestamp ON MaxiGauge("Timestamp");
-CREATE INDEX IF NOT EXISTS idx_ivc_timestamp ON IVC("Timestamp");
-CREATE INDEX IF NOT EXISTS idx_nmr_timestamp ON NMR("Timestamp");
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_qt_timestamp ON QT(Timestamp);
+CREATE INDEX IF NOT EXISTS idx_labjack_timestamp ON Labjack(Timestamp);
+CREATE INDEX IF NOT EXISTS idx_flow_rates_timestamp ON Flow_Rates(Timestamp);
+CREATE INDEX IF NOT EXISTS idx_lakeshore_target_stick_timestamp ON Lakeshore_Target_Stick(Timestamp);
+CREATE INDEX IF NOT EXISTS idx_lakeshore_fridge_temp_timestamp ON Lakeshore_Fridge_Temp(Timestamp);
+CREATE INDEX IF NOT EXISTS idx_lakeshore_magnet_temp_timestamp ON Lakeshore_Magnet_Temp(Timestamp);
+CREATE INDEX IF NOT EXISTS idx_maxigauge_timestamp ON MaxiGauge(Timestamp);
+CREATE INDEX IF NOT EXISTS idx_ivc_timestamp ON IVC(Timestamp);
+CREATE INDEX IF NOT EXISTS idx_nmr_timestamp ON NMR(Timestamp);
 
 CREATE INDEX IF NOT EXISTS idx_nmr_run_number ON NMR(run_number);
 CREATE INDEX IF NOT EXISTS idx_nmr_measurement_type ON NMR(measurement_type);
 CREATE INDEX IF NOT EXISTS idx_nmr_beam_on ON NMR(beam_on);
 
-CREATE INDEX IF NOT EXISTS idx_nmr_run_timestamp ON NMR(run_number, "Timestamp");
-CREATE INDEX IF NOT EXISTS idx_nmr_type_timestamp ON NMR(measurement_type, "Timestamp");
+CREATE INDEX IF NOT EXISTS idx_nmr_run_timestamp ON NMR(run_number, Timestamp);
+CREATE INDEX IF NOT EXISTS idx_nmr_type_timestamp ON NMR(measurement_type, Timestamp);
