@@ -18,7 +18,7 @@ import argparse
 import sys
 import pytz
 import asyncio
-import aiomysql
+import mariadb
 import signal
 from concurrent.futures import ThreadPoolExecutor
 
@@ -41,6 +41,9 @@ executor = ThreadPoolExecutor(max_workers=10)
 # Global shutdown flag
 shutdown_event = asyncio.Event()
 
+# Global connection pool instance
+db_pool = None
+
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
     logger.info(f"Received signal {signum}, initiating graceful shutdown...")
@@ -50,16 +53,18 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-async def get_database_connection():
-    """Get a database connection to MariaDB"""
-    return await aiomysql.connect(
-        host=DATABASE_HOST,
-        port=DATABASE_PORT,
-        user=DATABASE_USER,
-        password=DATABASE_PASSWORD,
-        db=DATABASE_NAME,
-        autocommit=True
-    )
+def get_database_connection():
+    """Get a database connection from the connection pool"""
+    global db_pool
+    if db_pool is None:
+        raise RuntimeError("Database connection pool not initialized")
+    
+    try:
+        conn = db_pool.get_connection()
+        return conn
+    except mariadb.PoolError as e:
+        logger.error(f"Error getting connection from pool: {e}")
+        raise
 
 async def get_current_est_time():
     """Get current time in EST timezone"""
@@ -206,24 +211,50 @@ async def ensure_database_directory():
     pass
 
 async def setup_database():
-    """Initialize the database connection and verify connectivity"""
+    """Initialize the database connection pool and verify connectivity"""
+    global db_pool
+    
     try:
-
-        async with await get_database_connection() as conn:
-
-            async with conn.cursor() as cursor:
-                await cursor.execute("SELECT 1")
-                result = await cursor.fetchone()
-                if result and result[0] == 1:
-                    logger.info(f"Successfully connected to MariaDB at {DATABASE_HOST}:{DATABASE_PORT}")
-                    logger.info(f"Database: {DATABASE_NAME}")
-                else:
-                    raise Exception("Database connectivity test failed")
+        # Create the connection pool
+        db_config = {
+            "host": DATABASE_HOST,
+            "port": DATABASE_PORT,
+            "user": DATABASE_USER,
+            "password": DATABASE_PASSWORD,
+            "database": DATABASE_NAME,
+            "autocommit": True
+        }
+        
+        # Initialize connection pool with 5 connections minimum, 20 maximum
+        db_pool = mariadb.ConnectionPool(
+            pool_name="uva_lab_pool",
+            pool_size=10,
+            **db_config
+        )
+        
+        logger.info(f"Created MariaDB connection pool with 10 connections")
+        logger.info(f"Connected to MariaDB at {DATABASE_HOST}:{DATABASE_PORT}")
+        logger.info(f"Database: {DATABASE_NAME}")
+        
+        # Test connectivity with a connection from the pool
+        conn = None
+        try:
+            conn = db_pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+            if result and result[0] == 1:
+                logger.info("Database connectivity test successful")
+            else:
+                raise Exception("Database connectivity test failed")
+            cursor.close()
+        finally:
+            if conn:
+                conn.close()  # Return connection to pool
+        
+        logger.info("Database setup completed - connection pool initialized")
             
-
-            logger.info("Database setup completed - connectivity verified")
-            
-    except Exception as e:
+    except mariadb.Error as e:
         logger.error(f"Database setup error: {e}")
         logger.error("Please check your MariaDB connection parameters:")
         logger.error(f"  Host: {DATABASE_HOST}")
@@ -232,7 +263,7 @@ async def setup_database():
         logger.error(f"  Database: {DATABASE_NAME}")
         raise
 
-async def _read_QT():
+async def read_QT_data():
     """Read data from QT TCP server using QTReader class"""
     global qt_reader
     
@@ -336,216 +367,346 @@ async def read_ivc_data():
     else:
         return None
 
-async def insert_QT_data(data):
-    """Insert QT data into the QT table"""
+def _insert_QT_data_sync(data, timestamp):
+    """Synchronous function to insert QT data into the QT table"""
     if len(data) != 18:
         logger.error(f"Expected 18 QT values, got {len(data)}")
         return False
         
+    conn = None
+    cursor = None
     try:
-        async with await get_database_connection() as conn:
-            fc501_ai = data[0]
-            fc501_out = data[1]
-            fc502_ai = data[2]
-            fc502_out = data[3]
-            lit501_ai = data[4]
-            pt501_ai = data[5]
-            pt502_ai = data[6]
-            pt503_ai = data[7]
-            pt504_ai = data[8]
-            ait501_ai = data[11]
-            ti501_ai = data[12]
-            ti502_ai = data[13]
-            ti503_ai = data[14]
-            ti504_ai = data[15]
-            ti505_ai = data[16]
-            ti523_ai = data[17]
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        fc501_ai = data[0]
+        fc501_out = data[1]
+        fc502_ai = data[2]
+        fc502_out = data[3]
+        lit501_ai = data[4]
+        pt501_ai = data[5]
+        pt502_ai = data[6]
+        pt503_ai = data[7]
+        pt504_ai = data[8]
+        ait501_ai = data[11]
+        ti501_ai = data[12]
+        ti502_ai = data[13]
+        ti503_ai = data[14]
+        ti504_ai = data[15]
+        ti505_ai = data[16]
+        ti523_ai = data[17]
 
-            
-            await conn.execute('''
-                INSERT INTO QT (
-                    fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
-                    pt501_ai, pt502_ai, pt503_ai, pt504_ai,
-                    ait501_ai, ti501_ai, ti502_ai, ti503_ai,
-                    ti504_ai, ti505_ai, ti523_ai, "Timestamp"
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai, await get_current_est_time()))
-            
-            await conn.commit()
-            logger.debug(f"Inserted QT data: {data[:3]}...")
-            return True
-    except Exception as e:
+        cursor.execute('''
+            INSERT INTO QT (
+                fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai,
+                pt501_ai, pt502_ai, pt503_ai, pt504_ai,
+                ait501_ai, ti501_ai, ti502_ai, ti503_ai,
+                ti504_ai, ti505_ai, ti523_ai, `Timestamp`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai, timestamp))
+        
+        logger.debug(f"Inserted QT data: {data[:3]}...")
+        return True
+    except mariadb.Error as e:
         logger.error(f"Error inserting QT data: {e}")
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  
+
+async def insert_QT_data(data):
+    """Insert QT data into the QT table"""
+    timestamp = await get_current_est_time()
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_QT_data_sync, data, timestamp)
+
+def _insert_teledyne_data_sync(flow_data, timestamp):
+    """Synchronous function to insert Teledyne data into the flow_rates table"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, `Timestamp`) 
+            VALUES (%s, %s, %s, %s)
+        ''', flow_data + [timestamp])
+        
+        logger.debug(f"Inserted Teledyne data: {flow_data}")
+        return True
+    except mariadb.Error as e:
+        logger.error(f"Error inserting Teledyne data: {e}")
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  # Return connection to pool
 
 async def insert_teledyne_data(flow_data):
     """Insert Teledyne data into the flow_rates table"""
+    timestamp = await get_current_est_time()
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_teledyne_data_sync, flow_data, timestamp)
+
+def _insert_labjack_1_data_sync(pressure_data, timestamp):
+    """Synchronous function to insert LabJack data into the pressures table"""
+    conn = None
+    cursor = None
     try:
-        async with await get_database_connection() as conn:
-            await conn.execute('''
-                INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, "Timestamp") 
-                VALUES (%s, %s, %s, %s)
-            ''', flow_data + [await get_current_est_time()])
-            
-            await conn.commit()
-            logger.debug(f"Inserted Teledyne data: {flow_data}")
-            return True
-    except Exception as e:
-        logger.error(f"Error inserting Teledyne data: {e}")
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO Labjack (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple, `Timestamp`) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], pressure_data[5], timestamp))
+        
+        logger.debug(f"Inserted LabJack data: {pressure_data}")
+        return True
+    except mariadb.Error as e:
+        logger.error(f"Error inserting LabJack data: {e}")
+        cursor.rollback()
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  
 
 async def insert_labjack_1_data(pressure_data):
     """Insert LabJack data into the pressures table"""
-    try:
-        async with await get_database_connection() as conn:
-            await conn.execute('''
-                INSERT INTO Labjack (root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple, "Timestamp") 
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], pressure_data[5], await get_current_est_time()))
-            
-            await conn.commit()
-            logger.debug(f"Inserted LabJack data: {pressure_data}")
-            return True
-    except Exception as e:
-        logger.error(f"Error inserting LabJack data: {e}")
-        return False
+    timestamp = await get_current_est_time()
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_labjack_1_data_sync, pressure_data, timestamp)
 
-async def insert_labjack_2_data(flow_data):
-    """Insert LabJack 2 data into the Flow_Rates table"""
+def _insert_labjack_2_data_sync(labjack_2_data):
+    conn = None
+    cursor = None
     try:
-        async with await get_database_connection() as conn:
-            await conn.execute('''
-                INSERT INTO Flow_Rates (microwave_flow, heat_exchanger_flow) 
-                VALUES (%s, %s)
-            ''', (flow_data[0], flow_data[1]))
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO Flow_Rates (microwave_flow, heat_exchanger_flow) 
+            VALUES (%s, %s)
+        ''', (labjack_2_data[0], labjack_2_data[1]))
 
-            await conn.execute('''
-                INSERT INTO Labjack (magnet_bottom_temperature, magnet_top_temperature) 
-                VALUES (%s, %s)
-            ''', (flow_data[2], flow_data[3]))
-            
-            await conn.commit()
-            logger.debug(f"Inserted LabJack 2 data into Flow_Rates: {flow_data}")
-            return True
-    except Exception as e:
+        cursor.execute('''
+            INSERT INTO Labjack (magnet_bottom_temperature, magnet_top_temperature) 
+            VALUES (%s, %s)
+        ''', (labjack_2_data[2], labjack_2_data[3]))
+        
+        logger.debug(f"Inserted LabJack 2 data into Flow_Rates and Labjack: {labjack_2_data}")
+        return True
+    except mariadb.Error as e:
         logger.error(f"Error inserting LabJack 2 data: {e}")
+        cursor.rollback()
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  
+
+async def insert_labjack_2_data(labjack_2_data):
+    """Insert LabJack 2 data into the Flow_Rates table"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_labjack_2_data_sync, labjack_2_data)
+
+def _insert_lakeshore_data_target_stick_sync(data, timestamp):
+    """Synchronous function to insert Lakeshore data into the lakeshore_target_stick table"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO Lakeshore_Target_Stick (
+                `target_stick_buffle_top_temperature`,
+                `target_stick_buffle_bottom_temperature`,
+                `target_stick_seperator_top_temperature`,
+                `target_stick_seperator_bottom_temperature`,
+                `target_stick_heat_exchanger_top_temperature`,
+                `target_stick_heat_exchanger_bottom_temperature`,
+                `target_stick_annealing_plate_bar_temperature`,
+                `target_stick_annealing_plate_top_temperature`,
+                `Timestamp`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], timestamp))
+        
+        logger.debug(f"Inserted Target Stick Lakeshore data: {data}")
+        return True
+    except mariadb.Error as e:
+        logger.error(f"Error inserting Target Stick Lakeshore data: {e}")
+        cursor.rollback()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  
 
 async def insert_lakeshore_data_target_stick(data):
     """Insert Lakeshore data into the lakeshore_target_stick table"""
+    timestamp = await get_current_est_time()
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_lakeshore_data_target_stick_sync, data, timestamp)
+
+def _insert_lakeshore_data_fridge_temp_sync(data, timestamp):
+    """Synchronous function to insert Lakeshore data into the lakeshore_fridge_temp table"""
+    conn = None
+    cursor = None
     try:
-        async with await get_database_connection() as conn:
-            await conn.execute('''
-                INSERT INTO Lakeshore_Target_Stick (
-                    "target_stick_buffle_top_temperature",
-                    "target_stick_buffle_bottom_temperature",
-                    "target_stick_seperator_top_temperature",
-                    "target_stick_seperator_bottom_temperature",
-                    "target_stick_heat_exchanger_top_temperature",
-                    "target_stick_heat_exchanger_bottom_temperature",
-                    "target_stick_annealing_plate_bar_temperature",
-                    "target_stick_annealing_plate_top_temperature",
-                    "Timestamp"
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], await get_current_est_time()))
-            
-            await conn.commit()
-            logger.debug(f"Inserted Target Stick Lakeshore data: {data}")
-            return True
-    except Exception as e:
-        logger.error(f"Error inserting Target Stick Lakeshore data: {e}")
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO Lakeshore_Fridge_Temp (
+                `fridge_target_top_up_temperature`,
+                `fridge_target_top_up_center_temperature`,
+                `fridge_target_top_down_temperature`,
+                `fridge_target_bottom_up_temperature`,
+                `fridge_target_bottom_up_center_temperature`,
+                `fridge_target_bottom_down_temperature`,
+                `fridge_target_top_cernox_temperature`,
+                `fridge_target_bottom_cernox_temperature`,
+                `Timestamp`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], timestamp))
+
+        logger.debug(f"Inserted Fridge Lakeshore data: {data}")
+        return True
+    except mariadb.Error as e:
+        logger.error(f"Error inserting Fridge Lakeshore data: {e}")
+        cursor.rollback()
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  
 
 async def insert_lakeshore_data_fridge_temp(data):
     """Insert Lakeshore data into the lakeshore_fridge_temp table"""
-    try:
-        async with await get_database_connection() as conn:
-            await conn.execute('''
-                INSERT INTO Lakeshore_Fridge_Temp (
-                    "fridge_target_top_up_temperature",
-                    "fridge_target_top_up_center_temperature",
-                    "fridge_target_top_down_temperature",
-                    "fridge_target_bottom_up_temperature",
-                    "fridge_target_bottom_up_center_temperature",
-                    "fridge_target_bottom_down_temperature",
-                    "fridge_target_top_cernox_temperature",
-                    "fridge_target_bottom_cernox_temperature",
-                    "Timestamp"
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], await get_current_est_time()))
+    timestamp = await get_current_est_time()
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_lakeshore_data_fridge_temp_sync, data, timestamp)
 
-            await conn.commit()
-            logger.debug(f"Inserted Fridge Lakeshore data: {data}")
-            return True
-    except Exception as e:
-        logger.error(f"Error inserting Fridge Lakeshore data: {e}")
+def _insert_lakeshore_data_magnet_temp_sync(data, timestamp):
+    """Synchronous function to insert Lakeshore data into the lakeshore_magnet_temp table"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO Lakeshore_Magnet_Temp (
+                `magnet_channel_1`,
+                `magnet_channel_2`,
+                `magnet_channel_3`,
+                `magnet_channel_4`,
+                `magnet_channel_5`,
+                `magnet_channel_6`,
+                `magnet_channel_7`,
+                `magnet_channel_8`,
+                `Timestamp`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], timestamp))
+        
+        logger.debug(f"Inserted Magnet Lakeshore data: {data}")
+        return True
+    except mariadb.Error as e:
+        logger.error(f"Error inserting Magnet Lakeshore data: {e}")
+        cursor.rollback()
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  # Return connection to pool
 
 async def insert_lakeshore_data_magnet_temp(data):
     """Insert Lakeshore data into the lakeshore_magnet_temp table"""
+    timestamp = await get_current_est_time()
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_lakeshore_data_magnet_temp_sync, data, timestamp)
+
+def _insert_maxigauge_data_sync(data, timestamp):
+    """Synchronous function to insert MaxiGauge data into the maxigauge table"""
+    conn = None
+    cursor = None
     try:
-        async with await get_database_connection() as conn:
-            await conn.execute('''
-                INSERT INTO Lakeshore_Magnet_Temp (
-                    "magnet_channel_1",
-                    "magnet_channel_2",
-                    "magnet_channel_3",
-                    "magnet_channel_4",
-                    "magnet_channel_5",
-                    "magnet_channel_6",
-                    "magnet_channel_7",
-                    "magnet_channel_8",
-                    "Timestamp"
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], await get_current_est_time()))
-            
-            await conn.commit()
-            logger.debug(f"Inserted Magnet Lakeshore data: {data}")
-            return True
-    except Exception as e:
-        logger.error(f"Error inserting Magnet Lakeshore data: {e}")
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO MaxiGauge (
+                `maxigauge_seperator_inlet_pressure`,
+                `maxigauge_upper_roots_pressure`,
+                `maxigauge_channel_3`,
+                `maxigauge_channel_4`,
+                `maxigauge_channel_5`,
+                `maxigauge_channel_6`,
+                `Timestamp`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (data[0], data[1], data[2], data[3], data[4], data[5], timestamp))
+
+        logger.debug(f"Inserted MaxiGauge data: {data}")
+        return True
+    except mariadb.Error as e:
+        logger.error(f"Error inserting MaxiGauge data: {e}")
+        cursor.rollback()
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  # Return connection to pool
 
 async def insert_maxigauge_data(data):
     """Insert MaxiGauge data into the maxigauge table"""
-    try:
-        async with await get_database_connection() as conn:
-            await conn.execute('''
-                INSERT INTO MaxiGauge (
-                    "maxigauge_seperator_inlet_pressure",
-                    "maxigauge_upper_roots_pressure",
-                    "maxigauge_channel_3",
-                    "maxigauge_channel_4",
-                    "maxigauge_channel_5",
-                    "maxigauge_channel_6",
-                    "Timestamp"
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ''', (data[0], data[1], data[2], data[3], data[4], data[5], await get_current_est_time()))
+    timestamp = await get_current_est_time()
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_maxigauge_data_sync, data, timestamp)
 
-            await conn.commit()
-            logger.debug(f"Inserted MaxiGauge data: {data}")
-            return True
-    except Exception as e:
-        logger.error(f"Error inserting MaxiGauge data: {e}")
+def _insert_ivc_data_sync(data, timestamp):
+    """Synchronous function to insert IVC data into the ivc table"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO IVC (
+                `ivc_pressure`,
+                `Timestamp`
+            ) VALUES (?, ?)
+        ''', (data, timestamp))
+        
+        logger.debug(f"Inserted IVC data: {data}")
+        return True
+    except mariadb.Error as e:
+        logger.error(f"Error inserting IVC data: {e}")
+        cursor.rollback()
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()  # Return connection to pool
 
 async def insert_ivc_data(data):
     """Insert IVC data into the ivc table"""
-    try:
-        async with await get_database_connection() as conn:
-            await conn.execute('''
-                INSERT INTO IVC (
-                    "ivc_pressure",
-                    "Timestamp"
-                ) VALUES (%s, %s)
-            ''', (data, await get_current_est_time()))
-            
-            await conn.commit()
-            logger.debug(f"Inserted IVC data: {data}")
-            return True
-    except Exception as e:
-        logger.error(f"Error inserting IVC data: {e}")
-        return False
+    timestamp = await get_current_est_time()
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, _insert_ivc_data_sync, data, timestamp)
 
 async def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
     """Pipeline data directly to the database using concurrent operations"""
@@ -824,7 +985,7 @@ async def main():
                 iteration += 1
                 
                 QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data = await asyncio.gather(
-                    _read_QT(),
+                    read_QT_data(),
                     read_teledyne_data(),
                     read_labjack_data_1(),
                     read_labjack_data_2(),
@@ -968,6 +1129,14 @@ async def main():
         if qt_reader:
             qt_reader.close_connections()
             logger.info("QT reader connections closed")
+
+        # Close the database connection pool
+        if db_pool:
+            try:
+                db_pool.close()
+                logger.info("Database connection pool closed")
+            except Exception as e:
+                logger.error(f"Error closing database connection pool: {e}")
 
         if not args.verbose and not args.terminal_log:
             print("\n\n✅ Data acquisition system shutdown complete")
