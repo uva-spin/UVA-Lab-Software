@@ -12,7 +12,7 @@ LOCAL_CSV_DIR = "data_logs"  # Directory to store local CSV backups
 SLEEP_INTERVAL = 5  # Seconds between data readings
 MAX_CONSECUTIVE_FAILURES = 10  # Stop after this many consecutive failures
 
-# Modbus settings
+# Modbus settings (QT System)
 PLC_IP = "172.29.36.195"
 UNIT_ID = 2
 INT_PORT = 503
@@ -35,12 +35,8 @@ MAXIGAUGE_CHECK_INTERVAL = 1  # Check for new maxigauge data every second
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log" 
 
-# MariaDB Database Configuration
-DATABASE_HOST = "localhost"          # MariaDB server hostname or IP address
-DATABASE_PORT = 3306                 # MariaDB port (default is 3306)
-DATABASE_USER = "root"      # MariaDB username
-DATABASE_PASSWORD = "pswrd"  # MariaDB password
-DATABASE_NAME = "uvaspin"           # MariaDB database name
+# MariaDB Database Configuration File Path
+DATABASE_FILE = "//twist.phys.virginia.edu/www/spin/config.json"
 
 # Data Collection Settings
 LOCAL_CSV_DIR = "data_logs"

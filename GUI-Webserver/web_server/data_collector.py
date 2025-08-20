@@ -9,8 +9,13 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify, render_template
 import logging
 import pytz
+import json
 
-from config import DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
+DATABASE_FILE = "/var/www/spin/config.json"
+
+# Load database configuration
+with open(DATABASE_FILE, 'r') as f:
+    config = json.load(f)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -93,24 +98,17 @@ def convert_db_timestamp_to_js_timestamp(db_timestamp):
 
 class DataCollector:
     def __init__(self):
-        print(f"Database IP: {DATABASE_HOST}")
-        print(f"Database port: {DATABASE_PORT}")
-        print(f"Database user: {DATABASE_USER}")
-        print(f"Database password: {DATABASE_PASSWORD}")
-        print(f"Database name: {DATABASE_NAME}")
+        print(f"Database IP: {config['DATABASE_HOST']}")
+        print(f"Database port: {config['DATABASE_PORT']}")
+        print(f"Database user: {config['DATABASE_USER']}")
+        print(f"Database password: {config['DATABASE_PASSWORD']}")
+        print(f"Database name: {config['DATABASE_NAME']}")
         self.setup_database()
         
     def setup_database(self):
         """Initialize the database with the schema-defined tables"""
         
-        conn = mariadb.connect(
-            host=DATABASE_HOST,
-            port=DATABASE_PORT,
-            user=DATABASE_USER,
-            password=DATABASE_PASSWORD,
-            database=DATABASE_NAME,
-            autocommit=True
-        )
+        conn = mariadb.connect(**config)
         cursor = conn.cursor()
         
         try:
@@ -144,14 +142,7 @@ class DataCollector:
         
         try:
             
-            conn = mariadb.connect(
-                host=DATABASE_HOST,
-                port=DATABASE_PORT,
-                user=DATABASE_USER,
-                password=DATABASE_PASSWORD,
-                database=DATABASE_NAME,
-                autocommit=True
-            )
+            conn = mariadb.connect(**config)
             cursor = conn.cursor()
             if table_name:
                 # Query specific table
@@ -210,14 +201,7 @@ class DataCollector:
         """Get the latest data from all tables and combine them"""
         
         try:
-            conn = mariadb.connect(
-                host=DATABASE_HOST,
-                port=DATABASE_PORT,
-                user=DATABASE_USER,
-                password=DATABASE_PASSWORD,
-                database=DATABASE_NAME,
-                autocommit=True
-            )
+            conn = mariadb.connect(**config)
             cursor = conn.cursor()
             
             # Get all tables
@@ -265,14 +249,7 @@ class DataCollector:
     def insert_data(self, table_name, data):
         """Insert data into the specified table"""
         try:
-            conn = mariadb.connect(
-                host=DATABASE_HOST,
-                port=DATABASE_PORT,
-                user=DATABASE_USER,
-                password=DATABASE_PASSWORD,
-                database=DATABASE_NAME,
-                autocommit=True
-            )
+            conn = mariadb.connect(**config)
             cursor = conn.cursor()
             
             # Get the column names for the table (excluding id which is auto-increment)
@@ -309,14 +286,7 @@ class DataCollector:
     def get_table_data(self, table_name, limit=100):
         """Get recent data from a specific table"""
         try:
-            conn = mariadb.connect(
-                host=DATABASE_HOST,
-                port=DATABASE_PORT,
-                user=DATABASE_USER,
-                password=DATABASE_PASSWORD,
-                database=DATABASE_NAME,
-                autocommit=True
-            )
+            conn = mariadb.connect(**config)
             cursor = conn.cursor()
             
             cursor.execute(f"SELECT * FROM {table_name} ORDER BY Timestamp DESC LIMIT %s", (limit,))
@@ -344,14 +314,7 @@ class DataCollector:
     def get_available_columns_by_table(self):
         """Get available columns organized by table name"""
         try:
-            conn = mariadb.connect(
-                host=DATABASE_HOST,
-                port=DATABASE_PORT,
-                user=DATABASE_USER,
-                password=DATABASE_PASSWORD,
-                database=DATABASE_NAME,
-                autocommit=True
-            )
+            conn = mariadb.connect(**config)
             cursor = conn.cursor()
             
             # Get all tables
@@ -427,14 +390,7 @@ def query_db():
         logger.info(f"Fetching data for keys: {keys}")
         logger.info(f"Time range (EST): {db_start_time} to {db_end_time}")
         
-        conn = mariadb.connect(
-            host=DATABASE_HOST,
-            port=DATABASE_PORT,
-            user=DATABASE_USER,
-            password=DATABASE_PASSWORD,
-            database=DATABASE_NAME,
-            autocommit=True
-        )
+        conn = mariadb.connect(**config)
         cursor = conn.cursor()
         
         all_data = {}
@@ -540,14 +496,7 @@ def get_available_columns():
     """Get list of available columns from all tables"""
     try:
         
-        conn = mariadb.connect(
-            host=DATABASE_HOST,
-            port=DATABASE_PORT,
-            user=DATABASE_USER,
-            password=DATABASE_PASSWORD,
-            database=DATABASE_NAME,
-            autocommit=True
-        )
+        conn = mariadb.connect(**config)
         cursor = conn.cursor()
         columns_by_table = collector.get_available_columns_by_table()
         
@@ -583,14 +532,7 @@ def get_available_columns():
 def get_db_status():
     """Check database status and available tables"""
     try:
-        conn = mariadb.connect(
-            host=DATABASE_HOST,
-            port=DATABASE_PORT,
-            user=DATABASE_USER,
-            password=DATABASE_PASSWORD,
-            database=DATABASE_NAME,
-            autocommit=True
-        )
+        conn = mariadb.connect(**config)
         cursor = conn.cursor()
         
         # Get all tables - MariaDB equivalent  
@@ -633,14 +575,7 @@ def get_db_status():
 def test_db():
     """Test database connection and data availability"""
     try:
-        conn = mariadb.connect(
-            host=DATABASE_HOST,
-            port=DATABASE_PORT,
-            user=DATABASE_USER,
-            password=DATABASE_PASSWORD,
-            database=DATABASE_NAME,
-            autocommit=True
-        )
+        conn = mariadb.connect(**config)
         cursor = conn.cursor()
         
         # Get all tables - MariaDB equivalent  

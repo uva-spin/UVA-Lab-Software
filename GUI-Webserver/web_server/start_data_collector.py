@@ -4,9 +4,13 @@ Start script for the data collector
 """
 
 import logging
+import json
 
-from config import DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
+DATABASE_FILE = "/var/www/spin/config.json"
 
+# Load database configuration
+with open(DATABASE_FILE, 'r') as f:
+    config = json.load(f)
 
 
 # Configure logging
@@ -17,11 +21,11 @@ logger = logging.getLogger(__name__)
 def start_data_collector():
     """Start the data collector Flask application"""
 
-    logger.info(f"Database IP: {DATABASE_HOST}")
-    logger.info(f"Database port: {DATABASE_PORT}")
-    logger.info(f"Database user: {DATABASE_USER}")
-    logger.info(f"Database password: {DATABASE_PASSWORD}")
-    logger.info(f"Database name: {DATABASE_NAME}")
+    logger.info(f"Database IP: {config['DATABASE_HOST']}")
+    logger.info(f"Database port: {config['DATABASE_PORT']}")
+    logger.info(f"Database user: {config['DATABASE_USER']}")
+    logger.info(f"Database password: {config['DATABASE_PASSWORD']}")
+    logger.info(f"Database name: {config['DATABASE_NAME']}")
     
     logger.info("🚀 Starting Data Collector...")
     logger.info("=" * 60)

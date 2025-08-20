@@ -21,6 +21,12 @@ import asyncio
 import mariadb
 import signal
 from concurrent.futures import ThreadPoolExecutor
+import json
+from config import *
+
+# Load database configuration
+with open(DATABASE_FILE, 'r') as f:
+    config = json.load(f)
 
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader_1, LabJackReader_2
@@ -162,7 +168,7 @@ async def setup_logging(verbose=False, terminal_output=False):
 setup_logging(verbose=False, terminal_output=False)
 logger = logging.getLogger(__name__)
 
-from config import *
+
 
 # Define the labels for the float values
 labels = [
@@ -210,26 +216,17 @@ async def setup_database():
     global db_pool
     
     try:
-        # Create the connection pool
-        db_config = {
-            "host": DATABASE_HOST,
-            "port": DATABASE_PORT,
-            "user": DATABASE_USER,
-            "password": DATABASE_PASSWORD,
-            "database": DATABASE_NAME,
-            "autocommit": True
-        }
-        
+
         # Initialize connection pool with 5 connections minimum, 20 maximum
         db_pool = mariadb.ConnectionPool(
             pool_name="uva_lab_pool",
             pool_size=10,
-            **db_config
+            **config
         )
         
         logger.info(f"Created MariaDB connection pool with 10 connections")
-        logger.info(f"Connected to MariaDB at {DATABASE_HOST}:{DATABASE_PORT}")
-        logger.info(f"Database: {DATABASE_NAME}")
+        logger.info(f"Connected to MariaDB at {config['DATABASE_HOST']}:{config['DATABASE_PORT']}")
+        logger.info(f"Database: {config['DATABASE_NAME']}")
         
         # Test connectivity with a connection from the pool
         conn = None
@@ -252,10 +249,10 @@ async def setup_database():
     except mariadb.Error as e:
         logger.error(f"Database setup error: {e}")
         logger.error("Please check your MariaDB connection parameters:")
-        logger.error(f"  Host: {DATABASE_HOST}")
-        logger.error(f"  Port: {DATABASE_PORT}")
-        logger.error(f"  User: {DATABASE_USER}")
-        logger.error(f"  Database: {DATABASE_NAME}")
+        logger.error(f"  Host: {config['DATABASE_HOST']}")
+        logger.error(f"  Port: {config['DATABASE_PORT']}")
+        logger.error(f"  User: {config['DATABASE_USER']}")
+        logger.error(f"  Database: {config['DATABASE_NAME']}")
         raise
 
 async def read_QT_data():
