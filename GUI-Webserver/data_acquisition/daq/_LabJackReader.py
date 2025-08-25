@@ -35,13 +35,16 @@ class LabJackReader_1:
         self.avg_Fridge_Vapor_Pressure = None
         self.avg_Thermocouple = None
 
-        self.ROOT_EXHAUST_SCALE_FACTOR = 0.7928388747 # Torr
+        # self.ROOT_EXHAUST_SCALE_FACTOR = 0.7928388747 # Torr
+        self.ROOT_EXHAUST_SCALE_FACTOR = 0.251
         self.BUFFER_SCALE_FACTOR = 17.46031746 #PSI
-        self.MAGNET_SCALE_FACTOR = 1 #PSI
+        self.MAGNET_SCALE_FACTOR = 0.268 #PSI
         self.PURIFIER_INLET_SCALE_FACTOR = 1 #PSI
         self.FRIDGE_VAPOR_SCALE_FACTOR = 52.55102041 # Roughly in Torr
 
         self.FRIDGE_VAPOR_SHIFT =  -0.19
+        self.ROOT_EXHAUST_SHIFT = 3.546
+        self.MAGNET_SHIFT = 0.990
 
     def psi_to_torr(self, psi):
         return psi * 51.715 # 1 psi = 51.715 torr
@@ -203,9 +206,9 @@ class LabJackReader_1:
                     self.avg_Purifier_Inlet_Pressure = np.average(Purifier_Inlet_Pressure)
                     self.avg_Fridge_Vapor_Pressure = np.average(Fridge_Vapor_Pressure)
                     self.avg_Thermocouple = np.average(Thermocouple)
-                    self.data_queue[0] = self.psi_to_torr(self.ROOT_EXHAUST_SCALE_FACTOR * self.avg_Root_Exhausted_Pressure) ## In Torr
+                    self.data_queue[0] = self.psi_to_torr(self.ROOT_EXHAUST_SCALE_FACTOR * self.avg_Root_Exhausted_Pressure + self.ROOT_EXHAUST_SHIFT) ## In Torr
                     self.data_queue[1] = self.BUFFER_SCALE_FACTOR * self.avg_Buffer_Pressure - 4.22 ## In PSI
-                    self.data_queue[2] = self.MAGNET_SCALE_FACTOR * self.avg_Magnet_Pressure ## In PSI
+                    self.data_queue[2] = self.MAGNET_SCALE_FACTOR * self.avg_Magnet_Pressure + self.MAGNET_SHIFT ## In PSI
                     self.data_queue[3] = self.PURIFIER_INLET_SCALE_FACTOR * self.avg_Purifier_Inlet_Pressure ## In PSI
                     self.data_queue[4] = self.FRIDGE_VAPOR_SCALE_FACTOR * self.avg_Fridge_Vapor_Pressure + self.FRIDGE_VAPOR_SHIFT ## In Torr
                     self.data_queue[5] = self.avg_Thermocouple ## In C
