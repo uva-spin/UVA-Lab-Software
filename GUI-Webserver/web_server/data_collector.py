@@ -92,11 +92,11 @@ def convert_db_timestamp_to_js_timestamp(db_timestamp):
 
 class DataCollector:
     def __init__(self):
-        print(f"Database IP: {config['DATABASE_HOST']}")
-        print(f"Database port: {config['DATABASE_PORT']}")
-        print(f"Database user: {config['DATABASE_USER']}")
-        print(f"Database password: {config['DATABASE_PASSWORD']}")
-        print(f"Database name: {config['DATABASE_NAME']}")
+        print(f"Database IP: {config['host']}")
+        print(f"Database port: {config['port']}")
+        print(f"Database user: {config['user']}")
+        print(f"Database password: {config['password']}")
+        print(f"Database name: {config['database']}")
         self.setup_database()
         self.db_pool = mariadb.ConnectionPool(
                     pool_name="website_pool",

@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 def start_data_collector():
     """Start the data collector Flask application"""
 
-    logger.info(f"Database IP: {config['DATABASE_HOST']}")
-    logger.info(f"Database port: {config['DATABASE_PORT']}")
-    logger.info(f"Database user: {config['DATABASE_USER']}")
-    logger.info(f"Database password: {config['DATABASE_PASSWORD']}")
-    logger.info(f"Database name: {config['DATABASE_NAME']}")
+    logger.info(f"Database IP: {config['host']}")
+    logger.info(f"Database port: {config['port']}")
+    logger.info(f"Database user: {config['user']}")
+    logger.info(f"Database password: {config['password']}")
+    logger.info(f"Database name: {config['database']}")
     
     logger.info("🚀 Starting Data Collector...")
     logger.info("=" * 60)
