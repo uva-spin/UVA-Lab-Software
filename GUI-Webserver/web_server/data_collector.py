@@ -17,7 +17,8 @@ DATABASE_FILE = "/var/www/spin/config.json"
 with open(DATABASE_FILE, 'r') as f:
     config = json.load(f)
 
-# Validate database configuration
+
+logger = logging.getLogger(__name__)
 required_fields = ['host', 'port', 'user', 'password', 'database']
 missing_fields = [field for field in required_fields if field not in config or not config[field]]
 if missing_fields:
