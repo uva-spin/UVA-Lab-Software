@@ -28,6 +28,8 @@ from config import *
 with open(DATABASE_FILE, 'r') as f:
     db_config = json.load(f)
 
+print(f"DB_CONFIG: {db_config}")
+
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader_1, LabJackReader_2
 from _LakeShoreReader import LakeShoreReader
@@ -225,8 +227,8 @@ async def setup_database():
         )
         
         logger.info(f"Created MariaDB connection pool with 10 connections")
-        logger.info(f"Connected to MariaDB at {db_config['DATABASE_HOST']}:{db_config['DATABASE_PORT']}")
-        logger.info(f"Database: {db_config['DATABASE_NAME']}")
+        logger.info(f"Connected to MariaDB at {db_config['host']}:{db_config['port']}")
+        logger.info(f"Database: {db_config['database']}")
         
         # Test connectivity with a connection from the pool
         conn = None
@@ -249,10 +251,10 @@ async def setup_database():
     except mariadb.Error as e:
         logger.error(f"Database setup error: {e}")
         logger.error("Please check your MariaDB connection parameters:")
-        logger.error(f"  Host: {db_config['DATABASE_HOST']}")
-        logger.error(f"  Port: {db_config['DATABASE_PORT']}")
-        logger.error(f"  User: {db_config['DATABASE_USER']}")
-        logger.error(f"  Database: {db_config['DATABASE_NAME']}")
+        logger.error(f"  Host: {db_config['host']}")
+        logger.error(f"  Port: {db_config['port']}")
+        logger.error(f"  User: {db_config['user']}")
+        logger.error(f"  Database: {db_config['database']}")
         raise
 
 async def read_QT_data():
@@ -800,7 +802,7 @@ async def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_d
                     elif operation_name == 'IVC':
                         ivc_status = 'error'
                 elif result:
-                    logger.debug(f"Successfully inserted {operation_name} data")
+                    logger.info(f"Successfully inserted {operation_name} data")
                     if operation_name == 'QT':
                         QT_status = 'success'
                     elif operation_name == 'Teledyne':
