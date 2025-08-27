@@ -36,15 +36,18 @@ class LabJackReader_1:
         self.avg_Thermocouple = None
 
         # self.ROOT_EXHAUST_SCALE_FACTOR = 0.7928388747 # Torr
-        self.ROOT_EXHAUST_SCALE_FACTOR = 0.251
-        self.BUFFER_SCALE_FACTOR = 17.46031746 #PSI
-        self.MAGNET_SCALE_FACTOR = 0.268 #PSI
+        self.ROOT_EXHAUST_SCALE_FACTOR = 4.284
+        self.BUFFER_SCALE_FACTOR = 20.356 #PSI
+        self.MAGNET_SCALE_FACTOR = 3.726 #PSI
         self.PURIFIER_INLET_SCALE_FACTOR = 1 #PSI
         self.FRIDGE_VAPOR_SCALE_FACTOR = 52.55102041 # Roughly in Torr
 
-        self.FRIDGE_VAPOR_SHIFT =  -0.19
-        self.ROOT_EXHAUST_SHIFT = 3.546
-        self.MAGNET_SHIFT = 0.990
+
+        self.ROOT_EXHAUST_SHIFT = -807.446
+        self.BUFFER_SHIFT = 0.043
+        self.MAGNET_SHIFT = -3.682
+        self.PURIFIER_INLET_SHIFT = 0.015
+        self.FRIDGE_VAPOR_SHIFT = 0.023
 
     def psi_to_torr(self, psi):
         return psi * 51.715 # 1 psi = 51.715 torr

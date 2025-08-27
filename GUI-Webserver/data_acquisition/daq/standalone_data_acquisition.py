@@ -26,7 +26,7 @@ from config import *
 
 # Load database configuration
 with open(DATABASE_FILE, 'r') as f:
-    config = json.load(f)
+    db_config = json.load(f)
 
 from _TeledyneReader import TeledyneDataReader
 from _LabJackReader import LabJackReader_1, LabJackReader_2
@@ -221,12 +221,12 @@ async def setup_database():
         db_pool = mariadb.ConnectionPool(
             pool_name="uva_lab_pool",
             pool_size=10,
-            **config
+            **db_config
         )
         
         logger.info(f"Created MariaDB connection pool with 10 connections")
-        logger.info(f"Connected to MariaDB at {config['DATABASE_HOST']}:{config['DATABASE_PORT']}")
-        logger.info(f"Database: {config['DATABASE_NAME']}")
+        logger.info(f"Connected to MariaDB at {db_config['DATABASE_HOST']}:{db_config['DATABASE_PORT']}")
+        logger.info(f"Database: {db_config['DATABASE_NAME']}")
         
         # Test connectivity with a connection from the pool
         conn = None
@@ -249,10 +249,10 @@ async def setup_database():
     except mariadb.Error as e:
         logger.error(f"Database setup error: {e}")
         logger.error("Please check your MariaDB connection parameters:")
-        logger.error(f"  Host: {config['DATABASE_HOST']}")
-        logger.error(f"  Port: {config['DATABASE_PORT']}")
-        logger.error(f"  User: {config['DATABASE_USER']}")
-        logger.error(f"  Database: {config['DATABASE_NAME']}")
+        logger.error(f"  Host: {db_config['DATABASE_HOST']}")
+        logger.error(f"  Port: {db_config['DATABASE_PORT']}")
+        logger.error(f"  User: {db_config['DATABASE_USER']}")
+        logger.error(f"  Database: {db_config['DATABASE_NAME']}")
         raise
 
 async def read_QT_data():
@@ -397,7 +397,7 @@ def _insert_QT_data_sync(data, timestamp):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (fc501_ai, fc501_out, fc502_ai, fc502_out, lit501_ai, pt501_ai, pt502_ai, pt503_ai, pt504_ai, ait501_ai, ti501_ai, ti502_ai, ti503_ai, ti504_ai, ti505_ai, ti523_ai, timestamp))
         
-        logger.debug(f"Inserted QT data: {data[:3]}...")
+        logger.info(f"Inserted QT data: {data[:3]}...")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting QT data: {e}")
@@ -412,6 +412,7 @@ async def insert_QT_data(data):
     """Insert QT data into the QT table"""
     timestamp = await get_current_est_time()
     loop = asyncio.get_event_loop()
+    await asyncio.sleep(ASYNC_READ_INTERVAL)
     return await loop.run_in_executor(executor, _insert_QT_data_sync, data, timestamp)
 
 def _insert_teledyne_data_sync(flow_data, timestamp):
@@ -427,7 +428,7 @@ def _insert_teledyne_data_sync(flow_data, timestamp):
             VALUES (%f, %f, %f, %s)
         ''', flow_data + [timestamp])
         
-        logger.debug(f"Inserted Teledyne data: {flow_data}")
+        logger.info(f"Inserted Teledyne data: {flow_data}")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting Teledyne data: {e}")
@@ -442,6 +443,7 @@ async def insert_teledyne_data(flow_data):
     """Insert Teledyne data into the flow_rates table"""
     timestamp = await get_current_est_time()
     loop = asyncio.get_event_loop()
+    await asyncio.sleep(ASYNC_READ_INTERVAL)
     return await loop.run_in_executor(executor, _insert_teledyne_data_sync, flow_data, timestamp)
 
 def _insert_labjack_1_data_sync(pressure_data, timestamp):
@@ -457,7 +459,7 @@ def _insert_labjack_1_data_sync(pressure_data, timestamp):
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (pressure_data[0], pressure_data[1], pressure_data[2], pressure_data[3], pressure_data[4], pressure_data[5], timestamp))
         
-        logger.debug(f"Inserted LabJack data: {pressure_data}")
+        logger.info(f"Inserted LabJack data: {pressure_data}")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting LabJack data: {e}")
@@ -473,6 +475,7 @@ async def insert_labjack_1_data(pressure_data):
     """Insert LabJack data into the pressures table"""
     timestamp = await get_current_est_time()
     loop = asyncio.get_event_loop()
+    await asyncio.sleep(ASYNC_READ_INTERVAL)
     return await loop.run_in_executor(executor, _insert_labjack_1_data_sync, pressure_data, timestamp)
 
 def _insert_labjack_2_data_sync(labjack_2_data):
@@ -492,7 +495,7 @@ def _insert_labjack_2_data_sync(labjack_2_data):
             VALUES (?, ?)
         ''', (labjack_2_data[2], labjack_2_data[3]))
         
-        logger.debug(f"Inserted LabJack 2 data into Flow_Rates and Labjack: {labjack_2_data}")
+        logger.info(f"Inserted LabJack 2 data into Flow_Rates and Labjack: {labjack_2_data}")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting LabJack 2 data: {e}")
@@ -507,6 +510,7 @@ def _insert_labjack_2_data_sync(labjack_2_data):
 async def insert_labjack_2_data(labjack_2_data):
     """Insert LabJack 2 data into the Flow_Rates table"""
     loop = asyncio.get_event_loop()
+    await asyncio.sleep(ASYNC_READ_INTERVAL)
     return await loop.run_in_executor(executor, _insert_labjack_2_data_sync, labjack_2_data)
 
 def _insert_lakeshore_data_target_stick_sync(data, timestamp):
@@ -531,7 +535,7 @@ def _insert_lakeshore_data_target_stick_sync(data, timestamp):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], timestamp))
         
-        logger.debug(f"Inserted Target Stick Lakeshore data: {data}")
+        logger.info(f"Inserted Target Stick Lakeshore data: {data}")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting Target Stick Lakeshore data: {e}")
@@ -571,7 +575,7 @@ def _insert_lakeshore_data_fridge_temp_sync(data, timestamp):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], timestamp))
 
-        logger.debug(f"Inserted Fridge Lakeshore data: {data}")
+        logger.info(f"Inserted Fridge Lakeshore data: {data}")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting Fridge Lakeshore data: {e}")
@@ -587,6 +591,7 @@ async def insert_lakeshore_data_fridge_temp(data):
     """Insert Lakeshore data into the lakeshore_fridge_temp table"""
     timestamp = await get_current_est_time()
     loop = asyncio.get_event_loop()
+    await asyncio.sleep(ASYNC_READ_INTERVAL)
     return await loop.run_in_executor(executor, _insert_lakeshore_data_fridge_temp_sync, data, timestamp)
 
 def _insert_lakeshore_data_magnet_temp_sync(data, timestamp):
@@ -611,7 +616,7 @@ def _insert_lakeshore_data_magnet_temp_sync(data, timestamp):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], timestamp))
         
-        logger.debug(f"Inserted Magnet Lakeshore data: {data}")
+        logger.info(f"Inserted Magnet Lakeshore data: {data}")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting Magnet Lakeshore data: {e}")
@@ -627,6 +632,7 @@ async def insert_lakeshore_data_magnet_temp(data):
     """Insert Lakeshore data into the lakeshore_magnet_temp table"""
     timestamp = await get_current_est_time()
     loop = asyncio.get_event_loop()
+    await asyncio.sleep(ASYNC_READ_INTERVAL)
     return await loop.run_in_executor(executor, _insert_lakeshore_data_magnet_temp_sync, data, timestamp)
 
 def _insert_maxigauge_data_sync(data, timestamp):
@@ -649,7 +655,7 @@ def _insert_maxigauge_data_sync(data, timestamp):
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (data[0], data[1], data[2], data[3], data[4], data[5], timestamp))
 
-        logger.debug(f"Inserted MaxiGauge data: {data}")
+        logger.info(f"Inserted MaxiGauge data: {data}")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting MaxiGauge data: {e}")
@@ -665,6 +671,7 @@ async def insert_maxigauge_data(data):
     """Insert MaxiGauge data into the maxigauge table"""
     timestamp = await get_current_est_time()
     loop = asyncio.get_event_loop()
+    await asyncio.sleep(ASYNC_READ_INTERVAL)
     return await loop.run_in_executor(executor, _insert_maxigauge_data_sync, data, timestamp)
 
 def _insert_ivc_data_sync(data, timestamp):
@@ -682,7 +689,7 @@ def _insert_ivc_data_sync(data, timestamp):
             ) VALUES (?, ?)
         ''', (data, timestamp))
         
-        logger.debug(f"Inserted IVC data: {data}")
+        logger.info(f"Inserted IVC data: {data}")
         return True
     except mariadb.Error as e:
         logger.error(f"Error inserting IVC data: {e}")
@@ -698,6 +705,7 @@ async def insert_ivc_data(data):
     """Insert IVC data into the ivc table"""
     timestamp = await get_current_est_time()
     loop = asyncio.get_event_loop()
+    await asyncio.sleep(ASYNC_READ_INTERVAL)
     return await loop.run_in_executor(executor, _insert_ivc_data_sync, data, timestamp)
 
 async def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
@@ -728,7 +736,7 @@ async def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_d
         purifier_inlet_pressure = labjack_data_1[3]
         fridge_vapor_pressure = labjack_data_1[4]
         thermocouple = labjack_data_1[5]
-        logger.debug(f"LabJack 1 data: {labjack_data_1}")
+        logger.info(f"LabJack 1 data: {labjack_data_1}")
         db_operations.append(('LabJack_1', insert_labjack_1_data([root_exhaust_pressure, buffer_pressure, magnet_pressure, purifier_inlet_pressure, fridge_vapor_pressure, thermocouple])))
     
     # Add Teledyne data operation
@@ -753,12 +761,12 @@ async def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_d
     
     # Add MaxiGauge data operation
     if maxigauge_data is not None and isinstance(maxigauge_data, list) and len(maxigauge_data) == 6:
-        logger.debug(f"MaxiGauge data: {maxigauge_data}")
+        logger.info(f"MaxiGauge data: {maxigauge_data}")
         db_operations.append(('MaxiGauge', insert_maxigauge_data(maxigauge_data)))
     
     # Add IVC data operation
     if ivc_data is not None and isinstance(ivc_data, (int, float)):
-        logger.debug(f"IVC data: {ivc_data}")
+        logger.info(f"IVC data: {ivc_data}")
         db_operations.append(('IVC', insert_ivc_data(ivc_data)))
     
     # Execute all database operations concurrently
@@ -876,10 +884,10 @@ async def main():
     logger.info("Starting Data Acquisition System with Direct Database Pipeline")
     if args.verbose:
         logger.info("VERBOSE: Verbose mode enabled")
-        logger.info(f"VERBOSE: Database host: {DATABASE_HOST}")
-        logger.info(f"VERBOSE: Database port: {DATABASE_PORT}")
-        logger.info(f"VERBOSE: Database user: {DATABASE_USER}")
-        logger.info(f"VERBOSE: Database name: {DATABASE_NAME}")
+        logger.info(f"VERBOSE: Database host: {db_config['DATABASE_HOST']}")
+        logger.info(f"VERBOSE: Database port: {db_config['DATABASE_PORT']}")
+        logger.info(f"VERBOSE: Database user: {db_config['DATABASE_USER']}")
+        logger.info(f"VERBOSE: Database name: {db_config['DATABASE_NAME']}")
         logger.info(f"VERBOSE: PLC IP: {PLC_IP}")
         logger.info(f"VERBOSE: Unit ID: {UNIT_ID}")
         logger.info(f"VERBOSE: Integer Port: {INT_PORT}")

@@ -31,6 +31,8 @@ LAKESHORE_CHECK_INTERVAL = 1  # Check for new lakeshore data every second
 # MaxiGauge pressure data settings
 MAXIGAUGE_CHECK_INTERVAL = 1  # Check for new maxigauge data every second
 
+ASYNC_READ_INTERVAL = 1  # Check for new data every second
+
 # Logging settings
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log" 

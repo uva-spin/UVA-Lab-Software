@@ -6,32 +6,26 @@ The `standalone_data_acquisition.py` script has been fully asynchronized to impr
 ## Key Improvements
 
 ### 1. **Concurrent Data Reading**
-- **Before**: Data was read sequentially from each device, causing delays
 - **After**: All data reading operations now run concurrently using `asyncio.gather()`
 - **Benefit**: Significantly reduced total data collection time
 
 ### 2. **Async Database Operations**
-- **Before**: Used synchronous `sqlite3` with blocking operations
 - **After**: Implemented `aiomysql` for non-blocking MariaDB operations
 - **Benefit**: Database operations no longer block the main thread, supports enterprise database systems
 
 ### 3. **Concurrent Database Insertions**
-- **Before**: Database insertions were performed sequentially
 - **After**: Multiple database insertions now run concurrently
 - **Benefit**: Faster data persistence and reduced database bottleneck
 
 ### 4. **Thread Pool Executor**
-- **Before**: Blocking device operations could freeze the entire system
 - **After**: Blocking operations run in a thread pool with async coordination
 - **Benefit**: Non-blocking main loop while handling legacy synchronous code
 
 ### 5. **Graceful Shutdown Handling**
-- **Before**: Basic signal handling with potential data loss
 - **After**: Proper async shutdown with cleanup of all resources
 - **Benefit**: Clean shutdown without data corruption
 
 ### 6. **Async Sleep and Timing**
-- **Before**: Blocking sleep operations
 - **After**: Non-blocking `asyncio.sleep()` with shutdown checks
 - **Benefit**: Responsive shutdown and better resource management
 
