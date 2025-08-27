@@ -1,6 +1,5 @@
 # Configuration file for data acquisition system
 
-# Remote Flask server configuration
 REMOTE_SERVER_URL = "http://128.143.231.224:5000"  # Flask server's IP and port
 
 DATA_PATH = f"{REMOTE_SERVER_URL}/data"
@@ -12,7 +11,6 @@ LOCAL_CSV_DIR = "data_logs"  # Directory to store local CSV backups
 SLEEP_INTERVAL = 5  # Seconds between data readings
 MAX_CONSECUTIVE_FAILURES = 10  # Stop after this many consecutive failures
 
-# Modbus settings (QT System)
 PLC_IP = "172.29.36.195"
 UNIT_ID = 2
 INT_PORT = 503

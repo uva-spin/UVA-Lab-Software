@@ -425,10 +425,15 @@ def _insert_teledyne_data_sync(flow_data, timestamp):
         conn = get_database_connection()
         cursor = conn.cursor()
         
+        # Ensure we have exactly 3 flow values
+        if len(flow_data) != 3:
+            logger.error(f"Expected 3 Teledyne flow values, got {len(flow_data)}")
+            return False
+        
         cursor.execute('''
             INSERT INTO Flow_Rates (seperator_flow, magnet_flow, main_flow, `Timestamp`) 
-            VALUES (%f, %f, %f, %s)
-        ''', flow_data + [timestamp])
+            VALUES (?, ?, ?, ?)
+        ''', (flow_data[0], flow_data[1], flow_data[2], timestamp))
         
         logger.info(f"Inserted Teledyne data: {flow_data}")
         return True
