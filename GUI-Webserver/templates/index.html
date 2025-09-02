@@ -521,7 +521,7 @@
             }
 
             try {
-                const { data, missingKeys } = await fetchDataFromDB(selectedKeys);
+                const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys);
                 
                 if (missingKeys && missingKeys.length > 0) {
                     console.warn('Missing data for keys:', missingKeys);
