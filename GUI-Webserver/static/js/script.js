@@ -67,6 +67,10 @@ document.addEventListener('keydown', function(e) {
         e.preventDefault();
         document.getElementById('refresh-form').dispatchEvent(new Event('submit'));
     }
+
+    if (e.key === 'Enter') {
+        retry_column_refresh();
+    }
 });
 
 // Performance monitoring
@@ -103,6 +107,11 @@ function throttle(func, limit) {
             setTimeout(() => inThrottle = false, limit);
         }
     };
+}
+
+function retry_column_refresh() {
+    const column_refresh_button = document.getElementById('column-refresh-button');
+    column_refresh_button.click();  
 }
 
 // Export functions for global use

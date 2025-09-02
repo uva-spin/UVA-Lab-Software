@@ -13,7 +13,6 @@ import json
 
 DATABASE_FILE = "/var/www/spin/config.json"
 
-# Load database configuration
 with open(DATABASE_FILE, 'r') as f:
     config = json.load(f)
 
@@ -23,7 +22,7 @@ required_fields = ['host', 'port', 'user', 'password', 'database']
 missing_fields = [field for field in required_fields if field not in config or not config[field]]
 if missing_fields:
     logger.error(f"Missing required database configuration fields: {missing_fields}")
-    sys.exit(1)
+    sys.exit(0)
 
 logger.info(f"Database configuration loaded successfully")
 logger.info(f"Database host: {config['host']}")
@@ -31,14 +30,11 @@ logger.info(f"Database port: {config['port']}")
 logger.info(f"Database name: {config['database']}")
 logger.info(f"Database user: {config['user']}")
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Configure timezone - Use proper Eastern Time that handles EST/EDT automatically
 EST = pytz.timezone('America/New_York')
 
-# Global variable to track shutdown state
 shutdown_requested = False
 
 def signal_handler(signum, frame):
@@ -48,7 +44,6 @@ def signal_handler(signum, frame):
     shutdown_requested = True
     sys.exit(0)
 
-# Register signal handlers
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
@@ -72,37 +67,6 @@ def convert_frontend_timestamp_to_db_format(timestamp_str):
     except ValueError as e:
         logger.warning(f"Could not parse timestamp '{timestamp_str}': {e}")
         return timestamp_str
-
-def convert_db_timestamp_to_js_timestamp(db_timestamp):
-    """
-    Convert database timestamp to JavaScript timestamp (milliseconds since epoch)
-    Assumes database timestamps are in Eastern Time (EST/EDT)
-    
-    Args:
-        db_timestamp: Database timestamp (datetime object or string)
-    
-    Returns:
-        int: JavaScript timestamp (milliseconds since epoch)
-    """
-    try:
-        if isinstance(db_timestamp, str):
-            naive_dt = datetime.strptime(db_timestamp, '%Y-%m-%d %H:%M:%S')
-            # Localize to Eastern Time
-            est_dt = EST.localize(naive_dt)
-        elif hasattr(db_timestamp, 'replace'):  
-            if db_timestamp.tzinfo is None:
-                est_dt = EST.localize(db_timestamp)
-            else:
-                est_dt = db_timestamp.astimezone(EST)
-        else:
-            logger.warning(f"Unknown timestamp format: {type(db_timestamp)}")
-            return None
-        
-        # Convert to JavaScript timestamp (milliseconds since epoch)
-        return int(est_dt.timestamp() * 1000)
-    except Exception as e:
-        logger.error(f"Error converting timestamp {db_timestamp}: {e}")
-        return None
 
 class DataCollector:
     def __init__(self):
@@ -183,7 +147,6 @@ class DataCollector:
             with open(schema_path, 'r') as f:
                 schema_sql = f.read()
                 
-            # Split the SQL into individual statements and execute them
             statements = [stmt.strip() for stmt in schema_sql.split(';') if stmt.strip()]
             for statement in statements:
                 if statement and not statement.startswith('--'):
@@ -211,14 +174,12 @@ class DataCollector:
             conn = self.get_database_connection()
             cursor = conn.cursor()
             
-            # Get all tables
             cursor.execute("SHOW TABLES")
             tables = [row[0] for row in cursor.fetchall()]
             
             columns_by_table = {}
             
             for table_name in tables:
-                # Get column names for this table
                 cursor.execute(f"DESCRIBE {table_name}")
                 columns = [col[0] for col in cursor.fetchall()]
                 columns_by_table[table_name] = columns
@@ -354,7 +315,7 @@ def query_db():
             collector.close_database_connection(conn)
             return jsonify({"error": "Failed to create database cursor", "details": str(e)}), 500
         
-        all_data = {}
+        all_data = []
         available_keys = []
         missing_keys = []
         
@@ -362,12 +323,10 @@ def query_db():
         tables = [row[0] for row in cursor.fetchall()]
         
         
-        # Check each table for the requested columns
         for table in tables:
             cursor.execute(f"DESCRIBE {table}")
             columns = [col[0] for col in cursor.fetchall()]
             
-            # Find which keys are in this table
             table_keys = [key for key in keys if key in columns]
             if not table_keys:
                 continue
@@ -385,37 +344,19 @@ def query_db():
             logger.info(f"DB end time: {db_end_time}")
             logger.info(f"Executing query: {query} with params: {db_start_time}, {db_end_time}")
             
-            # Execute query with converted timestamps
             cursor.execute(query, (db_start_time, db_end_time))
             rows = cursor.fetchall()
             
             logger.info(f"Found {len(rows)} rows in table {table}")
             
             if rows:
-                for row in rows:
-                    timestamp = row[0]
-                    
-                    js_timestamp = convert_db_timestamp_to_js_timestamp(timestamp)
-                    if js_timestamp is None:
-                        logger.warning(f"Could not convert timestamp: {timestamp}")
-                        continue
-                    
-                    if js_timestamp not in all_data:
-                        all_data[js_timestamp] = {'Timestamp': js_timestamp}
-                    
-                    for i, key in enumerate(table_keys, 1):
-                        try:
-                            all_data[js_timestamp][key] = float(row[i])
-                        except (ValueError, TypeError):
-                            logger.warning(f"Could not convert value for {key}: {row[i]}")
-                            all_data[js_timestamp][key] = None
-                
+                # Return raw database rows directly
+                all_data.extend(rows)
                 available_keys.extend(table_keys)
             else:
                 missing_keys.extend(table_keys)
         
-        data = list(all_data.values())
-        data.sort(key=lambda x: x['Timestamp'])
+        data = all_data
         
         if available_keys:
             logger.info(f"Found data for keys: {available_keys}")
@@ -634,7 +575,7 @@ def test_db():
                 logger.warning(f"Error closing connection: {e}")
 
 if __name__ == '__main__':
-    # Start Flask app
+
     logger.info("Starting Data Collector Server...")
     logger.info("Press Ctrl+C or send POST to /shutdown to stop the server")
     try:
