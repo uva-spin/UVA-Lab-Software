@@ -18,9 +18,16 @@ function lab36Button() {
     );
 }
 
+function toggleSidePanelMenu() {
+    const fabMenu = document.querySelector('.fab-menu');
+    const fab = document.querySelector('.fab');
+    fabMenu.classList.toggle('active');
+    fab.classList.toggle('active');
+}
+
 function sidePanelButton() {
     return (
-        <button className="sidebar-toggle" onClick={toggleSidePanel}>
+        <button className="sidebar-toggle" onClick={toggleSidePanelMenu}>
             <i className="fas fa-chevron-right"></i>
         </button>
     );
