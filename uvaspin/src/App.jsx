@@ -1,6 +1,6 @@
 import { React } from 'react'
 import { Banner } from './components/Banner';
-import { SidePanel } from './components/SidePanel';
+import { SidePanel } from './components/Sidepanel';
 import { PlotlyContainer } from './containers/PlotlyContainer';
 import { lab42Button, lab36Button, sidePanelButton } from './components/Buttons';
 import './App.css'

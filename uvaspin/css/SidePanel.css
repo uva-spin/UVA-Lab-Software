@@ -1,0 +1,279 @@
+/* Data Sidebar */
+.data-sidebar {
+    position: fixed;
+    top: 0;
+    right: -450px;
+    width: 450px;
+    height: 100vh;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xl);
+    z-index: 10001; /* Increased z-index to be above banner (10000) */
+    transition: right 0.3s ease;
+    overflow-y: auto;
+    padding-top: 8rem; /* Add top padding to account for header banner */
+    padding-right: 1.5rem;
+    padding-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.data-sidebar.active {
+    right: 0;
+}
+
+.data-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.data-sidebar::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+}
+
+.data-sidebar::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.data-sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--border-hover);
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 60px;
+    height: 120px;
+    background: var(--gradient-accent);
+    border: none;
+    border-radius: 12px 0 0 12px;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    transition: all 0.3s ease;
+    z-index: 10002; /* Increased z-index to be above sidebar and banner */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    padding: 1rem 0;
+}
+
+.sidebar-toggle:hover {
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: var(--shadow-xl);
+    background: var(--accent-primary);
+}
+
+.sidebar-toggle.active {
+    right: 450px;
+    background: var(--accent-secondary);
+}
+
+/* Data Section Styles */
+.data-section {
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.section-header {
+    padding: 1rem 1.25rem;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+}
+
+.section-header:hover {
+    background: var(--bg-secondary);
+}
+
+.section-header i {
+    transition: transform 0.3s ease;
+    font-size: 0.875rem;
+}
+
+.data-section.expanded .section-header i {
+    transform: rotate(90deg);
+}
+
+.section-count {
+    margin-left: auto;
+    background: var(--accent-primary);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0.25rem 0;
+    display: none; /* Hide by default */
+}
+
+.data-section.expanded .section-content {
+    max-height: none;
+    display: block;
+}
+
+.parameter-item {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    position: relative;
+    line-height: 1.4;
+}
+
+.parameter-item:last-child {
+    border-bottom: none;
+}
+
+.parameter-item:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.parameter-item.selected {
+    background: var(--accent-primary);
+    color: white;
+    font-weight: 600;
+}
+
+.parameter-item.selected::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--accent-secondary);
+}
+
+/* Nested Dropdown Styles */
+.main-category {
+    border: 2px solid var(--accent-primary);
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-md);
+}
+
+.main-header {
+    background: var(--accent-primary);
+    color: white;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.main-header:hover {
+    background: var(--accent-secondary);
+}
+
+.main-content {
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+}
+
+.sub-category {
+    border: 1px solid var(--border-hover);
+    margin: 0.5rem 0;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.sub-header {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0.875rem 1.25rem;
+}
+
+.sub-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.sub-content {
+    padding: 0.5rem;
+    background: var(--bg-tertiary);
+}
+
+.sub-section {
+    border: 1px solid var(--border-color);
+    margin: 0.25rem 0;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.sub-section .section-header {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.75rem 1.25rem;
+}
+
+.sub-section .section-header:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.sub-section .section-content {
+    padding: 0.25rem;
+    background: var(--bg-primary);
+}
+
+/* Indentation for nested levels */
+.sub-content {
+    padding-left: 1rem;
+}
+
+/* Section expansion states */
+.data-section.expanded .section-header i {
+    transform: rotate(90deg);
+}
+
+.main-category.expanded .main-header i {
+    transform: rotate(90deg);
+}
+
+.sub-category.expanded .sub-header i {
+    transform: rotate(90deg);
+}
+
+/* Parameter item styling for nested levels */
+.sub-section .parameter-item {
+    padding: 0.625rem 1rem;
+    font-size: 0.85rem;
+    margin: 0.125rem 0;
+    border-radius: 6px;
+    border: 1px solid transparent;
+}
+
+.sub-section .parameter-item:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-secondary);
+}
+
+.sub-section .parameter-item.selected {
+    border-color: var(--accent-secondary);
+    background: var(--accent-primary);
+}

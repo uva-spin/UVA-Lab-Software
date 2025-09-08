@@ -1,4 +1,4 @@
-import React from 'react';
+import {React, } from 'react';
 import { Link } from 'react-router-dom';
 
 
@@ -20,10 +20,20 @@ function lab36Button() {
 
 function sidePanelButton() {
     return (
-        <button className="sidebar-toggle">
+        <button className="sidebar-toggle" onClick={toggleSidePanel}>
             <i className="fas fa-chevron-right"></i>
         </button>
     );
 }
 
-export { lab42Button, lab36Button, sidePanelButton };
+function toggleSidePanel() {
+    const sidebar = document.querySelector('.side-panel');
+    const toggleBtn = document.querySelector('.sidebar-toggle');
+    const dimmingOverlay = document.getElementById('dimming-overlay');
+    
+    sidebar.classList.toggle('active');
+    toggleBtn.classList.toggle('active');
+    dimmingOverlay.classList.toggle('active');
+}
+
+export { lab42Button, lab36Button, sidePanelButton, toggleSidePanel };
