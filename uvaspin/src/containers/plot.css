@@ -1,0 +1,35 @@
+/* Chart Section */
+.chart-section {
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+} 
+
+.chart-header {
+    display: none;
+}
+
+.chart-container {
+    width: 100%;
+    height: 80vh;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-primary);
+    border: none;
+    position: relative;
+    margin: 0 auto;
+    padding: 0;
+    box-shadow: none;
+}
+
+.empty-chart-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
