@@ -8,10 +8,10 @@
     background: var(--bg-secondary);
     border-left: 1px solid var(--border-color);
     box-shadow: var(--shadow-xl);
-    z-index: 10001; /* Increased z-index to be above banner (10000) */
+    z-index: 10001;
     transition: right 0.3s ease;
     overflow-y: auto;
-    padding-top: 8rem; /* Add top padding to account for header banner */
+    padding-top: 8rem;
     padding-right: 1.5rem;
     padding-bottom: 1rem;
     padding-left: 1.5rem;
@@ -48,100 +48,188 @@
     height: 120px;
     background: var(--gradient-accent);
     border: none;
-    border-radius: 12px 0 0 12px;
     color: white;
-    font-size: 1.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
     cursor: pointer;
-    box-shadow: var(--shadow-lg);
     transition: all 0.3s ease;
-    z-index: 10002; /* Increased z-index to be above sidebar and banner */
+    border-radius: 8px 0 0 8px;
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    padding: 1rem 0;
 }
 
 .sidebar-toggle:hover {
-    transform: translateY(-50%) scale(1.05);
+    background: var(--accent-secondary);
+    transform: translateY(-50%) translateX(-5px);
     box-shadow: var(--shadow-xl);
-    background: var(--accent-primary);
 }
 
 .sidebar-toggle.active {
-    right: 450px;
     background: var(--accent-secondary);
+    right: 450px;
 }
 
-/* Data Section Styles */
-.data-section {
-    background: var(--bg-tertiary);
-    border-radius: 12px;
-    margin-bottom: 1rem;
-    border: 1px solid var(--border-color);
-    overflow: hidden;
+/* Sidebar Header */
+.sidebar-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
 }
 
-.section-header {
-    padding: 1rem 1.25rem;
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border-color);
+.sidebar-header h2 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.sidebar-header p {
+    margin: 0 0 1rem 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.clear-all-button {
+    background: var(--accent-secondary);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
     cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-weight: 600;
-    color: var(--text-primary);
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    margin-top: 1rem;
+    width: 100%;
+    justify-content: center;
+}
+
+.clear-all-button:hover {
+    background: #dc3545;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Data Selection Sidebar */
+.data-selection-sidebar {
+    padding: 0;
+}
+
+/* Data Sections */
+.data-section {
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+}
+
+.data-section.main-category {
+    background: var(--bg-primary);
+}
+
+.data-section.sub-section {
+    background: var(--bg-secondary);
+    margin: 0.5rem;
+    border-radius: 6px;
+}
+
+/* Section Headers */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 0.95rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--gradient-accent);
+    color: white;
+}
+
+.section-header.main-header {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.section-header.sub-header {
+    background: var(--accent-primary);
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
 }
 
 .section-header:hover {
-    background: var(--bg-secondary);
+    background: var(--accent-secondary);
+}
+
+.section-header.sub-header:hover {
+    background: var(--accent-secondary);
 }
 
 .section-header i {
+    margin-right: 0.5rem;
     transition: transform 0.3s ease;
-    font-size: 0.875rem;
+    font-size: 0.8rem;
 }
 
-.data-section.expanded .section-header i {
+.section-header i.expanded {
     transform: rotate(90deg);
 }
 
 .section-count {
-    margin-left: auto;
-    background: var(--accent-primary);
+    background: rgba(255, 255, 255, 0.2);
     color: white;
     padding: 0.25rem 0.5rem;
     border-radius: 12px;
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
 }
 
+/* Section Content */
 .section-content {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease;
-    padding: 0.25rem 0;
-    display: none; /* Hide by default */
+    background: white;
 }
 
-.data-section.expanded .section-content {
-    max-height: none;
-    display: block;
+.section-content.expanded {
+    max-height: 500px; /* Increased from 300px */
+    overflow-y: auto;
 }
 
+.section-content.main-content.expanded {
+    max-height: 600px; /* Increased from 400px */
+}
+
+.section-content.sub-content.expanded {
+    max-height: 300px; /* Increased from 200px */
+}
+
+/* Parameter Items */
 .parameter-item {
-    padding: 0.75rem 1.25rem;
+    padding: 0.5rem 1rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     border-bottom: 1px solid var(--border-color);
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    position: relative;
-    line-height: 1.4;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .parameter-item:last-child {
@@ -149,8 +237,9 @@
 }
 
 .parameter-item:hover {
-    background: var(--bg-primary);
-    color: var(--text-primary);
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+    transform: translateX(4px);
 }
 
 .parameter-item.selected {
@@ -159,121 +248,119 @@
     font-weight: 600;
 }
 
-.parameter-item.selected::before {
+.parameter-item.selected:hover {
+    background: var(--accent-secondary);
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .data-sidebar {
+        width: 100%;
+        right: -100%;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .sidebar-toggle {
+        right: 0;
+        width: 50px;
+        height: 100px;
+        font-size: 0.8rem;
+    }
+    
+    .sidebar-toggle.active {
+        right: 100%;
+    }
+    
+    .section-content.expanded {
+        max-height: 300px;
+    }
+    
+    .section-content.main-content.expanded {
+        max-height: 400px;
+    }
+    
+    .section-content.sub-content.expanded {
+        max-height: 250px;
+    }
+}
+
+/* Custom scrollbar for section content */
+.section-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.section-content::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+}
+
+.section-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.section-content::-webkit-scrollbar-thumb:hover {
+    background: var(--border-hover);
+}
+
+/* Animation improvements */
+.data-section {
+    transition: all 0.3s ease;
+}
+
+.data-section:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.parameter-item {
+    position: relative;
+}
+
+.parameter-item::before {
     content: '';
     position: absolute;
     left: 0;
     top: 0;
-    bottom: 0;
-    width: 4px;
-    background: var(--accent-secondary);
-}
-
-/* Nested Dropdown Styles */
-.main-category {
-    border: 2px solid var(--accent-primary);
-    margin-bottom: 1.5rem;
-    box-shadow: var(--shadow-md);
-}
-
-.main-header {
+    height: 100%;
+    width: 3px;
     background: var(--accent-primary);
-    color: white;
-    font-weight: 700;
-    font-size: 1.1rem;
+    transform: scaleY(0);
+    transition: transform 0.2s ease;
 }
 
-.main-header:hover {
-    background: var(--accent-secondary);
+.parameter-item.selected::before {
+    transform: scaleY(1);
 }
 
-.main-content {
-    padding: 0.5rem;
-    background: var(--bg-secondary);
+/* Focus states for accessibility */
+.section-header:focus,
+.parameter-item:focus {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
 }
 
-.sub-category {
-    border: 1px solid var(--border-hover);
-    margin: 0.5rem 0;
-    background: var(--bg-primary);
-    box-shadow: var(--shadow-sm);
+/* Loading state for sections */
+.data-section.loading {
+    opacity: 0.6;
+    pointer-events: none;
 }
 
-.sub-header {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 1rem;
-    padding: 0.875rem 1.25rem;
+.data-section.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid var(--border-color);
+    border-top: 2px solid var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
-.sub-header:hover {
-    background: var(--bg-tertiary);
-}
-
-.sub-content {
-    padding: 0.5rem;
-    background: var(--bg-tertiary);
-}
-
-.sub-section {
-    border: 1px solid var(--border-color);
-    margin: 0.25rem 0;
-    background: var(--bg-primary);
-    box-shadow: var(--shadow-sm);
-}
-
-.sub-section .section-header {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-weight: 500;
-    font-size: 0.9rem;
-    padding: 0.75rem 1.25rem;
-}
-
-.sub-section .section-header:hover {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-}
-
-.sub-section .section-content {
-    padding: 0.25rem;
-    background: var(--bg-primary);
-}
-
-/* Indentation for nested levels */
-.sub-content {
-    padding-left: 1rem;
-}
-
-/* Section expansion states */
-.data-section.expanded .section-header i {
-    transform: rotate(90deg);
-}
-
-.main-category.expanded .main-header i {
-    transform: rotate(90deg);
-}
-
-.sub-category.expanded .sub-header i {
-    transform: rotate(90deg);
-}
-
-/* Parameter item styling for nested levels */
-.sub-section .parameter-item {
-    padding: 0.625rem 1rem;
-    font-size: 0.85rem;
-    margin: 0.125rem 0;
-    border-radius: 6px;
-    border: 1px solid transparent;
-}
-
-.sub-section .parameter-item:hover {
-    border-color: var(--accent-primary);
-    background: var(--bg-secondary);
-}
-
-.sub-section .parameter-item.selected {
-    border-color: var(--accent-secondary);
-    background: var(--accent-primary);
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

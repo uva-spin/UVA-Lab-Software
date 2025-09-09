@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { openPool, checkConnection, closePoolConnection } = require('./utils/DB');
-const { clear_cache } = require('./utils/Query');
+const { fetchData, clear_cache } = require('./utils/Query');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,12 +23,6 @@ async function initializeDatabase() {
     } catch (error) {
         console.error('Failed to initialize database:', error);
     }
-}
-
-async function fetchData(pool, table_name, keys, start_time, end_time) { // TODO: Adjust to allow for multiple tables (maybe) or call multiple times for multiple tables
-    const query = `SELECT ${keys.join(',')} AND timestamp FROM ${table_name} WHERE timestamp BETWEEN ${start_time} AND ${end_time} AND ${keys.join(',')} IS NOT NULL`;
-    const result = await pool.query(query);
-    return result.rows;
 }
 
 // Health check endpoint
@@ -61,9 +55,10 @@ app.get('/query_db', async (req, res) => {
             });
         }
 
+        // Use your existing fetchData function
         const data = await fetchData(
             dbConnection.pool, 
-            'table_name', // adjust here to allow for multiple tables in future
+            'table_name', // adjust here to allow for multiple tables
             selectedKeys.join(','), 
             start_time, 
             end_time

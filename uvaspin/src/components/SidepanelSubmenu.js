@@ -1,32 +1,34 @@
 import { React , useState } from 'react';
-import {Nav} from "react-bootstrap";
 import SidepanelData from './SidepanelData';
 
 function SidepanelSubmenu() {
 
-    const [subnav, setSubnav] = useState(false);
+    const [sidePanelSubmenu, setSidePanelSubmenu] = useState(false);
 
-    const showSubnav = () => setSubnav(!subnav);
+    const showSubnav = () => setSidePanelSubmenu(!sidePanelSubmenu);
     
     const handleColumnClick = (column) => {
         console.log(column);
     }
+
     return (
-        <Nav className="sub-menu">
-            <div className="sub-menu-content">
-                <Nav.Item>
+        <>
+        <div className='side-panel-submenu'>
+            <div className='side-panel-submenu-content'>
+                <div>
                     <span>Columns</span>
-                    {SidepanelData.map((item) => (
-                        <div key={item.title}>
-                            <h2>{item.title}</h2>
-                            {item.columns.map((column) => (
-                                <div onClick={() => handleColumnClick(column)} key={column}>{column}</div>
-                            ))}
-                        </div>
-                    ))}
-                </Nav.Item>
+                </div>
+                {SidepanelData.map((item) => (
+                    <div key={item.title}>
+                        <h2>{item.title}</h2>
+                        {item.columns.map((column) => (
+                            <div onClick={() => handleColumnClick(column)} key={column}>{column}</div>
+                        ))}
+                    </div>
+                ))}
             </div>
-        </Nav>
+        </div>
+        </>
     )
 }
 
