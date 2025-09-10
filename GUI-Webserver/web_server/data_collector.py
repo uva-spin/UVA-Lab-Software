@@ -75,7 +75,7 @@ class DataCollector:
         print(f"Database user: {config['user']}")
         print(f"Database password: {config['password']}")
         print(f"Database name: {config['database']}")
-        self.setup_database()
+        # self.setup_database()
 
     def get_database_connection(self):
         """Get a database connection with unlimited retry attempts"""
@@ -162,35 +162,35 @@ class DataCollector:
                 if conn:
                     self.close_database_connection(conn)
 
-    def setup_database(self):
-        """Initialize the database with the schema-defined tables"""
+    # def setup_database(self):
+    #     """Initialize the database with the schema-defined tables"""
         
-        conn = mariadb.connect(**config)
-        cursor = conn.cursor()
+    #     conn = mariadb.connect(**config)
+    #     cursor = conn.cursor()
         
-        try:
-            schema_path = "../database_utils/schema.sql"
-            with open(schema_path, 'r') as f:
-                schema_sql = f.read()
+    #     try:
+    #         schema_path = "../database_utils/schema.sql"
+    #         with open(schema_path, 'r') as f:
+    #             schema_sql = f.read()
                 
-            statements = [stmt.strip() for stmt in schema_sql.split(';') if stmt.strip()]
-            for statement in statements:
-                if statement and not statement.startswith('--'):
-                    cursor.execute(statement)
+    #         statements = [stmt.strip() for stmt in schema_sql.split(';') if stmt.strip()]
+    #         for statement in statements:
+    #             if statement and not statement.startswith('--'):
+    #                 cursor.execute(statement)
             
-            conn.commit()
-            logger.info("Database setup completed using schema.sql")
-        except mariadb.Error as e:
-            if "already exists" in str(e):
-                logger.info("Tables already exist, skipping creation")
-            else:
-                logger.error(f"Database setup error: {e}")
-                raise
-        except Exception as e:
-            logger.error(f"Unexpected error during database setup: {e}")
-            raise
-        finally:
-            conn.close()
+    #         conn.commit()
+    #         logger.info("Database setup completed using schema.sql")
+    #     except mariadb.Error as e:
+    #         if "already exists" in str(e):
+    #             logger.info("Tables already exist, skipping creation")
+    #         else:
+    #             logger.error(f"Database setup error: {e}")
+    #             raise
+    #     except Exception as e:
+    #         logger.error(f"Unexpected error during database setup: {e}")
+    #         raise
+    #     finally:
+    #         conn.close()
 
     def get_available_columns_by_table(self):
         """Get available columns organized by table name"""
