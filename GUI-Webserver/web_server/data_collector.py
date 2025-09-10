@@ -75,66 +75,92 @@ class DataCollector:
         print(f"Database user: {config['user']}")
         print(f"Database password: {config['password']}")
         print(f"Database name: {config['database']}")
-        self.db_pool = None
         self.setup_database()
-        self.setup_connection_pool()
-
-    def setup_connection_pool(self):
-        """Initialize the database connection pool"""
-        try:
-            logger.info("Attempting to initialize database connection pool...")
-            self.db_pool = mariadb.ConnectionPool(
-                pool_name="website_pool",
-                pool_size=20,
-                **config)
-            logger.info("Database connection pool initialized successfully")
-        except mariadb.Error as e:
-            logger.error(f"MariaDB error initializing connection pool: {e}")
-            self.db_pool = None
-        except Exception as e:
-            logger.error(f"Failed to initialize connection pool: {e}")
-            self.db_pool = None
 
     def get_database_connection(self):
-        """Get a database connection from the connection pool"""
-        if self.db_pool is None:
-            # Try to reinitialize the pool if it's None
-            logger.warning("Connection pool is None, attempting to reinitialize...")
-            self.setup_connection_pool()
-            if self.db_pool is None:
-                raise RuntimeError("Database connection pool not initialized")
+        """Get a database connection with unlimited retry attempts"""
+        retry_delay = 1  # Start with 1 second delay
+        max_delay = 60   # Maximum delay between retries (1 minute)
+        attempt = 0
         
-        try:
-            conn = self.db_pool.get_connection()
-            if conn is None:
-                raise RuntimeError("Failed to get connection from pool - connection is None")
-            return conn
-        except mariadb.PoolError as e:
-            logger.error(f"Error getting connection from pool: {e}")
-            # Try to reinitialize the pool on error
-            logger.info("Attempting to reinitialize connection pool...")
-            self.setup_connection_pool()
-            if self.db_pool is None:
-                raise RuntimeError("Failed to reinitialize database connection pool")
+        while True:
+            attempt += 1
             try:
-                conn = self.db_pool.get_connection()
-                if conn is None:
-                    raise RuntimeError("Failed to get connection after pool reinitialization - connection is None")
+                conn = mariadb.connect(**config)
+                # Test the connection
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.close()
+                logger.debug(f"Database connection established (attempt {attempt})")
                 return conn
-            except mariadb.PoolError as e2:
-                logger.error(f"Failed to get connection after pool reinitialization: {e2}")
-                raise
-        except Exception as e:
-            logger.error(f"Unexpected error getting database connection: {e}")
-            raise
+            except mariadb.Error as e:
+                logger.warning(f"Database connection attempt {attempt} failed: {e}")
+                logger.info(f"Retrying connection in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                # Exponential backoff with cap
+                retry_delay = min(retry_delay * 2, max_delay)
+            except Exception as e:
+                logger.error(f"Unexpected error connecting to database: {e}")
+                logger.info(f"Retrying connection in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, max_delay)
 
     def close_database_connection(self, conn):
-        """Close a single database connection and return it to the pool"""
+        """Close a database connection"""
         if conn is not None:
             try:
                 conn.close()
+                logger.debug("Database connection closed")
             except Exception as e:
                 logger.warning(f"Error closing database connection: {e}")
+
+    def execute_with_retry(self, query, params=None, fetch_type='all'):
+        """Execute a database query with unlimited retry attempts"""
+        retry_delay = 1  # Start with 1 second delay
+        max_delay = 60   # Maximum delay between retries (1 minute)
+        attempt = 0
+        
+        while True:
+            attempt += 1
+            conn = None
+            cursor = None
+            try:
+                conn = self.get_database_connection()
+                cursor = conn.cursor()
+                
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+                
+                if fetch_type == 'all':
+                    result = cursor.fetchall()
+                elif fetch_type == 'one':
+                    result = cursor.fetchone()
+                else:
+                    result = None
+                
+                conn.commit()
+                return result
+                
+            except (mariadb.Error, mariadb.OperationalError) as e:
+                logger.warning(f"Database query attempt {attempt} failed: {e}")
+                logger.info(f"Retrying query in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, max_delay)
+            except Exception as e:
+                logger.error(f"Unexpected error executing query: {e}")
+                logger.info(f"Retrying query in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, max_delay)
+            finally:
+                if cursor:
+                    try:
+                        cursor.close()
+                    except Exception as e:
+                        logger.warning(f"Error closing cursor: {e}")
+                if conn:
+                    self.close_database_connection(conn)
 
     def setup_database(self):
         """Initialize the database with the schema-defined tables"""
@@ -168,20 +194,16 @@ class DataCollector:
 
     def get_available_columns_by_table(self):
         """Get available columns organized by table name"""
-        conn = None
-        cursor = None
         try:
-            conn = self.get_database_connection()
-            cursor = conn.cursor()
-            
-            cursor.execute("SHOW TABLES")
-            tables = [row[0] for row in cursor.fetchall()]
+            # Get all tables
+            tables_result = self.execute_with_retry("SHOW TABLES", fetch_type='all')
+            tables = [row[0] for row in tables_result]
             
             columns_by_table = {}
             
             for table_name in tables:
-                cursor.execute(f"DESCRIBE {table_name}")
-                columns = [col[0] for col in cursor.fetchall()]
+                columns_result = self.execute_with_retry(f"DESCRIBE {table_name}", fetch_type='all')
+                columns = [col[0] for col in columns_result]
                 columns_by_table[table_name] = columns
             
             return columns_by_table
@@ -189,43 +211,26 @@ class DataCollector:
         except Exception as e:
             logger.error(f"Error getting columns by table: {e}")
             return {}
-        finally:
-            if cursor is not None:
-                try:
-                    cursor.close()
-                except Exception as e:
-                    logger.warning(f"Error closing cursor: {e}")
-            if conn is not None:
-                self.close_database_connection(conn)
 
-    def get_pool_status(self):
-        """Get the current status of the connection pool"""
-        if self.db_pool is None:
-            return {"status": "not_initialized", "pool_size": 0, "active_connections": 0}
-        
+    def get_connection_status(self):
+        """Get the current status of database connectivity"""
         try:
-            # Try to get pool info - this might not be available in all versions
-            pool_size = getattr(self.db_pool, 'pool_size', 'unknown')
-            active_connections = getattr(self.db_pool, 'active_connections', 'unknown')
+            # Test connection
+            conn = self.get_database_connection()
+            self.close_database_connection(conn)
             return {
-                "status": "active",
-                "pool_size": pool_size,
-                "active_connections": active_connections
+                "status": "connected",
+                "message": "Database connection is healthy"
             }
         except Exception as e:
-            logger.warning(f"Could not get pool status: {e}")
-            return {"status": "active", "pool_size": "unknown", "active_connections": "unknown"}
+            return {
+                "status": "disconnected",
+                "message": f"Database connection failed: {str(e)}"
+            }
 
     def shutdown(self):
-        """Shutdown the connection pool gracefully"""
-        if self.db_pool is not None:
-            logger.info("Shutting down database connection pool...")
-            try:
-                self.db_pool.close()
-                logger.info("Database connection pool closed successfully")
-            except Exception as e:
-                logger.error(f"Error closing database connection pool: {e}")
-            self.db_pool = None
+        """Shutdown gracefully (no persistent connections to close)"""
+        logger.info("DataCollector shutdown - no persistent connections to close")
 
 app = Flask(__name__, 
             template_folder='../templates',
@@ -234,19 +239,15 @@ app = Flask(__name__,
 # Initialize the data collector
 try:
     collector = DataCollector()
-    # Verify the connection pool is working
-    if collector.db_pool is None:
-        logger.error("Failed to initialize database connection pool")
-        raise RuntimeError("Database connection pool initialization failed")
     
-    # Test the connection pool
+    # Test the database connection
     try:
         test_conn = collector.get_database_connection()
         collector.close_database_connection(test_conn)
-        logger.info("Database connection pool test successful")
+        logger.info("Database connection test successful")
     except Exception as e:
-        logger.error(f"Database connection pool test failed: {e}")
-        raise RuntimeError(f"Database connection pool test failed: {e}")
+        logger.error(f"Database connection test failed: {e}")
+        raise RuntimeError(f"Database connection test failed: {e}")
         
 except Exception as e:
     logger.error(f"Failed to initialize DataCollector: {e}")
@@ -279,8 +280,6 @@ def shutdown_server():
 @app.route('/query_db', methods=['GET'])
 def query_db():
     """Get recent data from the database based on timestamp"""
-    conn = None
-    cursor = None
     try:
         keys = request.args.get('keys', '').split(',')
         start_time = request.args.get('start_time', '')
@@ -302,30 +301,18 @@ def query_db():
         logger.info(f"Fetching data for keys: {keys}")
         logger.info(f"Time range (EST): {db_start_time} to {db_end_time}")
         
-        try:
-            conn = collector.get_database_connection()
-        except Exception as e:
-            logger.error(f"Failed to get database connection: {e}")
-            return jsonify({"error": "Database connection failed", "details": str(e)}), 500
-        
-        try:
-            cursor = conn.cursor()
-        except Exception as e:
-            logger.error(f"Failed to create cursor: {e}")
-            collector.close_database_connection(conn)
-            return jsonify({"error": "Failed to create database cursor", "details": str(e)}), 500
+        # Get all tables
+        tables_result = collector.execute_with_retry("SHOW TABLES", fetch_type='all')
+        tables = [row[0] for row in tables_result]
         
         all_data = []
         available_keys = []
         missing_keys = []
         
-        cursor.execute("SHOW TABLES")
-        tables = [row[0] for row in cursor.fetchall()]
-        
-        
         for table in tables:
-            cursor.execute(f"DESCRIBE {table}")
-            columns = [col[0] for col in cursor.fetchall()]
+            # Get table columns
+            columns_result = collector.execute_with_retry(f"DESCRIBE {table}", fetch_type='all')
+            columns = [col[0] for col in columns_result]
             
             table_keys = [key for key in keys if key in columns]
             if not table_keys:
@@ -344,8 +331,7 @@ def query_db():
             logger.info(f"DB end time: {db_end_time}")
             logger.info(f"Executing query: {query} with params: {db_start_time}, {db_end_time}")
             
-            cursor.execute(query, (db_start_time, db_end_time))
-            rows = cursor.fetchall()
+            rows = collector.execute_with_retry(query, (db_start_time, db_end_time), fetch_type='all')
             
             logger.info(f"Found {len(rows)} rows in table {table}")
             
@@ -377,43 +363,15 @@ def query_db():
             }
         }), 200
         
-    except mariadb.Error as e:
-        logger.error(f"Error getting recent data: {e}")
-        logger.exception("Full traceback:")
-        return jsonify({"error": str(e)}), 500
     except Exception as e:
-        logger.error(f"Unexpected error in query_db: {e}")
+        logger.error(f"Error in query_db: {e}")
         logger.exception("Full traceback:")
         return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception as e:
-                logger.warning(f"Error closing cursor: {e}")
-        if conn is not None:
-            collector.close_database_connection(conn)
 
 @app.route('/get_available_columns', methods=['GET'])
 def get_available_columns():
     """Get list of available columns from all tables"""
-    conn = None
-    cursor = None
     try:
-        
-        try:
-            conn = collector.get_database_connection()
-        except Exception as e:
-            logger.error(f"Failed to get database connection: {e}")
-            return jsonify({"error": "Database connection failed", "details": str(e), "columns": []}), 500
-        
-        try:
-            cursor = conn.cursor()
-        except Exception as e:
-            logger.error(f"Failed to create cursor: {e}")
-            collector.close_database_connection(conn)
-            return jsonify({"error": "Failed to create database cursor", "details": str(e), "columns": []}), 500
-            
         columns_by_table = collector.get_available_columns_by_table()
         
         all_columns = []
@@ -435,57 +393,29 @@ def get_available_columns():
             "table_count": len(columns_by_table)
         }), 200
         
-    except mariadb.Error as e:
+    except Exception as e:
         logger.error(f"Error getting available columns: {e}")
         return jsonify({"error": str(e), "columns": []}), 500
-    except Exception as e:
-        logger.error(f"Unexpected error in get_available_columns: {e}")
-        return jsonify({"error": str(e), "columns": []}), 500
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception as e:
-                logger.warning(f"Error closing cursor: {e}")
-        if conn is not None:
-            collector.close_database_connection(conn)
 
         
 @app.route('/db_status', methods=['GET'])
 def get_db_status():
     """Check database status and available tables"""
-    conn = None
-    cursor = None
     try:
-        try:
-            conn = collector.get_database_connection()
-        except Exception as e:
-            logger.error(f"Failed to get database connection: {e}")
-            return jsonify({"error": "Database connection failed", "details": str(e)}), 500
-        
-        try:
-            cursor = conn.cursor()
-        except Exception as e:
-            logger.error(f"Failed to create cursor: {e}")
-            collector.close_database_connection(conn)
-            return jsonify({"error": "Failed to create database cursor", "details": str(e)}), 500
-        
-        cursor.execute("SHOW TABLES")
-        tables = [row[0] for row in cursor.fetchall()]
+        tables_result = collector.execute_with_retry("SHOW TABLES", fetch_type='all')
+        tables = [row[0] for row in tables_result]
         
         table_info = {}
         total_records = 0
         
         for table_name in tables:
-            cursor.execute(f"DESCRIBE {table_name}")
-            table_schema = cursor.fetchall()
-            
-            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-            record_count = cursor.fetchone()[0]
+            table_schema_result = collector.execute_with_retry(f"DESCRIBE {table_name}", fetch_type='all')
+            record_count_result = collector.execute_with_retry(f"SELECT COUNT(*) FROM {table_name}", fetch_type='one')
+            record_count = record_count_result[0]
             total_records += record_count
             
             table_info[table_name] = {
-                "columns": [col[0] for col in table_schema],
+                "columns": [col[0] for col in table_schema_result],
                 "record_count": record_count
             }
             
@@ -496,58 +426,41 @@ def get_db_status():
             "has_data": total_records > 0
         }), 200
         
-    except mariadb.Error as e:
+    except Exception as e:
         logger.error(f"Error checking database status: {e}")
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"Unexpected error in get_db_status: {e}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception as e:
-                logger.warning(f"Error closing cursor: {e}")
-        if conn is not None:
-            collector.close_database_connection(conn)
 
-@app.route('/pool_status', methods=['GET'])
-def get_pool_status():
-    """Get the current status of the database connection pool"""
+@app.route('/connection_status', methods=['GET'])
+def get_connection_status():
+    """Get the current status of the database connection"""
     try:
-        pool_status = collector.get_pool_status()
-        return jsonify(pool_status), 200
+        connection_status = collector.get_connection_status()
+        return jsonify(connection_status), 200
     except Exception as e:
-        logger.error(f"Error getting pool status: {e}")
+        logger.error(f"Error getting connection status: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/test_db', methods=['GET'])
 def test_db():
     """Test database connection and data availability"""
-    conn = None
-    cursor = None
     try:
-        conn = mariadb.connect(**config)
-        cursor = conn.cursor()
-        
-        cursor.execute("SHOW TABLES")
-        tables = [row[0] for row in cursor.fetchall()]
+        tables_result = collector.execute_with_retry("SHOW TABLES", fetch_type='all')
+        tables = [row[0] for row in tables_result]
         
         total_records = 0
         data_sources = []
         
         for table_name in tables:
-            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-            count = cursor.fetchone()[0]
+            count_result = collector.execute_with_retry(f"SELECT COUNT(*) FROM {table_name}", fetch_type='one')
+            count = count_result[0]
             total_records += count
             
             if count > 0:
                 data_sources.append(table_name)
                 
-            cursor.execute(f"SELECT Timestamp FROM {table_name} ORDER BY Timestamp DESC LIMIT 1")
-            latest = cursor.fetchone()
-            if latest:
-                logger.info(f"Latest record in {table_name}: {latest[0]}")
+                latest_result = collector.execute_with_retry(f"SELECT Timestamp FROM {table_name} ORDER BY Timestamp DESC LIMIT 1", fetch_type='one')
+                if latest_result:
+                    logger.info(f"Latest record in {table_name}: {latest_result[0]}")
                 
         return jsonify({
             "status": "ok",
@@ -556,23 +469,9 @@ def test_db():
             "tables": tables
         }), 200
         
-    except mariadb.Error as e:
+    except Exception as e:
         logger.error(f"Error testing database: {e}")
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"Unexpected error in test_db: {e}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception as e:
-                logger.warning(f"Error closing cursor: {e}")
-        if conn is not None:
-            try:
-                conn.close()
-            except Exception as e:
-                logger.warning(f"Error closing connection: {e}")
 
 if __name__ == '__main__':
 
