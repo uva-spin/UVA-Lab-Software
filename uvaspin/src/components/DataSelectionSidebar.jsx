@@ -4,7 +4,6 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
     const [expandedSections, setExpandedSections] = useState(new Set());
     const [expandedSubSections, setExpandedSubSections] = useState(new Set());
 
-    // Data structure based on the HTML example
     const dataStructure = {
         'QT': {
             'Pressures': ['pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai'],

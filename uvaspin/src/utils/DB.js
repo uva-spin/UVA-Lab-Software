@@ -1,44 +1,70 @@
 const mariadb = require('mariadb/callback');
 const fs = require('fs');
+const path = require('path');
 
-config_file = '../../../config.json'
+let config = {};
 
-fs.readFile(config_file, 'utf8', (err, data) => {
-    if (err) {
-        console.error('Error reading config file:', err);
-        return;
-    }
-    config = JSON.parse(data);
-});
+// Read config file
+const configPath = path.join(__dirname, '../../config.json');
+try {
+    const configData = fs.readFileSync(configPath, 'utf8');
+    config = JSON.parse(configData);
+} catch (err) {
+    console.error('Error reading config file:', err);
+    // Use default config or environment variables
+    config = {
+        host: process.env.DB_HOST || 'localhost',
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
+        database: process.env.DB_NAME || 'uvaspin',
+        connectionLimit: 5
+    };
+}
 
 function createPool() {
-    return mariadb.createPool(config);
+    try {
+        return mariadb.createPool(config);
+    } catch (error) {
+        console.error('Failed to create database pool:', error);
+        return null;
+    }
 }
 
 function closePoolConnection(pool) {
-    /* close connnection in case of error to preserve resources */
-    pool.end()
-    console.log('Closed database connection')
+    if (pool) {
+        pool.end();
+        console.log('Closed database connection');
+    }
 }
 
 function openPool() {
     const pool = createPool();
-    const conn = pool.getConnection();
-    console.log('Connected to database');
-    return { conn, pool };
+    if (!pool) {
+        throw new Error('Failed to create database pool');
+    }
+    
+    pool.getConnection((err, conn) => {
+        if (err) {
+            console.error('Failed to get database connection:', err);
+            throw err;
+        }
+        console.log('Connected to database');
+        return { conn, pool };
+    });
+    
+    return { pool };
 }
 
 function checkConnection(conn) {
-    conn.ping(err => {
-        if (err) {
-            console.log('Connection to database lost. Error: ', err);
-        } else {
-            console.log('Connection to database is still alive')
-        }
-    })
+    if (conn && conn.ping) {
+        conn.ping(err => {
+            if (err) {
+                console.log('Connection to database lost. Error: ', err);
+            } else {
+                console.log('Connection to database is still alive');
+            }
+        });
+    }
 }
 
-
-
-
-module.exports = { openPool, checkConnection, closePoolConnection};
+module.exports = { openPool, checkConnection, closePoolConnection };
