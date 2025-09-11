@@ -541,43 +541,6 @@
             }
         }
 
-        function refreshUpdatetime() {
-            const display = document.getElementById('countdown');
-            display.textContent = remainingTime;
-
-            if (remainingTime > 0) {
-                remainingTime--;
-            } else {
-                startCountdownFromServer();
-            }
-        }
-
-        function updateLastUpdatedTime() {
-            const now = new Date();
-            const formatted = now.toLocaleString('en-US', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-
-            document.getElementById('last-updated').textContent = `Last updated: ${formatted}`;
-        }
-
-        async function startCountdownFromServer() {
-            remainingTime = updateTime;
-
-            if (timerInterval) clearInterval(timerInterval);
-            refreshUpdatetime();
-            timerInterval = setInterval(refreshUpdatetime, 1000);
-
-            await updateFromDB();
-            updateLastUpdatedTime();
-        }
-
         // Shutdown server function
         async function shutdownServer() {
             if (confirm('Are you sure you want to shutdown the server? This action cannot be undone.')) {
@@ -1037,13 +1000,14 @@
     <header class="header-banner">
         <div class="banner-content">
             <div class="banner-title">
-                <span>UVA Polarized Target Group Lab 042 System Panel</span>
+                <a href="http://127.0.0.1:3000/">UVA Polarized Target Group Lab 042 System Panel</a>
                 <a href="http://127.0.0.1:3000/history">History</a>
             </div>
             <div class="banner-controls">
                 <!-- Control Panel Content Moved to Banner -->
                 <div class="control-group">
                     <div class="time-controls">
+                        <p>From:</p>
                         <div class="time-input">
                             <label for="hours">H</label>
                             <input type="number" id="hours" name="hours" min="0", value="1" step="1", default="1">
@@ -1056,24 +1020,24 @@
                             <label for="seconds">S</label>
                             <input type="number" id="seconds" name="seconds" min="0" max="59" value="0" step="1">
                         </div>
+
+                        <p>To:</p>
                         <div class="time-input">
-                            <label for="update_every">Update</label>
-                            <input type="number" id="update_every" name="update_every" min="1" max="300" value="5" step="1">
+                            <label for="hours">H</label>
+                            <input type="number" id="hours" name="hours" min="0", value="1" step="1", default="1">
+                        </div>
+                        <div class="time-input">
+                            <label for="minutes">M</label>
+                            <input type="number" id="minutes" name="minutes" min="0" max="59" value="0" step="1">
+                        </div>
+                        <div class="time-input">
+                            <label for="seconds">S</label>
+                            <input type="number" id="seconds" name="seconds" min="0" max="59" value="0" step="1">
                         </div>
                     </div>
                     <button type="button" class="apply-btn" onclick="applySettings()">
                         <i class="fas fa-sync-alt"></i> Apply
                     </button>
-                    <div class="countdown-display">
-                        <span>Auto-update in: </span>
-                        <span id="countdown" class="countdown-timer">5</span>
-                        <span>s</span>
-                    </div>
-                </div>
-                <div class="status-info">
-                    <p id="last-updated" class="last-updated">
-                        <i class="fas fa-clock"></i> Last updated: --
-                    </p>
                 </div>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
                     <i id="theme-icon" class="fas fa-moon"></i>
@@ -1176,9 +1140,6 @@
                     // Force an immediate data update
                     await updateFromDB();
                 }
-
-                // Restart the countdown with new update interval
-                await startCountdownFromServer();
                 
                 Utils.showToast('Settings applied successfully!', 'success');
             } catch (error) {
