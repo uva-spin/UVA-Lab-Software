@@ -65,6 +65,12 @@ body {
     position: relative;
 }
 
+/* Removes the nasty blue color from hyperlinks */
+a { 
+    color: inherit; 
+    text-decoration: none;
+} 
+
 /* Header Banner */
 .header-banner {
     background: var(--gradient-primary);
@@ -88,8 +94,10 @@ body {
 }
 
 .banner-title {
+    width: 100%;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 1rem;
     font-size: 1.75rem;
     font-weight: 800;

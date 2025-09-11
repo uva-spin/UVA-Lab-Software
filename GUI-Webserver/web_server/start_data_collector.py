@@ -6,7 +6,7 @@ Start script for the data collector
 import logging
 import json
 
-DATABASE_FILE = "/var/www/spin/config.json"
+DATABASE_FILE = "mock_config.json"
 
 # Load database configuration
 with open(DATABASE_FILE, 'r') as f:
@@ -46,7 +46,7 @@ def start_data_collector():
     try:
         # Import and run the data collector
         from data_collector import app
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        app.run(host='0.0.0.0', port=3000, debug=False)
     except KeyboardInterrupt:
         logger.info("🛑 Data collector stopped by user (Ctrl+C)")
     except Exception as e:

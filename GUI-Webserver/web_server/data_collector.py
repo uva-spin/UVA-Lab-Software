@@ -11,7 +11,7 @@ import logging
 import pytz
 import json
 
-DATABASE_FILE = "/var/www/spin/config.json"
+DATABASE_FILE = "mock_config.json"
 
 with open(DATABASE_FILE, 'r') as f:
     config = json.load(f)
@@ -143,7 +143,7 @@ class DataCollector:
         cursor = conn.cursor()
         
         try:
-            schema_path = "../database_utils/schema.sql"
+            schema_path = "schema.sql"
             with open(schema_path, 'r') as f:
                 schema_sql = f.read()
                 
@@ -258,6 +258,10 @@ def root():
     """Serve the main plotting interface"""
     return render_template('index.html')
 
+@app.route('/history', methods=['GET'])
+def history():
+    """Show past data"""
+    return render_template('history.html')
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown_server():
