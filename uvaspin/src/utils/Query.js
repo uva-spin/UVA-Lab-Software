@@ -63,7 +63,7 @@ app.get('/query_db', async (req, res) => {
 
         const data = await fetchData(
             dbConnection.pool, 
-            'table_name', // adjust here to allow for multiple tables in future
+            'table_name', // add table selection here  
             selectedKeys.join(','), 
             start_time, 
             end_time
