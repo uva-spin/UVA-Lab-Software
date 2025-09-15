@@ -112,10 +112,62 @@ async function applySettings() {
         // Restart the countdown with new update interval
         await startCountdownFromServer();
         
-        Utils.showToast('Settings applied successfully!', 'success');
+        Utils.showToast('> Settings applied successfully!', 'success');
     } catch (error) {
-        console.error('Error applying settings:', error);
-        Utils.showToast('Error applying settings. Please try again.', 'error');
+        console.error('> Error applying settings:', error);
+        Utils.showToast('> Error applying settings: ', error);
+    } finally {
+        removeLoading();
+    }
+}
+
+/**
+ * Call to the DB to get a range of data!
+ */
+async function applyDateRangeSettings() {
+    const applyBtn = document.querySelector('.apply-btn');
+    const removeLoading = Utils.addLoadingState(applyBtn);
+
+    try {
+        // 1. Get values directly from the form
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+
+        if (!startDate || !endDate) {
+            Utils.showToast('> Please select both start and end dates.', 'error');
+            return;
+        }
+
+        if (new Date(startDate) > new Date(endDate)) {
+            Utils.showToast('> Start date must be before end date.', 'error');
+            return;
+        }
+
+        // 2. Update global variables (mirror applySettings style)
+        window.startDate = startDate;
+        window.endDate = endDate;
+
+        console.log('> Date range updated:', { startDate, endDate });
+
+        // 3. Get currently selected keys (sidebar params)
+        const selectedKeys = Array.from(document.querySelectorAll('.parameter-item.selected'))
+            .map(item => item.dataset.key);
+
+        console.log(`> Selected keys are: ${selectedKeys}`)
+
+        if (selectedKeys.length > 0) {
+            // Force immediate data update with date filtering
+            await updateFromDB();
+        }
+
+        // ⏳ Countdown may or may not apply to date range.
+        // If you want to keep auto-refresh, uncomment this line:
+        // await startCountdownFromServer();
+
+        Utils.showToast('> Date range applied successfully!', 'success');
+    } catch (error) {
+        console.error('> Error applying date range settings:', error);
+        Utils.showToast('> Error applying date range: ', error);
     } finally {
         removeLoading();
     }
@@ -200,6 +252,7 @@ if (typeof module !== 'undefined' && module.exports) {
         updateLastUpdatedTime,
         startCountdownFromServer,
         applySettings,
+        applyDateRangeSettings,
         initializeApp
     };
 }
