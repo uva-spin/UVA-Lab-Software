@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Banner = ({ title, homeButton, lab42Button, lab36Button, sidePanelButton }) => {
+const Banner = ({ title, homeButton, lab42Button, lab36Button, historyButton, sidePanelButton }) => {
     return (
         <header className="header-banner">
             <div className="banner-content">
@@ -10,7 +10,8 @@ const Banner = ({ title, homeButton, lab42Button, lab36Button, sidePanelButton }
                 <div className="banner-links">
                     {homeButton}
                     {lab42Button}
-                    {lab36Button}
+                    {lab36Button}   
+                    {historyButton}
                 </div>
                 <div className="banner-controls">
                     {sidePanelButton}
@@ -20,4 +21,4 @@ const Banner = ({ title, homeButton, lab42Button, lab36Button, sidePanelButton }
     );
 };
 
-export { Banner };
+export default Banner;

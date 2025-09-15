@@ -1,8 +1,8 @@
 import React from 'react';
 import { useDataSelection } from '../utils/useDataSelection';
-import { Lab42Plot, Lab36Plot } from './Plots';
+import { Lab42Plot, Lab36Plot, HistoryPlot } from './Plots';
 
-function IndividualPlot({ plotId, plotNumber }) {
+function IndividualPlot({ plotId, plotNumber, labType = 'lab42', dateRange }) {
     const { 
         getPlotParameters, 
         setActivePlot, 
@@ -33,8 +33,16 @@ function IndividualPlot({ plotId, plotNumber }) {
                 </div>
             );
         }
-
-        return <Lab42Plot selectedParameters={selectedParameters} />;
+        switch (labType) {
+            case 'lab42':
+                return <Lab42Plot selectedParameters={selectedParameters} />;
+            case 'lab36':
+                return <Lab36Plot selectedParameters={selectedParameters} />;
+            case 'history':
+                return <HistoryPlot selectedParameters={selectedParameters} dateRange={dateRange} />;
+            default:
+                return <Lab42Plot selectedParameters={selectedParameters} />;
+        }
     };
 
     return (

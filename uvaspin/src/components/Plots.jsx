@@ -80,7 +80,7 @@ const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null) =
 };
 
 // Main plotting component
-function DataPlot({ selectedParameters, labType = 'lab42' }) {
+function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
     const [plotData, setPlotData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -99,7 +99,17 @@ function DataPlot({ selectedParameters, labType = 'lab42' }) {
 
         try {
             const selectedKeys = Array.from(selectedParams);
-            const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys);
+            
+            // Use dateRange for history plots, default behavior for others
+            let startTime = null;
+            let endTime = null;
+            
+            if (labType === 'history' && dateRange && dateRange.start && dateRange.end) {
+                startTime = dateRange.start;
+                endTime = dateRange.end;
+            }
+            
+            const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys, startTime, endTime);
             
             if (missingKeys && missingKeys.length > 0) {
                 console.warn('Missing data for keys:', missingKeys);
@@ -152,23 +162,28 @@ function DataPlot({ selectedParameters, labType = 'lab42' }) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [labType, dateRange]);
 
-    // Update plot when selected parameters change
+    // Update plot when selected parameters or date range changes
     useEffect(() => {
         generatePlotData(selectedParameters);
     }, [selectedParameters, generatePlotData]);
 
-    // Auto-refresh every second if parameters are selected
+    // Auto-refresh only for non-history plots or when no date range is set
     useEffect(() => {
         if (selectedParameters.size === 0) return;
+        
+        // Don't auto-refresh history plots with custom date ranges
+        if (labType === 'history' && dateRange && dateRange.start && dateRange.end) {
+            return;
+        }
 
         const interval = setInterval(() => {
             generatePlotData(selectedParameters);
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [selectedParameters, generatePlotData]);
+    }, [selectedParameters, generatePlotData, labType, dateRange]);
 
     // Plot layout configuration
     const layout = {
@@ -306,6 +321,7 @@ function DataPlot({ selectedParameters, labType = 'lab42' }) {
     );
 }
 
+
 // Lab-specific plot components
 function Lab42Plot({ selectedParameters }) {
     return <DataPlot selectedParameters={selectedParameters} labType="lab42" />;
@@ -315,4 +331,8 @@ function Lab36Plot({ selectedParameters }) {
     return <DataPlot selectedParameters={selectedParameters} labType="lab36" />;
 }
 
-export { Lab42Plot, Lab36Plot, DataPlot };
+function HistoryPlot({ selectedParameters, dateRange }) {
+    return <DataPlot selectedParameters={selectedParameters} labType="history" dateRange={dateRange} />;
+}
+
+export { Lab42Plot, Lab36Plot, HistoryPlot, DataPlot };

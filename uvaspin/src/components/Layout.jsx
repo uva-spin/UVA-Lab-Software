@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Banner } from './Banner';
-import { Lab42Button, Lab36Button, HomeButton, SidePanelButton } from './Buttons';
+import Banner from './Banner';
+import { Lab42Button, Lab36Button, HistoryButton, HomeButton, SidePanelButton } from './Buttons';
 import SidePanel from './SidePanel';
 
 function Layout() {
@@ -22,6 +22,7 @@ function Layout() {
                 homeButton={<HomeButton />}
                 lab42Button={<Lab42Button />}
                 lab36Button={<Lab36Button />}
+                historyButton={<HistoryButton />}
                 sidePanelButton={showSidebar ? <SidePanelButton onClick={handleSidebarToggle} isActive={sidebarOpen} /> : null}
             />
             <main className="main-content">

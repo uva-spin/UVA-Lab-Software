@@ -114,7 +114,7 @@
 }
 
 .clear-all-button:hover {
-    background: #dc3545;
+    background: var(--accent-primary);
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
 }
@@ -204,19 +204,31 @@
     overflow: hidden;
     transition: max-height 0.3s ease;
     background: white;
+    padding: 0;
+}
+
+/* Explicitly ensure collapsed state */
+.section-content:not(.expanded) {
+    max-height: 0 !important;
+    overflow: hidden !important;
 }
 
 .section-content.expanded {
-    max-height: 500px; /* Increased from 300px */
-    overflow-y: auto;
+    max-height: 1000px;
+    overflow: visible;
+    padding: 0.25rem 0;
 }
 
 .section-content.main-content.expanded {
-    max-height: 600px; /* Increased from 400px */
+    max-height: 1200px;
+    overflow: visible;
+    padding: 0.25rem 0;
 }
 
 .section-content.sub-content.expanded {
-    max-height: 300px; /* Increased from 200px */
+    max-height: 800px; 
+    overflow: visible;
+    padding: 0.25rem 0;
 }
 
 /* Parameter Items */
@@ -227,13 +239,13 @@
     border-bottom: 1px solid var(--border-color);
     font-size: 0.85rem;
     color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    background: white;
+    margin: 0;
 }
 
 .parameter-item:last-child {
     border-bottom: none;
+    margin-bottom: 0;
 }
 
 .parameter-item:hover {
@@ -253,60 +265,8 @@
     color: white;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .data-sidebar {
-        width: 100%;
-        right: -100%;
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-    
-    .sidebar-toggle {
-        right: 0;
-        width: 50px;
-        height: 100px;
-        font-size: 0.8rem;
-    }
-    
-    .sidebar-toggle.active {
-        right: 100%;
-    }
-    
-    .section-content.expanded {
-        max-height: 300px;
-    }
-    
-    .section-content.main-content.expanded {
-        max-height: 400px;
-    }
-    
-    .section-content.sub-content.expanded {
-        max-height: 250px;
-    }
-}
-
-/* Custom scrollbar for section content */
-.section-content::-webkit-scrollbar {
-    width: 4px;
-}
-
-.section-content::-webkit-scrollbar-track {
-    background: var(--bg-tertiary);
-}
-
-.section-content::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 2px;
-}
-
-.section-content::-webkit-scrollbar-thumb:hover {
-    background: var(--border-hover);
-}
-
-/* Animation improvements */
 .data-section {
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .data-section:hover {
@@ -323,7 +283,7 @@
     left: 0;
     top: 0;
     height: 100%;
-    width: 3px;
+    width: 4px;
     background: var(--accent-primary);
     transform: scaleY(0);
     transition: transform 0.2s ease;
@@ -360,7 +320,33 @@
     animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+@media (max-width: 768px) {
+    .data-sidebar {
+        width: 100%;
+        right: -100%;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .sidebar-toggle {
+        right: 0;
+        width: 50px;
+        height: 100px;
+        font-size: 0.8rem;
+    }
+    
+    .section-content.expanded {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .section-content.main-content.expanded {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .section-content.sub-content.expanded {
+        max-height: 300px;
+        overflow-y: auto;
+    }
 }

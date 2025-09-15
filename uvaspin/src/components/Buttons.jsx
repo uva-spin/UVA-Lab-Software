@@ -29,6 +29,20 @@ function Lab36Button() {
     );
 }
 
+function HistoryButton() {
+    const location = useLocation();
+    const isActive = location.pathname === '/history';
+    
+    return (
+        <Link 
+            to="/history" 
+            className={`banner-link ${isActive ? 'active' : ''}`}
+        >
+            History
+        </Link>
+    );
+}
+
 function HomeButton() {
     const location = useLocation();
     const isActive = location.pathname === '/';
@@ -55,4 +69,4 @@ function SidePanelButton({ onClick, isActive = false }) {
     );
 }
 
-export { Lab42Button, Lab36Button, HomeButton, SidePanelButton };
+export { Lab42Button, Lab36Button, HistoryButton, HomeButton, SidePanelButton };

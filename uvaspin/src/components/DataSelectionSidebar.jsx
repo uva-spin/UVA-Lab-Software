@@ -37,6 +37,7 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
     };
 
     const toggleMainSection = (sectionId) => {
+        console.log('Main section clicked:', sectionId); // Add debugging
         setExpandedSections(prev => {
             const newSet = new Set(prev);
             if (newSet.has(sectionId)) {
@@ -44,6 +45,7 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
             } else {
                 newSet.add(sectionId);
             }
+            console.log('New expanded sections:', newSet); // Add debugging
             return newSet;
         });
     };
@@ -111,13 +113,25 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
                     <div key={mainSectionId} className={`data-section main-category ${isExpanded ? 'expanded' : ''}`}>
                         <div 
                             className="section-header main-header"
-                            onClick={() => toggleMainSection(mainSectionId)}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Click event fired for:', mainCategory);
+                                console.log('Current expanded state:', isExpanded);
+                                toggleMainSection(mainSectionId);
+                            }}
+                            style={{ cursor: 'pointer' }}
                         >
                             <i className={`fas fa-chevron-right ${isExpanded ? 'expanded' : ''}`}></i>
                             <span>{mainCategory}</span>
                             <span className="section-count">{getTotalColumnCount(subCategories)}</span>
                         </div>
-                        <div className={`section-content main-content ${isExpanded ? 'expanded' : ''}`}>
+                        <div 
+                            className={`section-content main-content ${isExpanded ? 'expanded' : ''}`}
+                            style={{ 
+                                display: isExpanded ? 'block' : 'none'
+                            }}
+                        >
                             {mainCategory === 'QT' ? (
                                 // QT has subcategories
                                 Object.entries(subCategories).map(([subCategory, subItems]) => 
