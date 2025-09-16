@@ -11,23 +11,6 @@ export default defineConfig({
       }
     }
   },
-  server: {
-    port: 3000,
-    open: true,
-    host: true,
-    proxy: {
-      '/query_db': {
-        target: process.env.VITE_API_URL,
-        changeOrigin: true,
-        secure: false
-      },
-      '/health_check': {
-        target: process.env.VITE_API_URL,
-        changeOrigin: true,
-        secure: false
-      }
-    }
-  },
   build: {
     outDir: 'dist',
     sourcemap: true,
@@ -41,8 +24,7 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
-    'process.env': '{}',
-    'require': '(() => { throw new Error("require is not defined in browser environment") })'
+    'process.env': '{}'
   },
   resolve: {
     alias: {
