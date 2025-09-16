@@ -129,12 +129,20 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
         console.log('Executing query:', query);
         
         // Execute query
-        const result = await pool.query(query);
+        const result = await pool.query(query, (err, rows) => {
+            if (err) {
+                console.error('Error in fetchData:', err);
+                throw err;
+            }
+            return rows;
+        });
+
+        console.log('Result:', result);
         
         // Cache the result
         cache.set(cacheKey, result);
         
-        return result;
+        return result.rows;
         
     } catch (error) {
         console.error('Error in fetchData:', error);
