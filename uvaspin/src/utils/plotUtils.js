@@ -50,14 +50,53 @@ function createTracesFromData(data, availableKeys, selectedKeys) {
     console.log('Creating traces from data:', data);
     console.log('Selected keys:', selectedKeys);
     
-    // Extract timestamps from the data objects
-    const timestamps = data.map(point => new Date(point.timestamp));
+    // Detect data format: object format vs array format
+    const isObjectFormat = data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0]);
+    console.log('Data format detected:', isObjectFormat ? 'object' : 'array');
+    
+    let timestamps, valuesByKey;
+    
+    if (isObjectFormat) {
+        // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
+        timestamps = data.map(point => new Date(point.timestamp));
+        valuesByKey = {};
+        selectedKeys.forEach(key => {
+            valuesByKey[key] = data.map(point => point[key]);
+        });
+    } else {
+        // Array format: [["timestamp", val1, val2, ...], ...] or [[val1, val2, ..., "timestamp"], ...]
+        // Check if timestamp is first or last element
+        const firstPoint = data[0];
+        const lastElement = firstPoint[firstPoint.length - 1];
+        const firstElement = firstPoint[0];
+        
+        // Check if last element looks like a timestamp (contains 'T' or is a date string)
+        const isTimestampLast = typeof lastElement === 'string' && (lastElement.includes('T') || lastElement.includes('-'));
+        
+        if (isTimestampLast) {
+            // Timestamp is last: [val1, val2, ..., timestamp]
+            timestamps = data.map(point => new Date(point[point.length - 1]));
+            valuesByKey = {};
+            selectedKeys.forEach((key, index) => {
+                const columnIndex = availableKeys.indexOf(key);
+                valuesByKey[key] = data.map(point => point[columnIndex]);
+            });
+        } else {
+            // Timestamp is first: [timestamp, val1, val2, ...]
+            timestamps = data.map(point => new Date(point[0]));
+            valuesByKey = {};
+            selectedKeys.forEach((key, index) => {
+                const columnIndex = availableKeys.indexOf(key) + 1; // +1 because timestamp is at index 0
+                valuesByKey[key] = data.map(point => point[columnIndex]);
+            });
+        }
+    }
+    
     console.log('Timestamps:', timestamps);
     
     // Create plot traces for each selected parameter
     return selectedKeys.map((column, index) => {
-        // Get values for this column from the data objects
-        const values = data.map(point => point[column]);
+        const values = valuesByKey[column] || [];
         const units = getColumnUnits(column);
         
         console.log(`Column ${column} values:`, values);
@@ -183,7 +222,29 @@ function getPlotLayout(selectedParameters, data = null) {
     
     // If data is provided, calculate the proper x-axis range
     if (data && data.length > 0) {
-        const timestamps = data.map(point => new Date(point.timestamp));
+        let timestamps;
+        
+        // Detect data format and extract timestamps accordingly
+        const isObjectFormat = data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0]);
+        
+        if (isObjectFormat) {
+            // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
+            timestamps = data.map(point => new Date(point.timestamp));
+        } else {
+            // Array format: detect if timestamp is first or last
+            const firstPoint = data[0];
+            const lastElement = firstPoint[firstPoint.length - 1];
+            const isTimestampLast = typeof lastElement === 'string' && (lastElement.includes('T') || lastElement.includes('-'));
+            
+            if (isTimestampLast) {
+                // Timestamp is last: [val1, val2, ..., timestamp]
+                timestamps = data.map(point => new Date(point[point.length - 1]));
+            } else {
+                // Timestamp is first: [timestamp, val1, val2, ...]
+                timestamps = data.map(point => new Date(point[0]));
+            }
+        }
+        
         const minTime = new Date(Math.min(...timestamps));
         const maxTime = new Date(Math.max(...timestamps));
         
