@@ -68,6 +68,57 @@ def convert_frontend_timestamp_to_db_format(timestamp_str):
         logger.warning(f"Could not parse timestamp '{timestamp_str}': {e}")
         return timestamp_str
 
+def parse_datetime(dt_input):
+    """
+    ## Description:
+    Acepts either a datetime or a string and returns a datetime.
+    """
+
+    # If the input is already a datetime object...
+    if isinstance(dt_input, datetime):
+
+        # ... return the datetime object!
+        return dt_input
+
+    # 
+    formats = [
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S",
+        "%m/%d/%Y %H:%M:%S",
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(dt_input, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Unrecognized datetime format: {dt_input}")
+
+
+def calculate_stride(start_time, end_time):
+    """
+    ## Description:
+    Decide the stride (sampling ratio) based on interval length.
+    Smaller interval = keep more data.
+    """
+    AVERAGE_TOTAL_DATAPOINTS_PER_DAY = 39990
+    start_dt = parse_datetime(start_time)
+    end_dt   = parse_datetime(end_time)
+    delta_days = (end_dt - start_dt).days + (end_dt - start_dt).seconds / 86400
+    print(f"> Computed delta_days as: {delta_days}")
+
+    # If a day has *not* elapsed...
+    if delta_days < 1.:
+
+        # ... return 1, which means no data will be MODDED OUT:
+        return 1
+    
+    # If a day has *not* elapsed...
+    else:
+
+        # ... then we return this as the MOD FACTOR:
+        return delta_days + 1
+
 class DataCollector:
     def __init__(self):
         print(f"Database IP: {config['host']}")
@@ -304,6 +355,13 @@ def query_db():
         if not start_time or not end_time:
             return jsonify({"error": "Start time and end time must be provided"}), 400
 
+        start_dt = datetime.strptime(start_time, "%m/%d/%Y %H:%M:%S")
+        end_dt   = datetime.strptime(end_time, "%m/%d/%Y %H:%M:%S")
+
+        stride = calculate_stride(start_dt, end_dt)
+        
+        print(f"> Calculated stride: {stride}")
+        
         db_start_time = convert_frontend_timestamp_to_db_format(start_time)
         db_end_time = convert_frontend_timestamp_to_db_format(end_time)
         
@@ -329,22 +387,30 @@ def query_db():
             if not table_keys:
                 continue
                 
-            logger.info(f"Found keys {table_keys} in table {table}")
+            logger.info(f"> Found keys {table_keys} in table {table}")
             
             columns_str = ', '.join(['Timestamp'] + table_keys)
+
             query = f"""
                 SELECT {columns_str}
                 FROM {table}
-                WHERE Timestamp BETWEEN %s AND %s
-                ORDER BY Timestamp ASC
+                WHERE id % {stride} = 0 AND Timestamp BETWEEN %s AND %s
+                ORDER BY id, Timestamp ASC
             """
+
+            # query = f"""
+            #     SELECT {columns_str}
+            #     FROM {table}
+            #     WHERE Timestamp BETWEEN %s AND %s
+            #     ORDER BY Timestamp ASC
+            # """
             logger.info(f"DB start time: {db_start_time}")
             logger.info(f"DB end time: {db_end_time}")
             logger.info(f"Executing query: {query} with params: {db_start_time}, {db_end_time}")
             
             rows = collector.execute_with_retry(query, (db_start_time, db_end_time), fetch_type='all')
             
-            logger.info(f"Found {len(rows)} rows in table {table}")
+            logger.info(f"> Found {len(rows)} rows in table {table}")
             
             if rows:
                 # Return raw database rows directly
