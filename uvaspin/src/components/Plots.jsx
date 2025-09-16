@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Plot from 'react-plotly.js';
+import Plotly from 'plotly.js';
 import { useDataSelection } from '../utils/useDataSelection';
 
 const COLOR_PALETTE = [
@@ -87,6 +88,8 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
     const [lastUpdate, setLastUpdate] = useState(null);
     const [cachedData, setCachedData] = useState(new Map()); // Cache for existing data
     const [lastTimestamp, setLastTimestamp] = useState(null); // Track last data timestamp
+    const plotRef = useRef(null); // Reference to the plot element
+    const isInitialized = useRef(false); // Track if plot has been initialized
 
     // Function to create plot traces from data
     const createTracesFromData = useCallback((data, availableKeys, selectedKeys) => {
@@ -124,6 +127,65 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
             };
         });
     }, []);
+
+    // Function to extend existing traces with new data
+    const extendTracesWithData = useCallback((newData, availableKeys, selectedKeys) => {
+        if (!newData || newData.length === 0 || !plotRef.current) {
+            console.log('Cannot extend traces: no data or plot ref not available');
+            return;
+        }
+        
+        // Extract new timestamps and values
+        const newTimestamps = newData.map(point => new Date(point[0]));
+        console.log('Extending traces with data from', newTimestamps[0], 'to', newTimestamps[newTimestamps.length - 1]);
+        
+        // Prepare extension data for each trace
+        const extensionData = selectedKeys.map((column, index) => {
+            const columnIndex = availableKeys.indexOf(column) + 1;
+            const newValues = newData.map(point => point[columnIndex]);
+            
+            return {
+                x: [newTimestamps],
+                y: [newValues]
+            };
+        });
+        
+        // Use Plotly.extendTraces to add new data
+        Plotly.extendTraces(plotRef.current, extensionData, Array.from({length: selectedKeys.length}, (_, i) => i));
+        
+        // Check if we need to limit data points to prevent memory issues
+        const maxPoints = 1000;
+        if (newTimestamps.length > maxPoints) {
+            // Get current data lengths
+            const currentData = plotRef.current.data;
+            const currentLength = currentData[0]?.x?.length || 0;
+            
+            if (currentLength > maxPoints) {
+                // Remove old data points by keeping only the last maxPoints
+                const removeCount = currentLength - maxPoints;
+                Plotly.relayout(plotRef.current, {
+                    'xaxis.range': [newTimestamps[Math.max(0, newTimestamps.length - maxPoints)], newTimestamps[newTimestamps.length - 1]]
+                });
+            }
+        }
+    }, []);
+
+    // Function to update plot data without recreation
+    const updatePlotData = useCallback((newData, availableKeys, selectedKeys, isIncremental = false) => {
+        if (!newData || newData.length === 0) return;
+        
+        if (isIncremental && isInitialized.current && plotRef.current && plotData.length > 0) {
+            // Use extendTraces for incremental updates
+            console.log('Using Plotly.extendTraces for incremental update with', newData.length, 'new data points');
+            extendTracesWithData(newData, availableKeys, selectedKeys);
+        } else {
+            // Create new traces for initial load or parameter changes
+            console.log('Creating new traces for', isIncremental ? 'incremental' : 'initial', 'update with', newData.length, 'data points');
+            const traces = createTracesFromData(newData, availableKeys, selectedKeys);
+            setPlotData(traces);
+            isInitialized.current = true;
+        }
+    }, [createTracesFromData, extendTracesWithData, plotData]);
 
     // Function to merge new data with existing cached data
     const mergeDataWithCache = useCallback((newData, selectedKeys, availableKeys) => {
@@ -237,9 +299,8 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
                 finalLastTimestamp = merged.lastTimestamp;
             }
 
-            // Create traces from the final data
-            const traces = createTracesFromData(finalData, availableKeys, selectedKeys);
-            setPlotData(traces);
+            // Update plot data using the new method
+            updatePlotData(finalData, availableKeys, selectedKeys, isIncremental);
             setLastUpdate(new Date());
             
         } catch (err) {
@@ -259,6 +320,8 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
         // Clear cache when parameters change to ensure fresh data
         setCachedData(new Map());
         setLastTimestamp(null);
+        isInitialized.current = false; // Reset initialization flag for parameter changes
+        setPlotData([]); // Clear existing plot data
         generatePlotData(selectedParameters, false); // Full refresh for parameter changes
     }, [selectedParameters, generatePlotData]);
 
@@ -398,12 +461,14 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
             
             <div className="plot-wrapper">
                 <Plot
+                    ref={plotRef}
                     data={plotData}
                     layout={layout}
                     config={config}
                     style={{ width: '100%', height: '100%', minHeight: '400px' }}
                     onInitialized={(figure, graphDiv) => {
                         console.log('Plot initialized');
+                        plotRef.current = graphDiv;
                     }}
                     onUpdate={(figure, graphDiv) => {
                         console.log('Plot updated');
