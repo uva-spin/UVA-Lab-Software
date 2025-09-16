@@ -56,15 +56,21 @@ function createTracesFromData(data, availableKeys, selectedKeys) {
         // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
         timestamps = data.map(point => new Date(point.timestamp));
         valuesByKey = {};
+        console.log('timestamps', timestamps);
+        console.log('valuesByKey', valuesByKey);
+        console.log('selectedKeys', selectedKeys);
         selectedKeys.forEach(key => {
             valuesByKey[key] = data.map(point => point[key]);
         });
     } else {
-        // Array format: [[timestamp, val1, val2, ...], ...]
-        timestamps = data.map(point => new Date(point[0]));
+        // Array format: [val1, val2, ..., timestamp] - timestamp is last column
+        timestamps = data.map(point => new Date(point[point.length - 1]));
         valuesByKey = {};
+        console.log('timestamps', timestamps);
+        console.log('valuesByKey', valuesByKey);
+        console.log('selectedKeys', selectedKeys);
         selectedKeys.forEach((key, index) => {
-            const columnIndex = availableKeys.indexOf(key) + 1; // +1 because timestamp is at index 0
+            const columnIndex = availableKeys.indexOf(key); // No +1 since timestamp is last, not first
             valuesByKey[key] = data.map(point => point[columnIndex]);
         });
     }
@@ -118,11 +124,11 @@ function extendTracesWithData(plotRef, newData, availableKeys, selectedKeys) {
             valuesByKey[key] = newData.map(point => point[key]);
         });
     } else {
-        // Array format: [[timestamp, val1, val2, ...], ...]
-        newTimestamps = newData.map(point => new Date(point[0]));
+        // Array format: [val1, val2, ..., timestamp] - timestamp is last column
+        newTimestamps = newData.map(point => new Date(point[point.length - 1]));
         valuesByKey = {};
         selectedKeys.forEach((key, index) => {
-            const columnIndex = availableKeys.indexOf(key) + 1;
+            const columnIndex = availableKeys.indexOf(key); // No +1 since timestamp is last, not first
             valuesByKey[key] = newData.map(point => point[columnIndex]);
         });
     }
@@ -172,7 +178,7 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
     if (isObjectFormat) {
         newLastTimestamp = newData[newData.length - 1].timestamp;
     } else {
-        newLastTimestamp = newData[newData.length - 1][0];
+        newLastTimestamp = newData[newData.length - 1][newData[newData.length - 1].length - 1]; // Last column is timestamp
     }
     
     // For each selected key, merge new data with cached data
@@ -183,8 +189,8 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
         if (isObjectFormat) {
             newValues = newData.map(point => [point.timestamp, point[key]]); // [timestamp, value]
         } else {
-            const columnIndex = availableKeys.indexOf(key) + 1;
-            newValues = newData.map(point => [point[0], point[columnIndex]]); // [timestamp, value]
+            const columnIndex = availableKeys.indexOf(key); // No +1 since timestamp is last, not first
+            newValues = newData.map(point => [point[point.length - 1], point[columnIndex]]); // [timestamp, value]
         }
         
         // Merge and sort by timestamp, removing duplicates
