@@ -39,13 +39,37 @@ app.get('/health_check', (req, res) => {
     }
 });
 
+// Get available tables endpoint
+app.get('/tables', async (req, res) => {
+    try {
+        if (!dbConnection || !dbConnection.pool) {
+            return res.status(500).json({ error: 'Database not connected' });
+        }
+
+        const result = await dbConnection.pool.query('SHOW TABLES');
+        const tables = result.map(row => Object.values(row)[0]);
+        
+        res.json({ tables });
+    } catch (error) {
+        console.error('Error fetching tables:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch tables',
+            message: error.message 
+        });
+    }
+});
+
 // Main data query endpoint
 app.get('/query_db', async (req, res) => {
     try {
-        const { keys, start_time, end_time } = req.query;
+        const { keys, start_time, end_time, table } = req.query;
         
         if (!keys) {
             return res.status(400).json({ error: 'Keys parameter is required' });
+        }
+
+        if (!table) {
+            return res.status(400).json({ error: 'Table parameter is required' });
         }
 
         const selectedKeys = keys.split(',');
@@ -61,7 +85,7 @@ app.get('/query_db', async (req, res) => {
 
         const data = await fetchData(
             dbConnection.pool, 
-            'table_name', // adjust here to allow for multiple tables in future
+            table, // Use the table name from query parameter
             selectedKeys.join(','), 
             start_time, 
             end_time

@@ -11,7 +11,7 @@ function formatTimestampForDB(isoString) {
     if (!isoString) return null;
     
     const date = new Date(isoString);
-    const year = date.getFullYear().toString().slice(-2); // Get last 2 digits of year
+    const year = date.getFullYear().toString();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     const hours = date.getHours().toString().padStart(2, '0');
@@ -23,6 +23,11 @@ function formatTimestampForDB(isoString) {
 
 export async function fetchData(pool, table_name, keys, start_time, end_time) {
     try {
+        // Validate table name to prevent SQL injection
+        if (!table_name || typeof table_name !== 'string') {
+            throw new Error('Invalid table name provided');
+        }
+        
         // Create cache key
         const cacheKey = `${table_name}_${keys}_${start_time}_${end_time}`;
         
@@ -32,8 +37,8 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
             return cache.get(cacheKey);
         }
 
-        // Build query
-        let query = `SELECT ${keys}, timestamp FROM ${table_name}`;
+        // Build query with parameterized table name
+        let query = `SELECT ${keys}, timestamp FROM \`${table_name}\``;
         const conditions = [];
         
         if (start_time) {
