@@ -7,7 +7,7 @@ const COLOR_PALETTE = [
     '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5'
 ];
 
-export const getColumnUnits = (column) => {
+function getColumnUnits(column) {
     if (column.includes('fridge_vapor_pressure') || column.includes('root_exhausted_pressure')) {
         return ' (torr)';
     } else if (column.includes('ti') || column.includes('temperature')) {
@@ -27,9 +27,9 @@ export const getColumnUnits = (column) => {
     }
 };
 
-shouldComponentUpdate(nextProps) {
-    if (this.props.height !== nextProps.height ||
-       this.props.width !== nextProps.width) {
+function shouldComponentUpdate(nextProps, currentProps) {
+    if (currentProps.height !== nextProps.height ||
+       currentProps.width !== nextProps.width) {
       return true;
     }
 
@@ -44,7 +44,7 @@ export const formatNumber = (value) => {
 };
 
 // Function to create plot traces from data
-export const createTracesFromData = (data, availableKeys, selectedKeys) => {
+function createTracesFromData(data, availableKeys, selectedKeys) {
     if (!data || data.length === 0) return [];
     
     // Extract timestamps (first column)
@@ -81,7 +81,7 @@ export const createTracesFromData = (data, availableKeys, selectedKeys) => {
 };
 
 // Function to extend existing traces with new data
-export const extendTracesWithData = (plotRef, newData, availableKeys, selectedKeys) => {
+function extendTracesWithData(plotRef, newData, availableKeys, selectedKeys) {
     if (!newData || newData.length === 0 || !plotRef.current) {
         console.log('Cannot extend traces: no data or plot ref not available');
         return;
@@ -123,7 +123,7 @@ export const extendTracesWithData = (plotRef, newData, availableKeys, selectedKe
 };
 
 // Function to merge new data with existing cached data
-export const mergeDataWithCache = (newData, selectedKeys, availableKeys, cachedData) => {
+function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
     if (!newData || newData.length === 0) return { data: [], lastTimestamp: null };
     
     const newCachedData = new Map(cachedData);
@@ -142,7 +142,6 @@ export const mergeDataWithCache = (newData, selectedKeys, availableKeys, cachedD
                 index === 0 || point[0] !== arr[index - 1][0]
             );
         
-        // Keep only last 1000 points to prevent memory issues
         if (mergedData.length > 1000) {
             mergedData.splice(0, mergedData.length - 1000);
         }
@@ -175,7 +174,7 @@ export const mergeDataWithCache = (newData, selectedKeys, availableKeys, cachedD
 };
 
 // Plot layout configuration
-export const getPlotLayout = (selectedParameters) => {
+function getPlotLayout(selectedParameters) {
     return {
         title: {
             text: selectedParameters.size === 0 
@@ -216,7 +215,7 @@ export const getPlotLayout = (selectedParameters) => {
 };
 
 // Plot configuration
-export const getPlotConfig = (labType) => {
+function getPlotConfig(labType) {
     return {
         displayModeBar: true,
         displaylogo: false,
@@ -230,3 +229,5 @@ export const getPlotConfig = (labType) => {
         }
     };
 };
+
+export { getColumnUnits, shouldComponentUpdate, createTracesFromData, extendTracesWithData, mergeDataWithCache, getPlotLayout, getPlotConfig };
