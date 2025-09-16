@@ -196,7 +196,7 @@ class DataPlot extends React.Component {
                         layout={this.state.layout}
                         config={this.state.config}
                         shouldComponentUpdate={(nextProps) => shouldComponentUpdate(nextProps, this.props)}
-                        // style={{ width: '100%', height: '100%', minHeight: '400px' }}
+                        style={{ width: '100%', height: '100%', minHeight: '600px' }}
                         onInitialized={(figure) => this.setState(figure)}
                         onUpdate={(figure) => this.setState(figure)}
                     />
