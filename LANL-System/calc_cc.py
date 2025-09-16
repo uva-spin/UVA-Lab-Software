@@ -145,7 +145,6 @@ def nmr_momt(idx):
     ]
     return list_nmr_momt[idx]
 
-# Alternative dictionary-based approach for easier access
 nmr_data = {
     1: {"name": "Proton", "spec": 1, "freq": 42.5764, "spin": 1, "momt": 2.79268},
     2: {"name": "Deuteron", "spec": 2, "freq": 6.53573, "spin": 2, "momt": 0.857387},
@@ -200,6 +199,82 @@ def process_signal_data(signal, signal_fraction=1.0):
         'peak_value': peak_value,
         'total_area': area,
         'signal_data': signal_subset
+    }
+
+def process_multiple_signals(signals, signal_fraction=1.0):
+    """
+    Process multiple real-time LabVIEW signal data (400 bins each) to calculate averaged statistics.
+    
+    Args:
+        signals (list): List of signal data arrays, each with 400 bins from LabVIEW
+        signal_fraction (float): Fraction of signal to use (default 1.0 for full signal)
+        
+    Returns:
+        dict: Dictionary containing averaged processed data statistics
+    """
+    if not signals:
+        raise ValueError("No signals provided")
+    
+    # Process each signal individually
+    individual_stats = []
+    for i, signal in enumerate(signals):
+        try:
+            stats = process_signal_data(signal, signal_fraction)
+            individual_stats.append(stats)
+        except Exception as e:
+            print(f"Warning: Error processing signal {i}: {e}")
+            continue
+    
+    if not individual_stats:
+        raise ValueError("No valid signals could be processed")
+    
+    # Calculate statistics across all signals
+    n_signals = len(individual_stats)
+    
+    # Extract arrays for statistical analysis
+    all_areas = [stats['total_area'] for stats in individual_stats]
+    all_avg_areas = [stats['avg_area'] for stats in individual_stats]
+    all_std_areas = [stats['std_area'] for stats in individual_stats]
+    all_avg_values = [stats['avg_value'] for stats in individual_stats]
+    all_std_values = [stats['std_value'] for stats in individual_stats]
+    all_peak_values = [stats['peak_value'] for stats in individual_stats]
+    
+    # Calculate mean and standard deviation across signals
+    mean_area = np.mean(all_areas)
+    std_area = np.std(all_areas, ddof=1) if n_signals > 1 else 0
+    
+    mean_avg_area = np.mean(all_avg_areas)
+    std_avg_area = np.std(all_avg_areas, ddof=1) if n_signals > 1 else 0
+    
+    mean_avg_value = np.mean(all_avg_values)
+    std_avg_value = np.std(all_avg_values, ddof=1) if n_signals > 1 else 0
+    
+    mean_peak_value = np.mean(all_peak_values)
+    std_peak_value = np.std(all_peak_values, ddof=1) if n_signals > 1 else 0
+    
+    # Calculate standard error of the mean
+    sem_area = std_area / np.sqrt(n_signals) if n_signals > 1 else 0
+    sem_avg_area = std_avg_area / np.sqrt(n_signals) if n_signals > 1 else 0
+    sem_avg_value = std_avg_value / np.sqrt(n_signals) if n_signals > 1 else 0
+    
+    return {
+        'n_signals': n_signals,
+        'n_pt': individual_stats[0]['n_pt'],  # Same for all signals
+        'mean_area': mean_area,
+        'std_area': std_area,
+        'sem_area': sem_area,
+        'mean_avg_area': mean_avg_area,
+        'std_avg_area': std_avg_area,
+        'sem_avg_area': sem_avg_area,
+        'mean_avg_value': mean_avg_value,
+        'std_avg_value': std_avg_value,
+        'sem_avg_value': sem_avg_value,
+        'mean_peak_value': mean_peak_value,
+        'std_peak_value': std_peak_value,
+        'individual_stats': individual_stats,
+        'all_areas': all_areas,
+        'all_avg_areas': all_avg_areas,
+        'all_avg_values': all_avg_values
     }
 
 def convert_to_temp(value_type, avg_value, std_value):
@@ -270,7 +345,7 @@ def eval_cal_const(species, field, avg_area, std_area, avg_temp, std_temp):
         dcc_dt = std_temp * dcc_partial_t / avg_area
         cal_const_err = math.sqrt(dcc_da ** 2 + dcc_dt ** 2)
         spin_name = "1/2"
-    elif nmr_spin_val == 2:  # spin two-halves, using Josh Pierce's method
+    elif nmr_spin_val == 2:  # spin one, 
         arg = (nmr_momt_val * nuc_magneton * field) / (boltz_const * avg_temp)
         te_pol = 100 * 2 * math.sinh(arg) / (1 + 2 * math.cosh(arg))
         cal_const = te_pol / avg_area
@@ -295,23 +370,29 @@ def eval_cal_const(species, field, avg_area, std_area, avg_temp, std_temp):
         'cal_const_err': cal_const_err
     }
 
-def cc(signal, signal_fraction, specimen):
+def cc(signals, signal_fraction, specimen):
     """
     Main function to calculate calibration constant from real-time signal data.
     
     Args:
-        signal (array-like): Signal data with 400 bins from LabVIEW
+        signals (list or array-like): List of signal data arrays, each with 400 bins from LabVIEW,
+                                     or single signal array (for backward compatibility)
         signal_fraction (float): Fraction of signal to use
         specimen (str): Specimen type ("ND3", "NH3", etc.)
         
     Returns:
         dict: Complete analysis results
     """
-    field = 5  # Tesla
+    field = 5  
     
-    signal_stats = process_signal_data(signal, signal_fraction)
+    signal_stats = process_multiple_signals(signals, signal_fraction)
     
-    temp_data = convert_to_temp(1, signal_stats['avg_value'], signal_stats['std_value'])
+    avg_value = signal_stats['mean_avg_value']
+    std_value = signal_stats['std_avg_value']
+    avg_area = signal_stats['mean_avg_area']
+    std_area = signal_stats['std_avg_area']
+    
+    temp_data = convert_to_temp(1, avg_value, std_value)
     
     species_map = {
         "ND3": 2,  # Deuteron
@@ -326,7 +407,7 @@ def cc(signal, signal_fraction, specimen):
     # Calculate calibration constant
     cal_const_data = eval_cal_const(
         species, field, 
-        signal_stats['avg_area'], signal_stats['std_area'],
+        avg_area, std_area,
         temp_data['avg_temp'], temp_data['std_temp']
     )
     
