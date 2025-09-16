@@ -1,11 +1,15 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const { openPool, checkConnection, closePoolConnection } = require('./utils/DB');
-const { fetchData, clear_cache } = require('./utils/Query');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { openPool, checkConnection, closePoolConnection } from './utils/DB.js';
+import { fetchData, clear_cache } from './utils/Query.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 
 // Middleware
 app.use(cors());
