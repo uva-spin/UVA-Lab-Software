@@ -47,13 +47,31 @@ export const formatNumber = (value) => {
 function createTracesFromData(data, availableKeys, selectedKeys) {
     if (!data || data.length === 0) return [];
     
-    // Extract timestamps (first column)
-    const timestamps = data.map(point => new Date(point[0]));
+    // Handle both array format [[timestamp, val1, val2, ...], ...] and object format [{timestamp: ..., key1: ..., key2: ...}, ...]
+    const isObjectFormat = data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0]);
+    
+    let timestamps, valuesByKey;
+    
+    if (isObjectFormat) {
+        // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
+        timestamps = data.map(point => new Date(point.timestamp));
+        valuesByKey = {};
+        selectedKeys.forEach(key => {
+            valuesByKey[key] = data.map(point => point[key]);
+        });
+    } else {
+        // Array format: [[timestamp, val1, val2, ...], ...]
+        timestamps = data.map(point => new Date(point[0]));
+        valuesByKey = {};
+        selectedKeys.forEach((key, index) => {
+            const columnIndex = availableKeys.indexOf(key) + 1; // +1 because timestamp is at index 0
+            valuesByKey[key] = data.map(point => point[columnIndex]);
+        });
+    }
     
     // Create plot traces for each selected parameter
     return selectedKeys.map((column, index) => {
-        const columnIndex = availableKeys.indexOf(column) + 1; // +1 because timestamp is at index 0
-        const values = data.map(point => point[columnIndex]);
+        const values = valuesByKey[column] || [];
         const units = getColumnUnits(column);
         
         return {
@@ -87,14 +105,33 @@ function extendTracesWithData(plotRef, newData, availableKeys, selectedKeys) {
         return;
     }
     
-    // Extract new timestamps and values
-    const newTimestamps = newData.map(point => new Date(point[0]));
+    // Handle both array format and object format
+    const isObjectFormat = newData.length > 0 && typeof newData[0] === 'object' && !Array.isArray(newData[0]);
+    
+    let newTimestamps, valuesByKey;
+    
+    if (isObjectFormat) {
+        // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
+        newTimestamps = newData.map(point => new Date(point.timestamp));
+        valuesByKey = {};
+        selectedKeys.forEach(key => {
+            valuesByKey[key] = newData.map(point => point[key]);
+        });
+    } else {
+        // Array format: [[timestamp, val1, val2, ...], ...]
+        newTimestamps = newData.map(point => new Date(point[0]));
+        valuesByKey = {};
+        selectedKeys.forEach((key, index) => {
+            const columnIndex = availableKeys.indexOf(key) + 1;
+            valuesByKey[key] = newData.map(point => point[columnIndex]);
+        });
+    }
+    
     console.log('Extending traces with data from', newTimestamps[0], 'to', newTimestamps[newTimestamps.length - 1]);
     
     // Prepare extension data for each trace
     const extensionData = selectedKeys.map((column, index) => {
-        const columnIndex = availableKeys.indexOf(column) + 1;
-        const newValues = newData.map(point => point[columnIndex]);
+        const newValues = valuesByKey[column] || [];
         
         return {
             x: [newTimestamps],
@@ -126,14 +163,29 @@ function extendTracesWithData(plotRef, newData, availableKeys, selectedKeys) {
 function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
     if (!newData || newData.length === 0) return { data: [], lastTimestamp: null };
     
+    // Handle both array format and object format
+    const isObjectFormat = newData.length > 0 && typeof newData[0] === 'object' && !Array.isArray(newData[0]);
+    
     const newCachedData = new Map(cachedData);
-    const newLastTimestamp = newData[newData.length - 1][0]; // Last timestamp
+    let newLastTimestamp;
+    
+    if (isObjectFormat) {
+        newLastTimestamp = newData[newData.length - 1].timestamp;
+    } else {
+        newLastTimestamp = newData[newData.length - 1][0];
+    }
     
     // For each selected key, merge new data with cached data
     selectedKeys.forEach(key => {
-        const columnIndex = availableKeys.indexOf(key) + 1;
         const existingData = newCachedData.get(key) || [];
-        const newValues = newData.map(point => [point[0], point[columnIndex]]); // [timestamp, value]
+        let newValues;
+        
+        if (isObjectFormat) {
+            newValues = newData.map(point => [point.timestamp, point[key]]); // [timestamp, value]
+        } else {
+            const columnIndex = availableKeys.indexOf(key) + 1;
+            newValues = newData.map(point => [point[0], point[columnIndex]]); // [timestamp, value]
+        }
         
         // Merge and sort by timestamp, removing duplicates
         const mergedData = [...existingData, ...newValues]
