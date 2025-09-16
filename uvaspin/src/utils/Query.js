@@ -214,3 +214,45 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
         throw error;
     }
 }
+
+export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null) => {
+    const now = new Date();
+    const defaultStartTime = startTime || new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const defaultEndTime = endTime || now;
+    
+    const startTimeStr = defaultStartTime.toISOString();
+    const endTimeStr = defaultEndTime.toISOString();
+    
+    const params = new URLSearchParams();
+    params.append('keys', selectedKeys.join(','));
+    params.append('start_time', startTimeStr);
+    params.append('end_time', endTimeStr);
+    
+    try {
+        const response = await fetch(`/query_db?${params.toString()}`);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server error:', errorText);
+            throw new Error('Failed to fetch data from server');
+        }
+
+        const result = await response.json();
+        console.log('Received data points:', result.data ? result.data.length : 0);
+        
+        return {
+            data: result.data || [],
+            availableKeys: result.available_keys || [],
+            missingKeys: result.missing_keys || []
+        };
+    } catch (err) {
+        console.warn('Database connection failed, returning empty data:', err.message);
+        
+        // Return empty data when database is not available
+        return {
+            data: [],
+            availableKeys: [],
+            missingKeys: selectedKeys
+        };
+    }
+};

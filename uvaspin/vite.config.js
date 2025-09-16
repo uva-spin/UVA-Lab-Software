@@ -22,6 +22,25 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
+  },
+  optimizeDeps: {
+    include: ['plotly.js-basic-dist', 'react-plotly.js'],
+    exclude: ['buffer']
+  },
+  define: {
+    global: 'globalThis',
+    'process.env': '{}',
+    'require': '(() => { throw new Error("require is not defined in browser environment") })'
+  },
+  resolve: {
+    alias: {
+      'buffer': 'buffer',
+      'stream': 'stream-browserify',
+      'util': 'util'
+    }
   }
 })
