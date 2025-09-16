@@ -216,7 +216,7 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
             bordercolor: '#ccc',
             borderwidth: 1
         },
-        margin: { r: 200, t: 60, b: 60, l: 80 },
+        margin: { r: 150, t: 50, b: 50, l: 60 },
         plot_bgcolor: 'white',
         paper_bgcolor: 'white',
         font: { family: 'Arial, sans-serif' },
@@ -308,7 +308,7 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
                     data={plotData}
                     layout={layout}
                     config={config}
-                    style={{ width: '100%', height: '600px' }}
+                    style={{ width: '100%', height: '100%', minHeight: '400px' }}
                     onInitialized={(figure, graphDiv) => {
                         console.log('Plot initialized');
                     }}
