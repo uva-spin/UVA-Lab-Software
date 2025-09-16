@@ -6,6 +6,21 @@ export function clear_cache() {
     console.log('Cache cleared');
 }
 
+// Convert ISO timestamp to database format (yy-mm-dd hh:mm:ss)
+function formatTimestampForDB(isoString) {
+    if (!isoString) return null;
+    
+    const date = new Date(isoString);
+    const year = date.getFullYear().toString().slice(-2); // Get last 2 digits of year
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 export async function fetchData(pool, table_name, keys, start_time, end_time) {
     try {
         // Create cache key
@@ -22,10 +37,12 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
         const conditions = [];
         
         if (start_time) {
-            conditions.push(`timestamp >= '${start_time}'`);
+            const formattedStartTime = formatTimestampForDB(start_time);
+            conditions.push(`timestamp >= '${formattedStartTime}'`);
         }
         if (end_time) {
-            conditions.push(`timestamp <= '${end_time}'`);
+            const formattedEndTime = formatTimestampForDB(end_time);
+            conditions.push(`timestamp <= '${formattedEndTime}'`);
         }
         
         if (conditions.length > 0) {
