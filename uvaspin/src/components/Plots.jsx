@@ -4,24 +4,24 @@ import { useDataSelection } from '../utils/useDataSelection';
 import { 
     createTracesFromData, 
     extendTracesWithData, 
-    mergeDataWithCache,
-    getPlotLayout,
-    getPlotConfig
+    getPlotLayout,  
+    getPlotConfig,
+    shouldComponentUpdate
 } from '../utils/plotUtils';
 import { generatePlotData as generatePlotDataUtil } from '../utils/dataProcessor';
 import { fetchDataFromDB } from '../utils/Query';
 
 
 
-// Main plotting component - converted to class component for real-time updates
+// Main plotting component 
 class DataPlot extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             data: [],
-            layout: {},
+            layout: getPlotLayout(props.selectedParameters),
+            config: getPlotConfig(props.labType),
             frames: [],
-            config: {},
             loading: false,
             error: null,
             lastUpdate: null,
@@ -120,16 +120,6 @@ class DataPlot extends React.Component {
         }
     }
 
-    // Plot layout configuration
-    getLayout = () => {
-        return getPlotLayout(this.props.selectedParameters);
-    }
-
-    // Plot configuration
-    getConfig = () => {
-        return getPlotConfig(this.props.labType);
-    }
-
     render() {
         const { loading, error, lastUpdate } = this.state;
         const { selectedParameters } = this.props;
@@ -203,9 +193,10 @@ class DataPlot extends React.Component {
                     <Plot
                         ref={this.plotRef}
                         data={this.state.data}
-                        layout={this.getLayout()}
-                        config={this.getConfig()}
-                        style={{ width: '100%', height: '100%', minHeight: '400px' }}
+                        layout={this.state.layout}
+                        config={this.state.config}
+                        shouldComponentUpdate={shouldComponentUpdate}
+                        // style={{ width: '100%', height: '100%', minHeight: '400px' }}
                         onInitialized={(figure) => this.setState(figure)}
                         onUpdate={(figure) => this.setState(figure)}
                     />

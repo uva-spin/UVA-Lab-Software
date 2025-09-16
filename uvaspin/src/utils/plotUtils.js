@@ -27,6 +27,14 @@ export const getColumnUnits = (column) => {
     }
 };
 
+shouldComponentUpdate(nextProps) {
+    if (this.props.height !== nextProps.height ||
+       this.props.width !== nextProps.width) {
+      return true;
+    }
+
+    return false;
+  }
 export const formatNumber = (value) => {
     if (value === null || value === undefined || isNaN(value)) return 'N/A';
     if (Math.abs(value) < 0.001 || Math.abs(value) > 1000000) {
