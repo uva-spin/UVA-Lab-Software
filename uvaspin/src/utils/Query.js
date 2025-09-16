@@ -21,15 +21,85 @@ function formatTimestampForDB(isoString) {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
+// Determine table name based on column names
+function getTableNameFromColumns(columns) {
+    if (!columns || columns.length === 0) return 'default_table';
+    
+    // Convert columns to string if it's an array
+    const columnString = Array.isArray(columns) ? columns.join(',') : columns;
+    
+    // QT table columns (from DataSelectionSidebar.jsx)
+    const qtColumns = [
+        'pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai', // Pressures
+        'fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out', // Flows
+        'ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai', // Temperatures
+        'lit501_ai' // Level Indicators
+    ];
+    
+    // Check if any QT columns are present
+    const hasQtColumns = qtColumns.some(col => columnString.includes(col));
+    if (hasQtColumns) {
+        return 'qt_data';
+    }
+    
+    // Pressure table columns
+    const pressureColumns = [
+        'root_exhaust_pressure', 'buffer_pressure', 'magnet_pressure', 
+        'purifier_inlet_pressure', 'fridge_vapor_pressure', 'maxigauge_pressure', 'ivc_pressure'
+    ];
+    const hasPressureColumns = pressureColumns.some(col => columnString.includes(col));
+    if (hasPressureColumns) {
+        return 'pressure_data';
+    }
+    
+    // Temperature table columns
+    const temperatureColumns = [
+        'thermocouple', 'magnet_bottom_temperature', 'magnet_top_temperature',
+        'fridge_target_top_up_temperature', 'fridge_target_top_up_center_temperature',
+        'fridge_target_top_down_temperature', 'fridge_target_bottom_up_temperature',
+        'fridge_target_bottom_up_center_temperature', 'fridge_target_bottom_down_temperature',
+        'fridge_target_top_cernox_temperature', 'fridge_target_bottom_cernox_temperature',
+        'magnet_channel_1', 'magnet_channel_2', 'magnet_channel_3', 'magnet_channel_4',
+        'magnet_channel_5', 'magnet_channel_6', 'magnet_channel_7', 'magnet_channel_8'
+    ];
+    const hasTemperatureColumns = temperatureColumns.some(col => columnString.includes(col));
+    if (hasTemperatureColumns) {
+        return 'temperature_data';
+    }
+    
+    // Flow table columns
+    const flowColumns = [
+        'separator_flow', 'magnet_flow', 'main_flow', 'microwave_flow', 'heat_exchanger_flow'
+    ];
+    const hasFlowColumns = flowColumns.some(col => columnString.includes(col));
+    if (hasFlowColumns) {
+        return 'flow_data';
+    }
+    
+    // NMR table columns
+    const nmrColumns = [
+        'run_number', 'measurement_type', 'peak_amp', 'peak_center', 'beam_on', 'rf_level',
+        'if_atten', 'he_temperature', 'he_pressure', 'nmr_channel', 'temperature',
+        'calibration_constant', 'polarization', 'polarization_std', 'snr', 'step_width',
+        'center_freq', 'freq_span', 'area', 'phase_voltage', 'tune_voltage'
+    ];
+    const hasNmrColumns = nmrColumns.some(col => columnString.includes(col));
+    if (hasNmrColumns) {
+        return 'nmr_data';
+    }
+    
+    // Default fallback
+    return 'default_table';
+}
+
 export async function fetchData(pool, table_name, keys, start_time, end_time) {
     try {
-        // Validate table name to prevent SQL injection
-        if (!table_name || typeof table_name !== 'string') {
-            throw new Error('Invalid table name provided');
-        }
+        // Determine the actual table name based on the column names
+        const actualTableName = getTableNameFromColumns(keys);
+        console.log(`Using table: ${actualTableName} for columns: ${keys}`);
         
         // Create cache key
-        const cacheKey = `${table_name}_${keys}_${start_time}_${end_time}`;
+        const cacheKey = `${actualTableName}_${keys}_${start_time}_${end_time}`;
         
         // Check cache first
         if (cache.has(cacheKey)) {
@@ -37,8 +107,8 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
             return cache.get(cacheKey);
         }
 
-        // Build query with parameterized table name
-        let query = `SELECT ${keys}, timestamp FROM \`${table_name}\``;
+        // Build query
+        let query = `SELECT ${keys}, timestamp FROM ${actualTableName}`;
         const conditions = [];
         
         if (start_time) {
