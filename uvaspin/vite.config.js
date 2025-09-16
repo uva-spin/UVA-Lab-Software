@@ -16,8 +16,16 @@ export default defineConfig({
     open: true,
     host: true,
     proxy: {
-      '/query_db': 'http://localhost:5000',
-      '/health_check': 'http://localhost:5000'
+      '/query_db': {
+        target: process.env.VITE_API_URL,
+        changeOrigin: true,
+        secure: false
+      },
+      '/health_check': {
+        target: process.env.VITE_API_URL || 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      }
     }
   },
   build: {
