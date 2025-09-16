@@ -154,7 +154,7 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
         Plotly.extendTraces(plotRef.current, extensionData, Array.from({length: selectedKeys.length}, (_, i) => i));
         
         // Check if we need to limit data points to prevent memory issues
-        const maxPoints = 1000;
+        const maxPoints = 100000;
         if (newTimestamps.length > maxPoints) {
             // Get current data lengths
             const currentData = plotRef.current.data;
