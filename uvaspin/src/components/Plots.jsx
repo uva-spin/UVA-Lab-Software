@@ -87,19 +87,23 @@ const createKeyToTableMapping = () => {
     
     SidepanelData.forEach(table => {
         if (table.columns && Array.isArray(table.columns)) {
-            // Handle simple array of keys
-            table.columns.forEach(key => {
-                keyToTable.set(key, table.title);
-            });
-        } else if (table.columns && typeof table.columns === 'object') {
-            // Handle nested structure (like QT)
-            Object.values(table.columns).forEach(columnGroup => {
-                if (columnGroup.keys && Array.isArray(columnGroup.keys)) {
-                    columnGroup.keys.forEach(key => {
-                        keyToTable.set(key, table.title);
-                    });
-                }
-            });
+            // Check if this is a simple array of keys (like Pressures, Temperatures, Flows, NMR)
+            const firstItem = table.columns[0];
+            if (typeof firstItem === 'string') {
+                // Handle simple array of keys
+                table.columns.forEach(key => {
+                    keyToTable.set(key, table.title);
+                });
+            } else if (firstItem && typeof firstItem === 'object' && firstItem.keys) {
+                // Handle nested structure (like QT) where columns is an array of objects with keys
+                table.columns.forEach(columnGroup => {
+                    if (columnGroup.keys && Array.isArray(columnGroup.keys)) {
+                        columnGroup.keys.forEach(key => {
+                            keyToTable.set(key, table.title);
+                        });
+                    }
+                });
+            }
         }
     });
     
