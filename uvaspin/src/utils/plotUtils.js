@@ -47,38 +47,20 @@ export const formatNumber = (value) => {
 function createTracesFromData(data, availableKeys, selectedKeys) {
     if (!data || data.length === 0) return [];
     
-    // Handle both array format [[timestamp, val1, val2, ...], ...] and object format [{timestamp: ..., key1: ..., key2: ...}, ...]
-    const isObjectFormat = data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0]);
+    console.log('Creating traces from data:', data);
+    console.log('Selected keys:', selectedKeys);
     
-    let timestamps, valuesByKey;
-    
-    if (isObjectFormat) {
-        // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
-        timestamps = data.map(point => new Date(point.timestamp));
-        valuesByKey = {};
-        console.log('timestamps', timestamps);
-        console.log('valuesByKey', valuesByKey);
-        console.log('selectedKeys', selectedKeys);
-        selectedKeys.forEach(key => {
-            valuesByKey[key] = data.map(point => point[key]);
-        });
-    } else {
-        // Array format: [val1, val2, ..., timestamp] - timestamp is last column
-        timestamps = data.map(point => new Date(point[point.length - 1]));
-        valuesByKey = {};
-        console.log('timestamps', timestamps);
-        console.log('valuesByKey', valuesByKey);
-        console.log('selectedKeys', selectedKeys);
-        selectedKeys.forEach((key, index) => {
-            const columnIndex = availableKeys.indexOf(key); // No +1 since timestamp is last, not first
-            valuesByKey[key] = data.map(point => point[columnIndex]);
-        });
-    }
+    // Extract timestamps from the data objects
+    const timestamps = data.map(point => new Date(point.timestamp));
+    console.log('Timestamps:', timestamps);
     
     // Create plot traces for each selected parameter
     return selectedKeys.map((column, index) => {
-        const values = valuesByKey[column] || [];
+        // Get values for this column from the data objects
+        const values = data.map(point => point[column]);
         const units = getColumnUnits(column);
+        
+        console.log(`Column ${column} values:`, values);
         
         return {
             x: timestamps,
@@ -111,33 +93,13 @@ function extendTracesWithData(plotRef, newData, availableKeys, selectedKeys) {
         return;
     }
     
-    // Handle both array format and object format
-    const isObjectFormat = newData.length > 0 && typeof newData[0] === 'object' && !Array.isArray(newData[0]);
-    
-    let newTimestamps, valuesByKey;
-    
-    if (isObjectFormat) {
-        // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
-        newTimestamps = newData.map(point => new Date(point.timestamp));
-        valuesByKey = {};
-        selectedKeys.forEach(key => {
-            valuesByKey[key] = newData.map(point => point[key]);
-        });
-    } else {
-        // Array format: [val1, val2, ..., timestamp] - timestamp is last column
-        newTimestamps = newData.map(point => new Date(point[point.length - 1]));
-        valuesByKey = {};
-        selectedKeys.forEach((key, index) => {
-            const columnIndex = availableKeys.indexOf(key); // No +1 since timestamp is last, not first
-            valuesByKey[key] = newData.map(point => point[columnIndex]);
-        });
-    }
-    
+    // Extract timestamps and values from object format
+    const newTimestamps = newData.map(point => new Date(point.timestamp));
     console.log('Extending traces with data from', newTimestamps[0], 'to', newTimestamps[newTimestamps.length - 1]);
     
     // Prepare extension data for each trace
     const extensionData = selectedKeys.map((column, index) => {
-        const newValues = valuesByKey[column] || [];
+        const newValues = newData.map(point => point[column]);
         
         return {
             x: [newTimestamps],
@@ -169,29 +131,13 @@ function extendTracesWithData(plotRef, newData, availableKeys, selectedKeys) {
 function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
     if (!newData || newData.length === 0) return { data: [], lastTimestamp: null };
     
-    // Handle both array format and object format
-    const isObjectFormat = newData.length > 0 && typeof newData[0] === 'object' && !Array.isArray(newData[0]);
-    
     const newCachedData = new Map(cachedData);
-    let newLastTimestamp;
-    
-    if (isObjectFormat) {
-        newLastTimestamp = newData[newData.length - 1].timestamp;
-    } else {
-        newLastTimestamp = newData[newData.length - 1][newData[newData.length - 1].length - 1]; // Last column is timestamp
-    }
+    const newLastTimestamp = newData[newData.length - 1].timestamp;
     
     // For each selected key, merge new data with cached data
     selectedKeys.forEach(key => {
         const existingData = newCachedData.get(key) || [];
-        let newValues;
-        
-        if (isObjectFormat) {
-            newValues = newData.map(point => [point.timestamp, point[key]]); // [timestamp, value]
-        } else {
-            const columnIndex = availableKeys.indexOf(key); // No +1 since timestamp is last, not first
-            newValues = newData.map(point => [point[point.length - 1], point[columnIndex]]); // [timestamp, value]
-        }
+        const newValues = newData.map(point => [point.timestamp, point[key]]); // [timestamp, value]
         
         // Merge and sort by timestamp, removing duplicates
         const mergedData = [...existingData, ...newValues]
