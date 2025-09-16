@@ -8,7 +8,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 import pyqtgraph as pg
 from lmfit import Model
 
-from app.deuteron_fits import DFits
+from DeuteronFit import DFits
 
 
 # noinspection PyUnresolvedReferences

@@ -3,7 +3,7 @@
 import numpy as np
 from scipy import optimize
 from lmfit import Model
-from app.deuteron_fits import DFits
+from DeuteronFit import DFits
 
 
 def area_signal_analysis(freq_list, phase, basesweep, wings, poly, sum_range):
@@ -120,7 +120,7 @@ def signal_sum_range(fitsub, sum_range):
 
 
 def d_fit(fitsub, freq_list, params):
-    """Perform Dueteron fit and calculate polarization
+    """Perform Deuteron fit and calculate polarization
 
     Arguments:
         fitsub: poly subtracted signal
@@ -134,11 +134,7 @@ def d_fit(fitsub, freq_list, params):
     sweep = fitsub
     freqs = freq_list
     print("Starting D fit")
-
-    #labels = [e.text() for e in self.param_label]
-    #values = [float(e.text()) for e in self.param_edit]
-    #self.params = dict(zip(labels, values))
-
+    
     res = DFits(freqs, sweep, params)
 
     r = res.result.params['r'].value
