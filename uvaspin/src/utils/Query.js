@@ -21,91 +21,135 @@ function formatTimestampForDB(isoString) {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
-// Determine table name based on column names
+// Hash map table for column to database table mapping
+const COLUMN_TO_TABLE_MAP = {
+    // QT table columns
+    'fc501_ai': 'QT',
+    'fc501_out': 'QT',
+    'fc502_ai': 'QT',
+    'fc502_out': 'QT',
+    'lit501_ai': 'QT',
+    'pt501_ai': 'QT',
+    'pt502_ai': 'QT',
+    'pt503_ai': 'QT',
+    'pt504_ai': 'QT',
+    'ait501_ai': 'QT',
+    'ti501_ai': 'QT',
+    'ti502_ai': 'QT',
+    'ti503_ai': 'QT',
+    'ti504_ai': 'QT',
+    'ti505_ai': 'QT',
+    'ti523_ai': 'QT',
+    
+    // Labjack table columns
+    'root_exhaust_pressure': 'Labjack',
+    'buffer_pressure': 'Labjack',
+    'magnet_pressure': 'Labjack',
+    'purifier_inlet_pressure': 'Labjack',
+    'fridge_vapor_pressure': 'Labjack',
+    'thermocouple': 'Labjack',
+    'magnet_bottom_temperature': 'Labjack',
+    'magnet_top_temperature': 'Labjack',
+    
+    // Flow_Rates table columns
+    'seperator_flow': 'Flow_Rates',
+    'magnet_flow': 'Flow_Rates',
+    'main_flow': 'Flow_Rates',
+    'microwave_flow': 'Flow_Rates',
+    'heat_exchanger_flow': 'Flow_Rates',
+    
+    // Lakeshore_Target_Stick table columns
+    'target_stick_buffle_top_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_buffle_bottom_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_seperator_top_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_seperator_bottom_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_heat_exchanger_top_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_heat_exchanger_bottom_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_annealing_plate_bar_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_annealing_plate_top_temperature': 'Lakeshore_Target_Stick',
+    
+    // Lakeshore_Fridge_Temp table columns
+    'fridge_target_top_up_temperature': 'Lakeshore_Fridge_Temp',
+    'fridge_target_top_up_center_temperature': 'Lakeshore_Fridge_Temp',
+    'fridge_target_top_down_temperature': 'Lakeshore_Fridge_Temp',
+    'fridge_target_bottom_up_temperature': 'Lakeshore_Fridge_Temp',
+    'fridge_target_bottom_up_center_temperature': 'Lakeshore_Fridge_Temp',
+    'fridge_target_bottom_down_temperature': 'Lakeshore_Fridge_Temp',
+    'fridge_target_top_cernox_temperature': 'Lakeshore_Fridge_Temp',
+    'fridge_target_bottom_cernox_temperature': 'Lakeshore_Fridge_Temp',
+    
+    // Lakeshore_Magnet_Temp table columns
+    'magnet_channel_1': 'Lakeshore_Magnet_Temp',
+    'magnet_channel_2': 'Lakeshore_Magnet_Temp',
+    'magnet_channel_3': 'Lakeshore_Magnet_Temp',
+    'magnet_channel_4': 'Lakeshore_Magnet_Temp',
+    'magnet_channel_5': 'Lakeshore_Magnet_Temp',
+    'magnet_channel_6': 'Lakeshore_Magnet_Temp',
+    'magnet_channel_7': 'Lakeshore_Magnet_Temp',
+    'magnet_channel_8': 'Lakeshore_Magnet_Temp',
+    
+    // MaxiGauge table columns
+    'maxigauge_seperator_inlet_pressure': 'MaxiGauge',
+    'maxigauge_upper_roots_pressure': 'MaxiGauge',
+    'maxigauge_channel_3': 'MaxiGauge',
+    'maxigauge_channel_4': 'MaxiGauge',
+    'maxigauge_channel_5': 'MaxiGauge',
+    'maxigauge_channel_6': 'MaxiGauge',
+    
+    // IVC table columns
+    'ivc_pressure': 'IVC',
+    
+    // NMR table columns
+    'run_number': 'NMR',
+    'measurement_type': 'NMR',
+    'peak_amp': 'NMR',
+    'peak_center': 'NMR',
+    'beam_on': 'NMR',
+    'rf_level': 'NMR',
+    'if_atten': 'NMR',
+    'he_temperature': 'NMR',
+    'he_pressure': 'NMR',
+    'nmr_channel': 'NMR',
+    'temperature': 'NMR',
+    'calibration_constant': 'NMR',
+    'polarization': 'NMR',
+    'polarization_std': 'NMR',
+    'snr': 'NMR',
+    'step_width': 'NMR',
+    'center_freq': 'NMR',
+    'freq_span': 'NMR',
+    'area': 'NMR',
+    'phase_voltage': 'NMR',
+    'tune_voltage': 'NMR'
+};
+
+// Determine table name based on column names using hash map
 function getTableNameFromColumns(columns) {
     if (!columns || columns.length === 0) return null;
     
-    // Convert columns to string if it's an array
-    const columnString = Array.isArray(columns) ? columns.join(',') : columns;
+    // Convert columns to array if it's a string
+    const columnArray = Array.isArray(columns) ? columns : columns.split(',');
     
-    // QT table columns (from DataSelectionSidebar.jsx)
-
-    const qt_pressures = ['pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai']
-    const qt_flows = ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out']
-    const qt_temperatures = ['ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai']
-    const qt_level_indicators = ['lit501_ai']
-
-    const qtColumns = [
-        qt_pressures, qt_flows, qt_temperatures, qt_level_indicators
-    ];
+    // Find the table for the first column (assuming all columns in a query belong to the same table)
+    const firstColumn = columnArray[0].trim();
+    const tableName = COLUMN_TO_TABLE_MAP[firstColumn];
     
-    // Check if any QT columns are present
-    const hasQtColumns = qtColumns.some(col => columnString.includes(col));
-    if (hasQtColumns) {
-        if (qt_pressures.some(col => columnString.includes(col))) {
-            return 'QT.Pressures';
-        }
-        if (qt_flows.some(col => columnString.includes(col))) {
-            return 'QT.Flows';
-        }
-        if (qt_temperatures.some(col => columnString.includes(col))) {
-            return 'QT.Temperatures';
-        }
-        if (qt_level_indicators.some(col => columnString.includes(col))) {
-            return 'QT.Level Indicators';
-        }
-        else {
-            return null;
+    if (tableName) {
+        console.log(`Mapped column '${firstColumn}' to table '${tableName}'`);
+        return tableName;
+    }
+    
+    // If first column not found, check all columns
+    for (const column of columnArray) {
+        const trimmedColumn = column.trim();
+        const mappedTable = COLUMN_TO_TABLE_MAP[trimmedColumn];
+        if (mappedTable) {
+            console.log(`Mapped column '${trimmedColumn}' to table '${mappedTable}'`);
+            return mappedTable;
         }
     }
     
-    // Pressure table columns
-    const pressureColumns = [
-        'root_exhaust_pressure', 'buffer_pressure', 'magnet_pressure', 
-        'purifier_inlet_pressure', 'fridge_vapor_pressure', 'maxigauge_pressure', 'ivc_pressure'
-    ];
-    const hasPressureColumns = pressureColumns.some(col => columnString.includes(col));
-    if (hasPressureColumns) {
-        return 'Pressures';
-    }
-    
-    // Temperature table columns
-    const temperatureColumns = [
-        'thermocouple', 'magnet_bottom_temperature', 'magnet_top_temperature',
-        'fridge_target_top_up_temperature', 'fridge_target_top_up_center_temperature',
-        'fridge_target_top_down_temperature', 'fridge_target_bottom_up_temperature',
-        'fridge_target_bottom_up_center_temperature', 'fridge_target_bottom_down_temperature',
-        'fridge_target_top_cernox_temperature', 'fridge_target_bottom_cernox_temperature',
-        'magnet_channel_1', 'magnet_channel_2', 'magnet_channel_3', 'magnet_channel_4',
-        'magnet_channel_5', 'magnet_channel_6', 'magnet_channel_7', 'magnet_channel_8'
-    ];
-    const hasTemperatureColumns = temperatureColumns.some(col => columnString.includes(col));
-    if (hasTemperatureColumns) {
-        return 'Temperatures';
-    }
-    
-    // Flow table columns
-    const flowColumns = [
-        'separator_flow', 'magnet_flow', 'main_flow', 'microwave_flow', 'heat_exchanger_flow'
-    ];
-    const hasFlowColumns = flowColumns.some(col => columnString.includes(col));
-    if (hasFlowColumns) {
-        return 'Flows';
-    }
-    
-    // NMR table columns
-    const nmrColumns = [
-        'run_number', 'measurement_type', 'peak_amp', 'peak_center', 'beam_on', 'rf_level',
-        'if_atten', 'he_temperature', 'he_pressure', 'nmr_channel', 'temperature',
-        'calibration_constant', 'polarization', 'polarization_std', 'snr', 'step_width',
-        'center_freq', 'freq_span', 'area', 'phase_voltage', 'tune_voltage'
-    ];
-    const hasNmrColumns = nmrColumns.some(col => columnString.includes(col));
-    if (hasNmrColumns) {
-        return 'NMR';
-    }
-    
-    // Default fallback
+    console.warn(`No table mapping found for columns: ${columnArray.join(', ')}`);
     return null;
 }
 
