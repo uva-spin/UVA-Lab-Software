@@ -45,7 +45,11 @@ class DataPlot extends React.Component {
             // Create new traces for initial load or parameter changes
             console.log('Creating new traces for', isIncremental ? 'incremental' : 'initial', 'update with', newData.length, 'data points');
             const traces = createTracesFromData(newData, availableKeys, selectedKeys);
-            this.setState({ data: traces });
+            const layout = getPlotLayout(this.props.selectedParameters, newData);
+            this.setState({ 
+                data: traces,
+                layout: layout
+            });
             this.isInitialized = true;
         }
     };

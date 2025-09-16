@@ -178,7 +178,27 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
 };
 
 // Plot layout configuration
-function getPlotLayout(selectedParameters) {
+function getPlotLayout(selectedParameters, data = null) {
+    let xaxisRange = undefined;
+    
+    // If data is provided, calculate the proper x-axis range
+    if (data && data.length > 0) {
+        const timestamps = data.map(point => new Date(point.timestamp));
+        const minTime = new Date(Math.min(...timestamps));
+        const maxTime = new Date(Math.max(...timestamps));
+        
+        // Add some padding to the range (5% on each side)
+        const timeRange = maxTime.getTime() - minTime.getTime();
+        const padding = timeRange * 0.05;
+        
+        xaxisRange = [
+            new Date(minTime.getTime() - padding),
+            new Date(maxTime.getTime() + padding)
+        ];
+        
+        console.log('Setting x-axis range:', xaxisRange);
+    }
+    
     return {
         title: {
             text: selectedParameters.size === 0 
@@ -193,7 +213,8 @@ function getPlotLayout(selectedParameters) {
             type: 'date',
             showgrid: true,
             gridcolor: '#e0e0e0',
-            zeroline: false
+            zeroline: false,
+            range: xaxisRange
         },
         yaxis: {
             title: 'Value',

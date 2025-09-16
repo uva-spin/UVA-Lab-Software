@@ -3,7 +3,8 @@ import { fetchDataFromDB } from './Query';
 import { 
     createTracesFromData, 
     extendTracesWithData, 
-    mergeDataWithCache 
+    mergeDataWithCache,
+    getPlotLayout
 } from './plotUtils';
 
 // Function to update plot data without recreation
@@ -97,8 +98,10 @@ export const generatePlotData = async (selectedParams, isIncremental, labType, d
 
         // Update plot data using the new method
         const traces = createTracesFromData(finalData, availableKeys, selectedKeys);
+        const layout = getPlotLayout(new Set(selectedKeys), finalData);
         setState({ 
             data: traces,
+            layout: layout,
             lastUpdate: new Date()
         });
         
