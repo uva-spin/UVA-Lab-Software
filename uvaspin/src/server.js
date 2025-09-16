@@ -14,7 +14,7 @@ const PORT = 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../uvaspin/dist')));
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Database connection
 let dbConnection = null;
@@ -94,14 +94,14 @@ app.post('/clear_cache', (req, res) => {
 
 // Serve React app for all other routes
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../uvaspin/dist/index.html'));
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Server also accessible on http://0.0.0.0:${PORT}`);
-    console.log(`Network accessible on http://[YOUR_IP]:${PORT}`);
+    console.log(`Network accessible on http://128.143.231.224:${PORT}`);
     await initializeDatabase();
 });
 
