@@ -23,23 +23,40 @@ function formatTimestampForDB(isoString) {
 
 // Determine table name based on column names
 function getTableNameFromColumns(columns) {
-    if (!columns || columns.length === 0) return 'default_table';
+    if (!columns || columns.length === 0) return null;
     
     // Convert columns to string if it's an array
     const columnString = Array.isArray(columns) ? columns.join(',') : columns;
     
     // QT table columns (from DataSelectionSidebar.jsx)
+
+    qt_pressures = ['pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai']
+    qt_flows = ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out']
+    qt_temperatures = ['ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai']
+    qt_level_indicators = ['lit501_ai']
+
     const qtColumns = [
-        'pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai', // Pressures
-        'fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out', // Flows
-        'ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai', // Temperatures
-        'lit501_ai' // Level Indicators
+        qt_pressures, qt_flows, qt_temperatures, qt_level_indicators
     ];
     
     // Check if any QT columns are present
     const hasQtColumns = qtColumns.some(col => columnString.includes(col));
     if (hasQtColumns) {
-        return 'qt_data';
+        if (qt_pressures.some(col => columnString.includes(col))) {
+            return 'QT.Pressures';
+        }
+        if (qt_flows.some(col => columnString.includes(col))) {
+            return 'QT.Flows';
+        }
+        if (qt_temperatures.some(col => columnString.includes(col))) {
+            return 'QT.Temperatures';
+        }
+        if (qt_level_indicators.some(col => columnString.includes(col))) {
+            return 'QT.Level Indicators';
+        }
+        else {
+            return null;
+        }
     }
     
     // Pressure table columns
@@ -49,7 +66,7 @@ function getTableNameFromColumns(columns) {
     ];
     const hasPressureColumns = pressureColumns.some(col => columnString.includes(col));
     if (hasPressureColumns) {
-        return 'pressure_data';
+        return 'Pressures';
     }
     
     // Temperature table columns
@@ -64,7 +81,7 @@ function getTableNameFromColumns(columns) {
     ];
     const hasTemperatureColumns = temperatureColumns.some(col => columnString.includes(col));
     if (hasTemperatureColumns) {
-        return 'temperature_data';
+        return 'Temperatures';
     }
     
     // Flow table columns
@@ -73,7 +90,7 @@ function getTableNameFromColumns(columns) {
     ];
     const hasFlowColumns = flowColumns.some(col => columnString.includes(col));
     if (hasFlowColumns) {
-        return 'flow_data';
+        return 'Flows';
     }
     
     // NMR table columns
@@ -85,11 +102,11 @@ function getTableNameFromColumns(columns) {
     ];
     const hasNmrColumns = nmrColumns.some(col => columnString.includes(col));
     if (hasNmrColumns) {
-        return 'nmr_data';
+        return 'NMR';
     }
     
     // Default fallback
-    return 'default_table';
+    return null;
 }
 
 export async function fetchData(pool, table_name, keys, start_time, end_time) {
