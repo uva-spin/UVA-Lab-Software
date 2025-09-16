@@ -30,10 +30,10 @@ function getTableNameFromColumns(columns) {
     
     // QT table columns (from DataSelectionSidebar.jsx)
 
-    qt_pressures = ['pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai']
-    qt_flows = ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out']
-    qt_temperatures = ['ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai']
-    qt_level_indicators = ['lit501_ai']
+    const qt_pressures = ['pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai']
+    const qt_flows = ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out']
+    const qt_temperatures = ['ait501_ai', 'ti501_ai', 'ti502_ai', 'ti503_ai', 'ti504_ai', 'ti505_ai', 'ti523_ai']
+    const qt_level_indicators = ['lit501_ai']
 
     const qtColumns = [
         qt_pressures, qt_flows, qt_temperatures, qt_level_indicators
