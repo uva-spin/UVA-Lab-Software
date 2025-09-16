@@ -189,13 +189,17 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
 
         console.log('Executing query:', query);
         
-        // Execute query
-        const result = await pool.query(query, (err, rows) => {
-            if (err) {
-                console.error('Error in fetchData:', err);
-                throw err;
-            }
-            return rows;
+        // Execute query using promise-based approach
+        const result = await new Promise((resolve, reject) => {
+            pool.query(query, (err, rows) => {
+                if (err) {
+                    console.error('Error in fetchData:', err);
+                    reject(err);
+                } else {
+                    console.log('Query executed successfully, rows returned:', rows ? rows.length : 0);
+                    resolve(rows);
+                }
+            });
         });
 
         console.log('Result:', result);
@@ -203,7 +207,7 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
         // Cache the result
         cache.set(cacheKey, result);
         
-        return result.rows;
+        return result;
         
     } catch (error) {
         console.error('Error in fetchData:', error);
