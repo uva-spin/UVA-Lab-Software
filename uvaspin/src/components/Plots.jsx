@@ -85,16 +85,111 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [lastUpdate, setLastUpdate] = useState(null);
+    const [cachedData, setCachedData] = useState(new Map()); // Cache for existing data
+    const [lastTimestamp, setLastTimestamp] = useState(null); // Track last data timestamp
+
+    // Function to create plot traces from data
+    const createTracesFromData = useCallback((data, availableKeys, selectedKeys) => {
+        if (!data || data.length === 0) return [];
+        
+        // Extract timestamps (first column)
+        const timestamps = data.map(point => new Date(point[0]));
+        
+        // Create plot traces for each selected parameter
+        return selectedKeys.map((column, index) => {
+            const columnIndex = availableKeys.indexOf(column) + 1; // +1 because timestamp is at index 0
+            const values = data.map(point => point[columnIndex]);
+            const units = getColumnUnits(column);
+            
+            return {
+                x: timestamps,
+                y: values,
+                type: 'scatter',
+                mode: 'markers+lines',
+                name: column + units,
+                line: { 
+                    width: 2,
+                    color: COLOR_PALETTE[index % COLOR_PALETTE.length]
+                },
+                marker: { 
+                    size: 4,
+                    color: COLOR_PALETTE[index % COLOR_PALETTE.length]
+                },
+                hovertemplate: 
+                    '<b>%{fullData.name}</b><br>' +
+                    'Time: %{x}<br>' +
+                    'Value: %{y}<br>' +
+                    '<extra></extra>',
+                connectgaps: false
+            };
+        });
+    }, []);
+
+    // Function to merge new data with existing cached data
+    const mergeDataWithCache = useCallback((newData, selectedKeys, availableKeys) => {
+        if (!newData || newData.length === 0) return { data: [], lastTimestamp: null };
+        
+        const newCachedData = new Map(cachedData);
+        const newLastTimestamp = newData[newData.length - 1][0]; // Last timestamp
+        
+        // For each selected key, merge new data with cached data
+        selectedKeys.forEach(key => {
+            const columnIndex = availableKeys.indexOf(key) + 1;
+            const existingData = newCachedData.get(key) || [];
+            const newValues = newData.map(point => [point[0], point[columnIndex]]); // [timestamp, value]
+            
+            // Merge and sort by timestamp, removing duplicates
+            const mergedData = [...existingData, ...newValues]
+                .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+                .filter((point, index, arr) => 
+                    index === 0 || point[0] !== arr[index - 1][0]
+                );
+            
+            // Keep only last 1000 points to prevent memory issues
+            if (mergedData.length > 1000) {
+                mergedData.splice(0, mergedData.length - 1000);
+            }
+            
+            newCachedData.set(key, mergedData);
+        });
+        
+        setCachedData(newCachedData);
+        setLastTimestamp(newLastTimestamp);
+        
+        // Reconstruct the data array in the original format
+        const allTimestamps = Array.from(new Set(
+            Array.from(newCachedData.values())
+                .flat()
+                .map(point => point[0])
+        )).sort((a, b) => new Date(a) - new Date(b));
+        
+        const reconstructedData = allTimestamps.map(timestamp => {
+            const row = [timestamp];
+            selectedKeys.forEach(key => {
+                const keyData = newCachedData.get(key) || [];
+                const point = keyData.find(p => p[0] === timestamp);
+                row.push(point ? point[1] : null);
+            });
+            return row;
+        });
+        
+        return { data: reconstructedData, lastTimestamp: newLastTimestamp };
+    }, [cachedData]);
 
     // Generate plot data from selected parameters
-    const generatePlotData = useCallback(async (selectedParams) => {
+    const generatePlotData = useCallback(async (selectedParams, isIncremental = false) => {
         if (selectedParams.size === 0) {
             setPlotData([]);
             setError(null);
+            setCachedData(new Map());
+            setLastTimestamp(null);
             return;
         }
 
-        setLoading(true);
+        // Only show loading for initial load, not incremental updates
+        if (!isIncremental) {
+            setLoading(true);
+        }
         setError(null);
 
         try {
@@ -107,6 +202,10 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
             if (labType === 'history' && dateRange && dateRange.start && dateRange.end) {
                 startTime = dateRange.start;
                 endTime = dateRange.end;
+            } else if (isIncremental && lastTimestamp) {
+                // For incremental updates, only fetch data after the last timestamp
+                startTime = new Date(lastTimestamp);
+                endTime = new Date();
             }
             
             const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys, startTime, endTime);
@@ -116,57 +215,51 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
             }
 
             if (!data || data.length === 0) {
-                setPlotData([]);
-                setError('No data available for selected parameters');
+                if (!isIncremental) {
+                    setPlotData([]);
+                    setError('No data available for selected parameters');
+                }
                 return;
             }
 
-            // Extract timestamps (first column)
-            const timestamps = data.map(point => new Date(point[0]));
+            let finalData = data;
+            let finalLastTimestamp = data[data.length - 1][0];
             
-            // Create plot traces for each selected parameter
-            const traces = selectedKeys.map((column, index) => {
-                const columnIndex = availableKeys.indexOf(column) + 1; // +1 because timestamp is at index 0
-                const values = data.map(point => point[columnIndex]);
-                const units = getColumnUnits(column);
-                
-                return {
-                    x: timestamps,
-                    y: values,
-                    type: 'scatter',
-                    mode: 'markers+lines',
-                    name: column + units,
-                    line: { 
-                        width: 2,
-                        color: COLOR_PALETTE[index % COLOR_PALETTE.length]
-                    },
-                    marker: { 
-                        size: 4,
-                        color: COLOR_PALETTE[index % COLOR_PALETTE.length]
-                    },
-                    hovertemplate: 
-                        '<b>%{fullData.name}</b><br>' +
-                        'Time: %{x}<br>' +
-                        'Value: %{y}<br>' +
-                        '<extra></extra>',
-                    connectgaps: false
-                };
-            });
+            if (isIncremental) {
+                // Merge with cached data for incremental updates
+                const merged = mergeDataWithCache(data, selectedKeys, availableKeys);
+                finalData = merged.data;
+                finalLastTimestamp = merged.lastTimestamp;
+            } else {
+                // For initial load, cache the data
+                const merged = mergeDataWithCache(data, selectedKeys, availableKeys);
+                finalData = merged.data;
+                finalLastTimestamp = merged.lastTimestamp;
+            }
 
+            // Create traces from the final data
+            const traces = createTracesFromData(finalData, availableKeys, selectedKeys);
             setPlotData(traces);
             setLastUpdate(new Date());
             
         } catch (err) {
             console.error('Error generating plot data:', err);
-            setError(err.message);
+            if (!isIncremental) {
+                setError(err.message);
+            }
         } finally {
-            setLoading(false);
+            if (!isIncremental) {
+                setLoading(false);
+            }
         }
-    }, [labType, dateRange]);
+    }, [labType, dateRange, lastTimestamp, mergeDataWithCache, createTracesFromData]);
 
     // Update plot when selected parameters or date range changes
     useEffect(() => {
-        generatePlotData(selectedParameters);
+        // Clear cache when parameters change to ensure fresh data
+        setCachedData(new Map());
+        setLastTimestamp(null);
+        generatePlotData(selectedParameters, false); // Full refresh for parameter changes
     }, [selectedParameters, generatePlotData]);
 
     // Auto-refresh only for non-history plots or when no date range is set
@@ -179,7 +272,7 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
         }
 
         const interval = setInterval(() => {
-            generatePlotData(selectedParameters);
+            generatePlotData(selectedParameters, true); // Use incremental updates
         }, 1000);
 
         return () => clearInterval(interval);
@@ -295,7 +388,7 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
                 <div className="plot-controls">
                     <button 
                         className="refresh-button"
-                        onClick={() => generatePlotData(selectedParameters)}
+                        onClick={() => generatePlotData(selectedParameters, true)}
                         title="Refresh Data"
                     >
                         <i className="fas fa-sync-alt"></i>
