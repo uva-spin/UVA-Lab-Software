@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
+import SidepanelData from './SidepanelData';
 import { useDataSelection } from '../utils/useDataSelection';
 
 const COLOR_PALETTE = [
@@ -37,7 +38,7 @@ const formatNumber = (value) => {
 };
 
 // Data fetching function
-const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null) => {
+const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null, tableName = 'measurements') => {
     const now = new Date();
     const defaultStartTime = startTime || new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
     const defaultEndTime = endTime || now;
@@ -49,6 +50,7 @@ const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null) =
     params.append('keys', selectedKeys.join(','));
     params.append('start_time', startTimeStr);
     params.append('end_time', endTimeStr);
+    params.append('table', tableName);
     
     try {
         const response = await fetch(`/query_db?${params.toString()}`);
@@ -79,12 +81,84 @@ const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null) =
     }
 };
 
+// Create a mapping from keys to their table names
+const createKeyToTableMapping = () => {
+    const keyToTable = new Map();
+    
+    SidepanelData.forEach(table => {
+        if (table.columns && Array.isArray(table.columns)) {
+            // Handle simple array of keys
+            table.columns.forEach(key => {
+                keyToTable.set(key, table.title);
+            });
+        } else if (table.columns && typeof table.columns === 'object') {
+            // Handle nested structure (like QT)
+            Object.values(table.columns).forEach(columnGroup => {
+                if (columnGroup.keys && Array.isArray(columnGroup.keys)) {
+                    columnGroup.keys.forEach(key => {
+                        keyToTable.set(key, table.title);
+                    });
+                }
+            });
+        }
+    });
+    
+    return keyToTable;
+};
+
+// Function to determine which table to use based on selected keys
+const determineTableFromKeys = (selectedKeys) => {
+    const keyToTable = createKeyToTableMapping();
+    const tableCounts = new Map();
+    
+    // Count how many keys belong to each table
+    selectedKeys.forEach(key => {
+        const table = keyToTable.get(key);
+        if (table) {
+            tableCounts.set(table, (tableCounts.get(table) || 0) + 1);
+        }
+    });
+    
+    // Return the table with the most keys, or default to 'measurements'
+    if (tableCounts.size === 0) {
+        return 'measurements';
+    }
+    
+    let maxCount = 0;
+    let selectedTable = 'measurements';
+    
+    tableCounts.forEach((count, table) => {
+        if (count > maxCount) {
+            maxCount = count;
+            selectedTable = table;
+        }
+    });
+    
+    return selectedTable;
+};
+
+// Function to fetch available tables
+const fetchAvailableTables = async () => {
+    try {
+        const response = await fetch('/tables');
+        if (!response.ok) {
+            throw new Error('Failed to fetch tables');
+        }
+        const result = await response.json();
+        return result.tables || [];
+    } catch (err) {
+        console.warn('Failed to fetch tables:', err.message);
+        return ['measurements']; // Default fallback
+    }
+};
+
 // Main plotting component
 function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
     const [plotData, setPlotData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [lastUpdate, setLastUpdate] = useState(null);
+    // Table is now automatically determined based on selected keys
 
     // Generate plot data from selected parameters
     const generatePlotData = useCallback(async (selectedParams) => {
@@ -109,7 +183,11 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
                 endTime = dateRange.end;
             }
             
-            const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys, startTime, endTime);
+            // Automatically determine the table based on selected keys
+            const determinedTable = determineTableFromKeys(selectedKeys);
+            console.log(`Selected keys: [${selectedKeys.join(', ')}] -> Using table: ${determinedTable}`);
+            
+            const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys, startTime, endTime, determinedTable);
             
             if (missingKeys && missingKeys.length > 0) {
                 console.warn('Missing data for keys:', missingKeys);
@@ -185,14 +263,17 @@ function DataPlot({ selectedParameters, labType = 'lab42', dateRange }) {
         return () => clearInterval(interval);
     }, [selectedParameters, generatePlotData, labType, dateRange]);
 
+    // Determine current table for display
+    const currentTable = selectedParameters.size > 0 ? determineTableFromKeys(Array.from(selectedParameters)) : '';
+
     // Plot layout configuration
     const layout = {
         title: {
             text: selectedParameters.size === 0 
                 ? 'No Data Selected' 
                 : selectedParameters.size === 1 
-                    ? `${Array.from(selectedParameters)[0]} vs. Time`
-                    : 'Multiple Signals vs. Time',
+                    ? `${Array.from(selectedParameters)[0]} vs. Time (${currentTable})`
+                    : `Multiple Signals vs. Time (${currentTable})`,
             font: { size: 18, color: '#333' }
         },
         xaxis: {
