@@ -1249,3 +1249,66 @@ body {
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
 }
+
+.history-tab {
+    /* [DIMA]: I decided to just copy-paste some styles from the buttons. */
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.history-tab-link {
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+/* [DIMA]: I added styling for the calendar selection. */
+.date-range-group {
+    justify-content: flex-start;
+    gap: 2rem;
+}
+
+.date-input {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    min-width: 140px;
+}
+
+.date-input label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.date-input input[type="date"] {
+    width: 180px;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.date-input input[type="date"]:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.8);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+}

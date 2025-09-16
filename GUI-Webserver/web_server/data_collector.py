@@ -259,6 +259,11 @@ def root():
     """Serve the main plotting interface"""
     return render_template('index.html')
 
+@app.route('/history', methods=['GET'])
+def history():
+    """Serve the main plotting interface"""
+    return render_template('history.html')
+
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown_server():
@@ -281,8 +286,14 @@ def shutdown_server():
 def query_db():
     """Get recent data from the database based on timestamp"""
     try:
+
+        # Extract the keys:
         keys = request.args.get('keys', '').split(',')
+
+        # Extract the start_time:
         start_time = request.args.get('start_time', '')
+        
+        # Extract the end_time:
         end_time = request.args.get('end_time', '')
         
         keys = [key.strip() for key in keys if key.strip()]

@@ -8,9 +8,78 @@
  * @returns {Object} - Object containing data, availableKeys, and missingKeys
  */
 async function fetchDataFromDB(selectedKeys) {
+
+    // Print out the "keys"  --- these are the NAMES OF THE SENSORS!
+    console.log('> Selected keys:', selectedKeys);
+
+    // If there are NO columns selected...
+    if (selectedKeys === undefined) {
+
+        // ... inform the user about that in the console!
+        console.log('> Selected keys were undefined!');
+
+        // And throw an error too!
+        throw new Error("> You did not select any keys (sensor/data-column names) when making the DB fetch!");
+    }
+
+    /**
+     * Compute the total number of milliseconds in the interval of time determined by the *global* window
+     * properties `hours`, `minutes`, `seconds`.
+     */
     const totalMilliseconds = (window.hours * 3600 + window.minutes * 60 + window.seconds) * 1000;
-    const now = new Date();
-    const start = new Date(now.getTime() - totalMilliseconds); 
+
+    // Initialize the two obejcts that define the range of the query:
+    let start, now;
+
+    // If there *exists* (not null) these window properties...
+    if (window.startDate && window.endDate) {
+
+        // FYI: `startDate` and `endDate` come as strings in the form "YYYY-MM-DD":
+
+        // Compute a Date object based on that string for the starting date:
+        const startDateObj = new Date(window.startDate);
+
+        // Compute a Date object based on the end date:
+        const endDateObj = new Date(window.endDate);
+
+        // If the construction of Date objects was successful...
+        if (!isNaN(startDateObj) && !isNaN(endDateObj)) {
+
+            // ... log the start date...
+            console.log(`> Start date received: ${window.startDate}`);
+
+            // ... log the end date...
+            console.log(`> End date received: ${window.endDate}`);
+
+            // ... and set the `start` variable to corresponding startDate Date object:
+            start = startDateObj;
+            
+            // And do the same of the end date:
+            now = endDateObj;
+
+        // If the construction did not work...
+        } else {
+
+            /**
+             * ... warn the user about the failure to compute a Date(), and revert to the old
+             * logic to avoid hangups and/or crashes.
+             */
+            console.warn("> Invalid date format detected, falling back to timer mode.");
+        }
+    }
+
+    // If these two variables are *never* defined i.e. nullish...
+    if (!start || !now) {
+
+        // ... fall back to the standard logic to define `now`:
+        now = new Date();
+
+        // And do the same for `start`:
+        start = new Date(now.getTime() - totalMilliseconds);
+    }
+
+    console.log(`> After all the logic, we have determined the starting datetime to be: ${start}`);
+    console.log(`> We also determined the ending datetime to be: ${now}`);
     
     // Format timestamps in YYYY-MM-DD HH:mm:ss format
     const startTimeStr = start.toLocaleString('en-US', {
@@ -42,26 +111,32 @@ async function fetchDataFromDB(selectedKeys) {
         endTime: endTimeStr,
         humanReadable: `${window.hours}h ${window.minutes}m ${window.seconds}s`
     });
-    console.log('Selected keys:', selectedKeys);
 
+    // Construct a new URL params object:
     const params = new URLSearchParams();
     params.append('keys', selectedKeys.join(','));
     params.append('start_time', startTimeStr);
     params.append('end_time', endTimeStr);
     
     try {
+
+        // (X): Fetch to the backend:
         const response = await fetch(`/query_db?${params.toString()}`);
-        console.log('Response status:', response.status);
+
+        // (X) Log the response:
+        console.log('> Received DB response:', response.status);
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Server error:', errorText);
-            throw new Error('Failed to fetch data from server');
+            throw new Error(`> Failed to fetch data from server: f{errorText}`);
         }
-
+        
         const result = await response.json();
+
         console.log('Received data points:', result.data ? result.data.length : 0);
+
         if (result.data && result.data.length > 0) {
+            
             console.log('Time range of received data:',
                 'from', result.data[0][0], // First element is timestamp
                 'to', result.data[result.data.length - 1][0] // First element is timestamp
@@ -73,6 +148,7 @@ async function fetchDataFromDB(selectedKeys) {
             availableKeys: result.available_keys || [],
             missingKeys: result.missing_keys || []
         };
+
     } catch (err) {
         console.error('Error fetching from server:', err);
         throw new Error('Error obtaining data from database. Retrying...');
@@ -112,6 +188,8 @@ async function updateFromDB() {
     const selectedKeys = Array.from(
         document.querySelectorAll('.parameter-item.selected')
     ).map(item => item.dataset.key);
+
+    console.log(`> Selected keys are: ${selectedKeys}`)
 
     if (selectedKeys.length === 0) {
         updateEmptyChartDisplay();
