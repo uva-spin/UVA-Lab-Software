@@ -1,11 +1,15 @@
-const mariadb = require('mariadb/callback');
-const fs = require('fs');
-const path = require('path');
+import mariadb from 'mariadb/callback.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let config = {};
 
 // Read config file
-const configPath = path.join(__dirname, '../../config.json');
+const configPath = path.join(__dirname, '../../../../config.json');
 try {
     const configData = fs.readFileSync(configPath, 'utf8');
     config = JSON.parse(configData);
@@ -67,4 +71,4 @@ function checkConnection(conn) {
     }
 }
 
-module.exports = { openPool, checkConnection, closePoolConnection };
+export { openPool, checkConnection, closePoolConnection };

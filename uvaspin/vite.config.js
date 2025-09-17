@@ -11,17 +11,26 @@ export default defineConfig({
       }
     }
   },
-  server: {
-    port: 3000,
-    open: true,
-    host: true,
-    proxy: {
-      '/query_db': 'http://localhost:5000',
-      '/health_check': 'http://localhost:5000'
-    }
-  },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
+  },
+  optimizeDeps: {
+    include: ['plotly.js-basic-dist', 'react-plotly.js'],
+    exclude: ['buffer']
+  },
+  define: {
+    global: 'globalThis',
+    'process.env': '{}'
+  },
+  resolve: {
+    alias: {
+      'buffer': 'buffer',
+      'stream': 'stream-browserify',
+      'util': 'util'
+    }
   }
 })

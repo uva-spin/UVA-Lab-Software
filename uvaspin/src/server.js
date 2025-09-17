@@ -1,16 +1,20 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const { openPool, checkConnection, closePoolConnection } = require('./utils/DB');
-const { fetchData, clear_cache } = require('./utils/Query');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { openPool, checkConnection, closePoolConnection } from './utils/DB.js';
+import { fetchData, clear_cache } from './utils/Query.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../uvaspin/dist')));
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Database connection
 let dbConnection = null;
@@ -90,12 +94,14 @@ app.post('/clear_cache', (req, res) => {
 
 // Serve React app for all other routes
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../uvaspin/dist/index.html'));
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Start server
-app.listen(PORT, async () => {
-    console.log(`Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server also accessible on http://0.0.0.0:${PORT}`);
+    console.log(`Network accessible on http://128.143.231.224:${PORT}`);
     await initializeDatabase();
 });
 

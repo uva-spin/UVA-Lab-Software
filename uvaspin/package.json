@@ -12,15 +12,19 @@
     "dev:server": "nodemon src/server.js"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^4.21.2",
+    "mariadb": "^3.4.5",
+    "node": "^24.8.0",
     "plotly.js": "^2.35.2",
+    "plotly.js-basic-dist": "^3.1.0",
+    "process": "^0.11.10",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-plotly.js": "^2.6.0",
-    "react-router-dom": "^6.30.1",
-    "express": "^4.21.2",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
-    "mariadb": "^3.4.5"
+    "react-router-dom": "^6.30.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
@@ -32,6 +36,8 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
     "nodemon": "^3.1.9",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.5",
     "vite": "^7.1.5"
   }
 }

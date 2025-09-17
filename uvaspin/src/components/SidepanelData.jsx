@@ -3,7 +3,7 @@ import React from 'react';
 function SidepanelColumns() {
     const columns = new Map([
         {
-            names: 'QT',
+            name: 'QT',
             keys: {
                 flows: {name: 'Flows', keys: ['fc501_ai', 'fc501_out', 'fc502_ai', 'fc502_out']},
                 levels: {name: 'Levels', keys: ['lit501_ai']},
@@ -12,7 +12,7 @@ function SidepanelColumns() {
             },
         },
         {
-            names: "Pressures",
+            name: "Pressures",
             keys: ['root_exhaust_pressure', 'buffer_pressure', 'magnet_pressure', 'purifier_inlet_pressure', 'fridge_vapor_pressure', 'maxigauge_pressure', 'ivc_pressure', 'separator_flow', 'magnet_flow', 'main_flow'],
         },
         {
@@ -52,7 +52,7 @@ const SidepanelData = [
     },
     {
         title: "NMR",
-        columns: SidepanelColumns()[4].keyss    ,
+        columns: SidepanelColumns()[4].keys,
     }
 ]
 
