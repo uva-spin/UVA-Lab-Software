@@ -11,16 +11,17 @@ Usage:
     python standalone_data_acquisition.py --verbose --terminal-log  # Verbose mode with terminal output
 """
 
-import logging
 from datetime import datetime, timezone
 import os
+import socket
+import serial
+import logging
 import argparse
 import sys
 import pytz
 import asyncio
 import mariadb
 import signal
-from concurrent.futures import ThreadPoolExecutor
 import json
 from config import *
 
@@ -43,8 +44,7 @@ args = None
 # Configure timezone
 EST = pytz.timezone('America/New_York')
 
-# Thread pool executor for blocking operations
-executor = ThreadPoolExecutor(max_workers=10)
+# No longer using thread pool executor
 
 # Global shutdown flag
 shutdown_event = asyncio.Event()
@@ -265,9 +265,8 @@ async def read_QT_data():
         logger.error("QT reader not initialized")
         return None
     
-    # Run blocking QT read operation in thread pool
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, qt_reader.read_qt_data)
+    # Direct synchronous call
+    return qt_reader.read_qt_data()
 
 async def read_teledyne_data():
     """Read latest teledyne flow data"""
@@ -276,9 +275,8 @@ async def read_teledyne_data():
     if teledyne_reader is None:
         return [None] * 3  # Return None for 3 flow values
     
-    # Run blocking teledyne read operation in thread pool
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, teledyne_reader.get_latest_data)
+    # Direct synchronous call
+    return teledyne_reader.get_latest_data()
 
 async def read_labjack_data_1():
     """Read latest labjack pressure data"""
@@ -287,9 +285,8 @@ async def read_labjack_data_1():
     if labjack_reader_1 is None:
         return [None] * 6  # Return None for 6 pressure values
     
-    # Run blocking labjack read operation in thread pool
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, labjack_reader_1.get_latest_data)
+    # Direct synchronous call
+    return labjack_reader_1.get_latest_data()
 
 async def read_labjack_data_2():
     """Read latest labjack pressure data"""
@@ -298,9 +295,8 @@ async def read_labjack_data_2():
     if labjack_reader_2 is None:
         return [None] * 4  # Return None for 4 pressure values
     
-    # Run blocking labjack read operation in thread pool
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, labjack_reader_2.get_latest_data)
+    # Direct synchronous call
+    return labjack_reader_2.get_latest_data()
 
 async def read_lakeshore_data_target_stick():
     """Read latest lakeshore data from target stick"""
@@ -309,9 +305,8 @@ async def read_lakeshore_data_target_stick():
     if lakeshore_reader_target_stick is None:
         return [None] * 8  # Return None for 8 lakeshore values
     
-    # Run blocking lakeshore read operation in thread pool
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, lakeshore_reader_target_stick.get_latest_data)
+    # Direct synchronous call
+    return lakeshore_reader_target_stick.get_latest_data()
 
 async def read_lakeshore_data_fridge_temp():
     """Read latest lakeshore data from fridge temperature"""
@@ -320,9 +315,8 @@ async def read_lakeshore_data_fridge_temp():
     if lakeshore_reader_fridge_temp is None:
         return [None] * 8  # Return None for 8 lakeshore values
     
-    # Run blocking lakeshore read operation in thread pool
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, lakeshore_reader_fridge_temp.get_latest_data)
+    # Direct synchronous call
+    return lakeshore_reader_fridge_temp.get_latest_data()
 
 async def read_lakeshore_data_magnet_temp():
     """Read latest lakeshore data from magnet temperature"""
@@ -331,9 +325,8 @@ async def read_lakeshore_data_magnet_temp():
     if lakeshore_reader_magnet_temp is None:
         return [None] * 8  # Return None for 8 lakeshore values
     
-    # Run blocking lakeshore read operation in thread pool
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, lakeshore_reader_magnet_temp.get_latest_data)
+    # Direct synchronous call
+    return lakeshore_reader_magnet_temp.get_latest_data()
 
 async def read_maxigauge_data():
     """Read latest maxigauge data"""
@@ -342,9 +335,8 @@ async def read_maxigauge_data():
     if maxigauge_reader is None:
         return [None] * 6  # Return None for 6 maxigauge values
     
-    # Run blocking maxigauge read operation in thread pool
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, maxigauge_reader.get_latest_data)
+    # Direct synchronous call
+    return maxigauge_reader.get_latest_data()
 
 async def read_ivc_data():
     """Read latest IVC data"""
@@ -353,9 +345,8 @@ async def read_ivc_data():
     if ivc_reader is None:
         return None  # Return None for IVC value when reader is not available
     
-    # Run blocking IVC read operation in thread pool
-    loop = asyncio.get_event_loop()
-    data = await loop.run_in_executor(executor, ivc_reader.get_latest_data)
+    # Direct synchronous call
+    data = ivc_reader.get_latest_data()
     if data is not None and isinstance(data, (int, float)):
         return data
     else:
@@ -413,9 +404,8 @@ def _insert_QT_data_sync(data, timestamp):
 async def insert_QT_data(data):
     """Insert QT data into the QT table"""
     timestamp = await get_current_est_time()
-    loop = asyncio.get_event_loop()
     await asyncio.sleep(ASYNC_READ_INTERVAL)
-    return await loop.run_in_executor(executor, _insert_QT_data_sync, data, timestamp)
+    return _insert_QT_data_sync(data, timestamp)
 
 def _insert_teledyne_data_sync(flow_data, timestamp):
     """Synchronous function to insert Teledyne data into the flow_rates table"""
@@ -449,9 +439,8 @@ def _insert_teledyne_data_sync(flow_data, timestamp):
 async def insert_teledyne_data(flow_data):
     """Insert Teledyne data into the flow_rates table"""
     timestamp = await get_current_est_time()
-    loop = asyncio.get_event_loop()
     await asyncio.sleep(ASYNC_READ_INTERVAL)
-    return await loop.run_in_executor(executor, _insert_teledyne_data_sync, flow_data, timestamp)
+    return _insert_teledyne_data_sync(flow_data, timestamp)
 
 def _insert_labjack_1_data_sync(pressure_data, timestamp):
     """Synchronous function to insert LabJack data into the pressures table"""
@@ -481,9 +470,8 @@ def _insert_labjack_1_data_sync(pressure_data, timestamp):
 async def insert_labjack_1_data(pressure_data):
     """Insert LabJack data into the pressures table"""
     timestamp = await get_current_est_time()
-    loop = asyncio.get_event_loop()
     await asyncio.sleep(ASYNC_READ_INTERVAL)
-    return await loop.run_in_executor(executor, _insert_labjack_1_data_sync, pressure_data, timestamp)
+    return _insert_labjack_1_data_sync(pressure_data, timestamp)
 
 def _insert_labjack_2_data_sync(labjack_2_data):
     conn = None
@@ -516,9 +504,8 @@ def _insert_labjack_2_data_sync(labjack_2_data):
 
 async def insert_labjack_2_data(labjack_2_data):
     """Insert LabJack 2 data into the Flow_Rates table"""
-    loop = asyncio.get_event_loop()
     await asyncio.sleep(ASYNC_READ_INTERVAL)
-    return await loop.run_in_executor(executor, _insert_labjack_2_data_sync, labjack_2_data)
+    return _insert_labjack_2_data_sync(labjack_2_data)
 
 def _insert_lakeshore_data_target_stick_sync(data, timestamp):
     """Synchronous function to insert Lakeshore data into the lakeshore_target_stick table"""
@@ -557,8 +544,7 @@ def _insert_lakeshore_data_target_stick_sync(data, timestamp):
 async def insert_lakeshore_data_target_stick(data):
     """Insert Lakeshore data into the lakeshore_target_stick table"""
     timestamp = await get_current_est_time()
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, _insert_lakeshore_data_target_stick_sync, data, timestamp)
+    return _insert_lakeshore_data_target_stick_sync(data, timestamp)
 
 def _insert_lakeshore_data_fridge_temp_sync(data, timestamp):
     """Synchronous function to insert Lakeshore data into the lakeshore_fridge_temp table"""
@@ -597,9 +583,8 @@ def _insert_lakeshore_data_fridge_temp_sync(data, timestamp):
 async def insert_lakeshore_data_fridge_temp(data):
     """Insert Lakeshore data into the lakeshore_fridge_temp table"""
     timestamp = await get_current_est_time()
-    loop = asyncio.get_event_loop()
     await asyncio.sleep(ASYNC_READ_INTERVAL)
-    return await loop.run_in_executor(executor, _insert_lakeshore_data_fridge_temp_sync, data, timestamp)
+    return _insert_lakeshore_data_fridge_temp_sync(data, timestamp)
 
 def _insert_lakeshore_data_magnet_temp_sync(data, timestamp):
     """Synchronous function to insert Lakeshore data into the lakeshore_magnet_temp table"""
@@ -638,9 +623,8 @@ def _insert_lakeshore_data_magnet_temp_sync(data, timestamp):
 async def insert_lakeshore_data_magnet_temp(data):
     """Insert Lakeshore data into the lakeshore_magnet_temp table"""
     timestamp = await get_current_est_time()
-    loop = asyncio.get_event_loop()
     await asyncio.sleep(ASYNC_READ_INTERVAL)
-    return await loop.run_in_executor(executor, _insert_lakeshore_data_magnet_temp_sync, data, timestamp)
+    return _insert_lakeshore_data_magnet_temp_sync(data, timestamp)
 
 def _insert_maxigauge_data_sync(data, timestamp):
     """Synchronous function to insert MaxiGauge data into the maxigauge table"""
@@ -677,9 +661,8 @@ def _insert_maxigauge_data_sync(data, timestamp):
 async def insert_maxigauge_data(data):
     """Insert MaxiGauge data into the maxigauge table"""
     timestamp = await get_current_est_time()
-    loop = asyncio.get_event_loop()
     await asyncio.sleep(ASYNC_READ_INTERVAL)
-    return await loop.run_in_executor(executor, _insert_maxigauge_data_sync, data, timestamp)
+    return _insert_maxigauge_data_sync(data, timestamp)
 
 def _insert_ivc_data_sync(data, timestamp):
     """Synchronous function to insert IVC data into the ivc table"""
@@ -711,9 +694,8 @@ def _insert_ivc_data_sync(data, timestamp):
 async def insert_ivc_data(data):
     """Insert IVC data into the ivc table"""
     timestamp = await get_current_est_time()
-    loop = asyncio.get_event_loop()
     await asyncio.sleep(ASYNC_READ_INTERVAL)
-    return await loop.run_in_executor(executor, _insert_ivc_data_sync, data, timestamp)
+    return _insert_ivc_data_sync(data, timestamp)
 
 async def pipeline_to_database(QT_data, teledyne_data, labjack_data_1, labjack_data_2, lakeshore_data_target_stick, lakeshore_data_fridge_temp, lakeshore_data_magnet_temp, maxigauge_data, ivc_data):
     """Pipeline data directly to the database using concurrent operations"""
@@ -1098,8 +1080,7 @@ async def main():
     finally:
         logger.info("Cleaning up data acquisition system")
 
-        executor.shutdown(wait=True)
-        logger.info("Thread pool executor shutdown")
+        logger.info("Thread pool executor removed - no longer needed")
 
         if teledyne_reader:
             teledyne_reader.stop()

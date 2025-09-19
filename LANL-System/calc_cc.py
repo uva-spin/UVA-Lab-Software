@@ -305,8 +305,8 @@ def convert_to_temp(value_type, avg_value, std_value):
     std_temp = avg_temp * (std_value / avg_value) if avg_value != 0 else 0
     
     return {
-        'avg_temp': avg_temp,
-        'std_temp': std_temp
+        'temp': avg_temp,
+        'temp_err': std_temp
     }
 
 def eval_cal_const(species, field, avg_area, std_area, avg_temp, std_temp):
@@ -363,9 +363,6 @@ def eval_cal_const(species, field, avg_area, std_area, avg_temp, std_temp):
         print(f"Error in determining spin for {nmr_name_val}.")
     
     return {
-        'nmr_name': nmr_name_val,
-        'spin_name': spin_name,
-        'te_pol': te_pol,
         'cal_const': cal_const,
         'cal_const_err': cal_const_err
     }
@@ -408,16 +405,7 @@ def cc(signals, signal_fraction, specimen):
     cal_const_data = eval_cal_const(
         species, field, 
         avg_area, std_area,
-        temp_data['avg_temp'], temp_data['std_temp']
+        temp_data['temp'], temp_data['temp_err']
     )
-    
-    result = {
-        'specimen': specimen,
-        'species': species,
-        'field': field,
-        'signal_stats': signal_stats,
-        'temp_data': temp_data,
-        'cal_const_data': cal_const_data
-    }
-    
-    return result
+        
+    return cal_const_data

@@ -101,10 +101,12 @@ def calculate_stride(start_time, end_time):
     Decide the stride (sampling ratio) based on interval length.
     Smaller interval = keep more data.
     """
-    AVERAGE_TOTAL_DATAPOINTS_PER_DAY = 39990
+    AVERAGE_TOTAL_DATAPOINTS_PER_DAY = 100000
+    mod_const = 3000
     start_dt = parse_datetime(start_time)
     end_dt   = parse_datetime(end_time)
     delta_days = (end_dt - start_dt).days + (end_dt - start_dt).seconds / 86400
+    delta_timestamp = datetime.datetime(start_dt.year, start_dt.month, start_dt.day).timestamp() - datetime.datetime(end_dt.year, end_dt.month, end_dt.day).timestamp()
     print(f"> Computed delta_days as: {delta_days}")
 
     # If a day has *not* elapsed...
@@ -117,7 +119,7 @@ def calculate_stride(start_time, end_time):
     else:
 
         # ... then we return this as the MOD FACTOR:
-        return delta_days + 1
+        return delta_timestamp/mod_const + 1
 
 class DataCollector:
     def __init__(self):

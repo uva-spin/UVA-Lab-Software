@@ -77,7 +77,7 @@ def toNMR_DB(StringData, NumericData, SignalData):
 
     cursor = conn.cursor()
 
-    cursor.execute('''INSERT INTO NMR_DB ( 
+    cursor.execute('''INSERT INTO NMR ( 
                    run_number, measurement_type, peak_amp, peak_center,
                    beam_on, rf_level, if_atten, nmr_channel, temperature, calibration_constant, 
                    he_temperature, he_pressure, polarization, polarization_std, snr, step_width, 
