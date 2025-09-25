@@ -14,15 +14,9 @@ try {
     const configData = fs.readFileSync(configPath, 'utf8');
     config = JSON.parse(configData);
 } catch (err) {
-    console.error('Error reading config file:', err);
-    // Use default config or environment variables
-    config = {
-        host: process.env.DB_HOST || 'localhost',
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASSWORD || '',
-        database: process.env.DB_NAME || 'uvaspin',
-        connectionLimit: 5
-    };
+    console.error('Error reading config file\n \
+        Cannot Establish Connection to Database \
+        \n Error:', err);
 }
 
 function createPool() {

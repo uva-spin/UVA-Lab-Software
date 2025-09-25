@@ -43,6 +43,14 @@ export const formatNumber = (value) => {
     return value.toFixed(3);
 };
 
+function scaleValues(values) {
+    // Find maximum value in values
+    const maxValue = Math.max(...values);
+    // Divide each value by the maximum value to get relative scaling factor
+    const scaledValues = values.map(value => value / maxValue);
+    return scaledValues;
+};
+
 // Function to create plot traces from data
 function createTracesFromData(data, availableKeys, selectedKeys) {
     if (!data || data.length === 0) return [];
@@ -98,12 +106,12 @@ function createTracesFromData(data, availableKeys, selectedKeys) {
     return selectedKeys.map((column, index) => {
         const values = valuesByKey[column] || [];
         const units = getColumnUnits(column);
-        
+        const scaledValues = scaleValues(values);
         console.log(`Column ${column} values:`, values);
         
         return {
             x: timestamps,
-            y: values,
+            y: scaledValues,
             type: 'scatter',
             mode: 'markers+lines',
             name: column + units,

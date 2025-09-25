@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 function Lab42Button() {
@@ -69,4 +69,31 @@ function SidePanelButton({ onClick, isActive = false }) {
     );
 }
 
-export { Lab42Button, Lab36Button, HistoryButton, HomeButton, SidePanelButton };
+
+function AddPlotButton({ onAddPlot }) {
+    return (
+        <button 
+            className="plot-control-button add-plot-button"
+            onClick={onAddPlot}
+            title="Add Plot"
+        >
+            <i className="fas fa-plus"></i>
+            <span>Add Plot</span>
+        </button>
+    );
+}
+
+function RemovePlotButton({ onRemovePlot }) {
+    return (
+        <button 
+            className="plot-control-button remove-plot-button"
+            onClick={onRemovePlot}
+            title="Remove Plot"
+        >
+            <i className="fas fa-minus"></i>
+            <span>Remove Plot</span>
+        </button>
+    );
+}
+
+export { Lab42Button, Lab36Button, HistoryButton, HomeButton, SidePanelButton, AddPlotButton, RemovePlotButton };

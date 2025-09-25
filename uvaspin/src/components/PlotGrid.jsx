@@ -2,12 +2,13 @@ import React from 'react';
 import IndividualPlot from './IndividualPlot';
 import '../../css/plot.css';
 
-function PlotGrid() {
-    // Allow user to add more or less plots with a button in
-    const plotIds = ['plot-1', 'plot-2', 'plot-3', 'plot-4', 'plot-5', 'plot-6'];
+function PlotGrid({ numPlots }) {
+    // Allow user to add more or less plots with a button in the top right corner
+    console.log(numPlots);
+    const plotIds = Array.from({ length: numPlots }, (_, index) => `plot-${index + 1}`);
 
     return (
-        <div className="plot-grid-container">
+        // <div className="plot-grid-container">
             <div className="plot-grid">
                 {plotIds.map((plotId, index) => (
                     <IndividualPlot 
@@ -17,7 +18,7 @@ function PlotGrid() {
                     />
                 ))}
             </div>
-        </div>
+        // </div>
     );
 }
 
