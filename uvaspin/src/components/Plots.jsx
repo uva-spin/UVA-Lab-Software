@@ -212,12 +212,12 @@ class DataPlot extends React.Component {
 
 
 // Lab-specific plot components
-function Lab42Plot({ selectedParameters }) {
-    return <DataPlot selectedParameters={selectedParameters} labType="lab42" />;
+function Lab42Plot({ selectedParameters, dateRange }) {
+    return <DataPlot selectedParameters={selectedParameters} labType="lab42" dateRange={dateRange} />;
 }
 
-function Lab36Plot({ selectedParameters }) {
-    return <DataPlot selectedParameters={selectedParameters} labType="lab36" />;
+function Lab36Plot({ selectedParameters, dateRange }) {
+    return <DataPlot selectedParameters={selectedParameters} labType="lab36" dateRange={dateRange} />;
 }
 
 function HistoryPlot({ selectedParameters, dateRange }) {

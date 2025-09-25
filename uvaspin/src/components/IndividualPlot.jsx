@@ -35,13 +35,13 @@ function IndividualPlot({ plotId, plotNumber, labType = 'lab42', dateRange }) {
         }
         switch (labType) {
             case 'lab42':
-                return <Lab42Plot selectedParameters={selectedParameters} />;
+                return <Lab42Plot selectedParameters={selectedParameters} dateRange={dateRange} />;
             case 'lab36':
-                return <Lab36Plot selectedParameters={selectedParameters} />;
+                return <Lab36Plot selectedParameters={selectedParameters} dateRange={dateRange} />;
             case 'history':
                 return <HistoryPlot selectedParameters={selectedParameters} dateRange={dateRange} />;
             default:
-                return <Lab42Plot selectedParameters={selectedParameters} />;
+                return <Lab42Plot selectedParameters={selectedParameters} dateRange={dateRange} />;
         }
     };
 

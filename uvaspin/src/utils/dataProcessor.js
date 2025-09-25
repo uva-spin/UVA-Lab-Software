@@ -44,13 +44,13 @@ export const generatePlotData = async (selectedParams, isIncremental, labType, d
     try {
         const selectedKeys = Array.from(selectedParams);
         
-        // Use dateRange for history plots, default behavior for others
+        // Use dateRange when provided (any lab), default behavior otherwise
         let startTime = null;
         let endTime = null;
         
-        if (labType === 'history' && dateRange && dateRange.start && dateRange.end) {
-            startTime = dateRange.start;
-            endTime = dateRange.end;
+        if (dateRange && (dateRange.start || dateRange.end)) {
+            startTime = dateRange.start || null;
+            endTime = dateRange.end || new Date();
         } else if (isIncremental && lastTimestamp) {
             // For incremental updates, only fetch data after the last timestamp
             startTime = new Date(lastTimestamp);
