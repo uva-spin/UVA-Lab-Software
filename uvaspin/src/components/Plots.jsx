@@ -8,7 +8,6 @@ import {
     shouldComponentUpdate
 } from '../utils/plotUtils';
 import { generatePlotData as generatePlotDataUtil } from '../utils/dataProcessor';
-import TimeTravel from './TimeTravel';
 
 
 
@@ -21,7 +20,8 @@ class DataPlot extends React.Component {
             layout: getPlotLayout(props.selectedParameters, null, props.dimensions),
             config: {...getPlotConfig(props.labType), 
                 scrollZoom: true,
-                responsive: true
+                responsive: true,
+
             },
             frames: [],
             loading: false,
@@ -61,7 +61,7 @@ class DataPlot extends React.Component {
 
     // Generate plot data from selected parameters
     generatePlotData = async (selectedParams, isIncremental = false) => {
-        const { labType, dateRange, timeTravelInterval } = this.props;
+        const { dateRange, timeTravelInterval } = this.props;
         const { lastTimestamp, cachedData } = this.state;
         
         await generatePlotDataUtil(

@@ -311,6 +311,32 @@
     background-color: white;
 }
 
+/* React Time Picker specific styles */
+.time-input .react-time-picker__wrapper {
+    border: none;
+    background-color: transparent;
+}
+
+.time-input .react-time-picker__inputGroup {
+    min-height: auto;
+}
+
+.time-input .react-time-picker__inputGroup__input {
+    border: none;
+    background-color: transparent;
+    font-size: 0.9rem;
+    padding: 0;
+    margin: 0;
+}
+
+.time-input .react-time-picker__inputGroup__input:focus {
+    outline: none;
+}
+
+.time-input .react-time-picker__inputGroup__divider {
+    color: #495057;
+}
+
 .date-input:focus, .time-input:focus {
     outline: none;
     border-color: #667eea;

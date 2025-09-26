@@ -14,7 +14,7 @@ function IndividualPlot({ plotId, plotNumber, labType, dateRange, timeTravelInte
     } = useDataSelection();
     const [lastUpdate, setLastUpdate] = useState(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-    const [localTimeTravelInterval, setLocalTimeTravelInterval] = useState(timeTravelInterval || "00:01:00");
+    const [localTimeTravelInterval, setLocalTimeTravelInterval] = useState(timeTravelInterval || "01:00:00");
     const selectedParameters = getPlotParameters(plotId, labType);
     const isActive = activePlotId === plotId;
     const plotRef = useRef(null);
@@ -25,19 +25,6 @@ function IndividualPlot({ plotId, plotNumber, labType, dateRange, timeTravelInte
             setLocalTimeTravelInterval(timeTravelInterval);
         }
     }, [timeTravelInterval]);
-
-    // Resize detection hook
-    const { width, height } = useResizeDetector({
-        targetRef: plotRef,
-        onResize: (width, height) => {
-            if (width && height) {
-                setDimensions({ width, height });
-                console.log(`Plot ${plotNumber} resized to: ${width}x${height}`);
-            }
-        },
-        refreshMode: 'debounce',
-        refreshRate: 100
-    });
 
     const handlePlotClick = () => {
         setActivePlot(plotId);
@@ -123,7 +110,8 @@ function IndividualPlot({ plotId, plotNumber, labType, dateRange, timeTravelInte
                             onClick={handleClearPlot}
                             title="Clear this plot"
                         >
-                            <i className="fas fa-times"></i>
+                            {/* <i className="fas fa-times">X</i> */}
+                            <i style={{ fontSize: '1rem', fontWeight: 'bold', fontFamily: 'Arial, sans-serif', flexGrow: 1 }}>X</i>
                         </button>
                     )}
                 </div>

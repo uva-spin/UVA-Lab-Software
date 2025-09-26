@@ -72,7 +72,6 @@ app.get('/query_db', async (req, res) => {
         // Use the enhanced fetchData function that handles multiple tables
         const data = await fetchData(
             dbConnection.pool, 
-            null, // Let fetchData determine table names based on columns
             selectedKeys.join(','), 
             start_time, 
             end_time

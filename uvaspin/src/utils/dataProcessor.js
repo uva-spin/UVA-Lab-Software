@@ -7,6 +7,8 @@ import {
     getPlotLayout
 } from './plotUtils';
 
+
+
 // Function to update plot data without recreation
 export const updatePlotData = (newData, availableKeys, selectedKeys, isIncremental, plotRef, isInitialized, setState) => {
     if (!newData || newData.length === 0) return;
@@ -53,45 +55,31 @@ export const generatePlotData = async (selectedParams, isIncremental, dateRange,
             endTime = dateRange.end || new Date();
         } else if (timeTravelInterval) {
             // Calculate time range based on timeTravelInterval
-            console.log(`DataProcessor: Processing timeTravelInterval: ${timeTravelInterval} (supports HH:mm:ss and h:mm:ss AM/PM formats)`);
+            console.log(`DataProcessor: Processing timeTravelInterval: ${timeTravelInterval} (supports HH:mm:ss)`);
             const now = new Date();
             endTime = now;
             
-            // Parse timeTravelInterval (supports both HH:mm:ss and h:mm:ss AM/PM formats)
-            let hours, minutes, seconds;
-            
-            if (timeTravelInterval.toLowerCase().includes('am') || timeTravelInterval.toLowerCase().includes('pm')) {
-                // Handle 12-hour format with AM/PM
-                const isAM = timeTravelInterval.toLowerCase().includes('am');
-                const timeOnly = timeTravelInterval.replace(/\s*(am|pm)/i, '').trim();
-                const [h, m, s] = timeOnly.split(':').map(Number);
-                
-                // Convert to 24-hour format
-                if (isAM) {
-                    hours = h === 12 ? 0 : h; // 12 AM = 0, other AM hours stay the same
-                } else {
-                    hours = h === 12 ? 12 : h + 12; // 12 PM = 12, other PM hours add 12
-                }
-                minutes = m;
-                seconds = s;
-            } else {
-                // Handle 24-hour format (HH:mm:ss)
-                [hours, minutes, seconds] = timeTravelInterval.split(':').map(Number);
-            }
+            // Parse timeTravelInterval - drop AM/PM if present and split by hour, minute, seconds
+            const timeOnly = timeTravelInterval.replace(/\s*(am|pm)/i, '').trim();
+            const [hours, minutes, seconds] = timeOnly.split(':').map(Number);
             
             const totalMilliseconds = (hours * 3600 + minutes * 60 + seconds) * 1000;
             
             // Calculate start time by subtracting the interval from now
             startTime = new Date(now.getTime() - totalMilliseconds);
             
-            console.log(`DataProcessor: Calculated time range - Start: ${startTime.toISOString()}, End: ${endTime.toISOString()}, Interval: ${totalMilliseconds}ms`);
+            console.log(`DataProcessor: Calculated time range - Start: ${startTime.toLocaleString()}, End: ${endTime.toLocaleString()}, Interval: ${totalMilliseconds}ms`);
         } else if (isIncremental && lastTimestamp) {
             // For incremental updates, only fetch data after the last timestamp
             startTime = new Date(lastTimestamp);
             endTime = new Date();
         }
         
-        const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys, startTime, endTime);
+        // Pass maxPoints to SQL query for database-level sampling (default 5000)
+        const maxPoints = 5000;
+        const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys, startTime, endTime, maxPoints);
+        
+        console.log(`DataProcessor: Requesting max ${maxPoints} data points from database`);
         
         if (missingKeys && missingKeys.length > 0) {
             console.warn('Missing data for keys:', missingKeys);
@@ -130,7 +118,10 @@ export const generatePlotData = async (selectedParams, isIncremental, dateRange,
             });
         }
 
-        // Update plot data using the new method
+        // Data is already sampled at the SQL level, no additional sampling needed
+        console.log(`DataProcessor: Using ${finalData.length} data points (already sampled by database)`);
+        
+        // Update plot data using the database-sampled data
         const traces = createTracesFromData(finalData, availableKeys, selectedKeys);
         const layout = getPlotLayout(new Set(selectedKeys), finalData);
         setState({ 

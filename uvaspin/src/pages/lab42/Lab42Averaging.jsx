@@ -5,6 +5,8 @@ import DateTimePicker from '../../components/DateTimePicker';
 import DataSelectionDropdown from '../../components/DataSelectionDropdown';
 import { useDataSelection } from '../../utils/useDataSelection';
 import usePageDataCache from '../../utils/usePageDataCache';
+import { fetchDataFromDB } from '../../utils/Query';
+import { createTracesFromData } from '../../utils/plotUtils';
 import '/src/pages/css/AveragingPage.css';
 
 function Lab42Averaging() {
@@ -96,9 +98,6 @@ function Lab42Averaging() {
             throw new Error('Please select at least one parameter to average');
         }
 
-        // TODO: Implement actual averaging calculation logic here
-        // This is a template for you to add your averaging functionality
-        
         // Get all selected parameters from all categories
         const allSelectedParams = [
             ...selectedData.qt,
@@ -107,27 +106,79 @@ function Lab42Averaging() {
             ...selectedData.flows,
             ...selectedData.nmr
         ];
-        
-        // Example placeholder data
-        const mockAveragedData = allSelectedParams.map((param, index) => ({
-            name: param,
-            x: Array.from({ length: 100 }, (_, i) => new Date(Date.now() - (100 - i) * 60000)),
-            y: Array.from({ length: 100 }, (_, i) => 
-                Math.sin(i * 0.1 + index) * (20 + Math.random() * 10) + 50
-            ),
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: { 
-                color: `hsl(${index * 360 / allSelectedParams.length}, 70%, 50%)`,
-                width: 2 
-            },
-            marker: { size: 4 }
-        }));
 
-        // Simulate processing delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('Calculating averaged data for parameters:', allSelectedParams);
+        console.log('N Points:', nPoints, 'Sampling Factor:', samplingFactor);
         
-        return mockAveragedData;
+        try {
+            // Determine date range - use provided range or default to recent data
+            const endTime = dateRange.end || new Date();
+            const startTime = dateRange.start || new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago if no range provided
+            
+            // Fetch raw data from database
+            const result = await fetchDataFromDB(allSelectedParams, startTime, endTime);
+            
+            if (!result.data || result.data.length === 0) {
+                throw new Error('No data found for the selected time range and parameters');
+            }
+
+            // Apply averaging algorithm
+            const averagedData = applyAveraging(result.data, result.availableKeys, allSelectedParams, nPoints, samplingFactor);
+            
+            // Create traces using the same utility function as the real-time plots
+            const traces = createTracesFromData(averagedData, result.availableKeys, allSelectedParams);
+            
+            return traces;
+            
+        } catch (error) {
+            console.error('Error calculating averaged data:', error);
+            throw new Error(`Failed to calculate averaged data: ${error.message}`);
+        }
+    };
+
+    // Helper function to apply averaging algorithm
+    const applyAveraging = (rawData, availableKeys, selectedKeys, nPoints, samplingFactor) => {
+        if (!rawData || rawData.length === 0) return [];
+        
+        // Simple moving average implementation
+        // Sample every samplingFactor points, then apply nPoints moving average
+        const sampledData = rawData.filter((_, index) => index % samplingFactor === 0);
+        
+        if (sampledData.length < nPoints) {
+            console.warn('Not enough data points for averaging, returning sampled data');
+            return sampledData;
+        }
+        
+        const averagedData = [];
+        
+        // Apply moving average
+        for (let i = nPoints - 1; i < sampledData.length; i++) {
+            const avgPoint = { timestamp: sampledData[i].timestamp };
+            
+            // Calculate average for each selected parameter
+            selectedKeys.forEach(key => {
+                if (availableKeys.includes(key)) {
+                    let sum = 0;
+                    let count = 0;
+                    
+                    // Average the last nPoints values
+                    for (let j = i - nPoints + 1; j <= i; j++) {
+                        const value = sampledData[j][key];
+                        if (value !== null && value !== undefined && !isNaN(value)) {
+                            sum += value;
+                            count++;
+                        }
+                    }
+                    
+                    avgPoint[key] = count > 0 ? sum / count : null;
+                }
+            });
+            
+            averagedData.push(avgPoint);
+        }
+        
+        console.log(`Applied averaging: ${rawData.length} -> ${sampledData.length} (sampled) -> ${averagedData.length} (averaged)`);
+        return averagedData;
     };
 
     const plotConfig = {
@@ -135,17 +186,45 @@ function Lab42Averaging() {
         layout: {
             title: `Lab 042 Averaged Data (N=${nPoints}, Sampling=${samplingFactor}x)`,
             xaxis: { 
-                title: 'Time',
-                type: 'date'
+                title: 'Time (EST)',
+                type: 'date',
+                showgrid: true,
+                gridcolor: '#e0e0e0',
+                zeroline: false
             },
-            yaxis: { title: 'Value' },
+            yaxis: { 
+                title: 'Value',
+                showgrid: true,
+                gridcolor: '#e0e0e0',
+                zeroline: false
+            },
+            legend: {
+                orientation: 'v',
+                x: 1.02,
+                y: 1,
+                bgcolor: 'rgba(255,255,255,0.8)',
+                bordercolor: '#ccc',
+                borderwidth: 1
+            },
             showlegend: true,
-            margin: { t: 50, r: 50, b: 50, l: 50 },
+            margin: { r: 150, t: 50, b: 50, l: 60 },
+            plot_bgcolor: 'white',
+            paper_bgcolor: 'white',
+            font: { family: 'Arial, sans-serif' },
             hovermode: 'closest'
         },
         config: {
             displayModeBar: true,
-            responsive: true
+            responsive: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+            toImageButtonOptions: {
+                format: 'png',
+                filename: `lab42_averaging_${new Date().toLocaleDateString()}`,
+                height: 600,
+                width: 1000,
+                scale: 2
+            }
         }
     };
 

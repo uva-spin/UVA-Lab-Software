@@ -1,6 +1,7 @@
 import React from 'react';
 import TimePicker from 'react-time-picker';
 import 'react-time-picker/dist/TimePicker.css';
+import 'moment/locale/en-gb'
 import '/src/pages/css/LabPage.css';
 
 function TimeTravel({ time, setTime, maxHours = 72 }) {
@@ -41,6 +42,7 @@ function TimeTravel({ time, setTime, maxHours = 72 }) {
                 format="HH:mm:ss" 
                 disableClock={true}
                 maxDetail="second"
+                locale="en-gb"
             />
         </div>
     );

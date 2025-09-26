@@ -23,13 +23,6 @@ function HomePage() {
                         <h3>Lab 036</h3>
                         <p>Real-time data, history, NMR display, and averaging</p>
                     </Link>
-                    <Link to="/history" className="lab-card">
-                        <div className="lab-icon">
-                            <i className="fas fa-history"></i>
-                        </div>
-                        <h3>History</h3>
-                        <p>Historical data analysis</p>
-                    </Link>
                 </div>
             </div>
         </div>

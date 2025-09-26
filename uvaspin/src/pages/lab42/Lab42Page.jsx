@@ -5,12 +5,11 @@ import '/src/pages/css/LabPage.css';
 
 function Lab42Page() {
     const [numPlots, setNumPlots] = useState(1);
-    const [timeTravelInterval, setTimeTravelInterval] = useState("00:01:00");
-
+    
     return (
         <div className="lab-page">
             <div className="lab-page-content">
-                <PlotGrid numPlots={numPlots} labType="lab42" timeTravelInterval={timeTravelInterval} />
+                <PlotGrid numPlots={numPlots} labType="lab42"/>
             </div>
         </div>
     );

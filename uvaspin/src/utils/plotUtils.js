@@ -44,19 +44,49 @@ export const formatNumber = (value) => {
 };
 
 function scaleValues(values) {
-    // Find maximum value in values
-    const maxValue = Math.max(...values);
+    // Filter out null/undefined values for calculation
+    const validValues = values.filter(value => value !== null && value !== undefined && !isNaN(value));
+    
+    if (validValues.length === 0) {
+        return values; // Return original if no valid values
+    }
+    
+    // Find maximum absolute value in valid values to avoid division by zero
+    const maxValue = Math.max(...validValues.map(Math.abs));
+    
+    if (maxValue === 0) {
+        return values; // Return original if all values are zero
+    }
+    
     // Divide each value by the maximum value to get relative scaling factor
-    const scaledValues = values.map(value => value / maxValue);
+    const scaledValues = values.map(value => {
+        if (value === null || value === undefined || isNaN(value)) {
+            return null; // Preserve null/undefined values
+        }
+        return value / maxValue;
+    });
+    
     return scaledValues;
 };
 
-// Function to create plot traces from data
+// Note: Data sampling is now handled in dataProcessor.js before traces are created
+
+// Function to create plot traces from data (data is already sampled in dataProcessor.js)
 function createTracesFromData(data, availableKeys, selectedKeys) {
     if (!data || data.length === 0) return [];
     
-    console.log('Creating traces from data:', data);
+    // Data is already sampled in dataProcessor.js, so we work with the provided data directly
     console.log('Selected keys:', selectedKeys);
+    console.log(`Creating traces from ${data.length} data points (already sampled)`);
+    
+    // Log data timestamp range for verification
+    if (data.length > 0) {
+        console.log('Data timestamp range:', 
+            data[0].timestamp || data[0][0], 
+            'to', 
+            data[data.length - 1].timestamp || data[data.length - 1][0]
+        );
+    }
     
     // Detect data format: object format vs array format
     const isObjectFormat = data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0]);
@@ -107,20 +137,16 @@ function createTracesFromData(data, availableKeys, selectedKeys) {
         const values = valuesByKey[column] || [];
         const units = getColumnUnits(column);
         const scaledValues = scaleValues(values);
-        console.log(`Column ${column} values:`, values);
+        // console.log(`Column ${column} values:`, values);
         
         return {
             x: timestamps,
             y: scaledValues,
             type: 'scatter',
-            mode: 'markers+lines',
+            mode: 'markers',
             name: column + units,
-            line: { 
-                width: 2,
-                color: COLOR_PALETTE[index % COLOR_PALETTE.length]
-            },
             marker: { 
-                size: 4,
+                size: 6,
                 color: COLOR_PALETTE[index % COLOR_PALETTE.length]
             },
             hovertemplate: 
@@ -193,31 +219,40 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
                 index === 0 || point[0] !== arr[index - 1][0]
             );
         
-        // Increase cache limit to allow for more historical data
-        // With data every few seconds, 10000 points = ~8-10 hours of data
-        if (mergedData.length > 10000) {
-            mergedData.splice(0, mergedData.length - 10000);
-        }
+        // Remove cache limit - we'll handle sampling in the plotting function instead
+        // This allows us to keep all historical data and sample it for display
         
         newCachedData.set(key, mergedData);
     });
     
     // Reconstruct the data array in the original format
+    // Only include timestamps where ALL selected keys have valid data points
     const allTimestamps = Array.from(new Set(
         Array.from(newCachedData.values())
             .flat()
             .map(point => point[0])
     )).sort((a, b) => new Date(a) - new Date(b));
     
-    const reconstructedData = allTimestamps.map(timestamp => {
-        const row = [timestamp];
-        selectedKeys.forEach(key => {
-            const keyData = newCachedData.get(key) || [];
-            const point = keyData.find(p => p[0] === timestamp);
-            row.push(point ? point[1] : null);
-        });
-        return row;
-    });
+    const reconstructedData = allTimestamps
+        .map(timestamp => {
+            const row = [timestamp];
+            let hasAllValues = true;
+            
+            selectedKeys.forEach(key => {
+                const keyData = newCachedData.get(key) || [];
+                const point = keyData.find(p => p[0] === timestamp);
+                if (point && point[1] !== null && point[1] !== undefined) {
+                    row.push(point[1]);
+                } else {
+                    hasAllValues = false;
+                }
+            });
+            
+            return hasAllValues ? row : null;
+        })
+        .filter(row => row !== null); // Remove rows where not all parameters have values
+    
+    console.log(`Data reconstruction: ${allTimestamps.length} total timestamps, ${reconstructedData.length} valid data points (with all parameters)`);
     
     return { 
         data: reconstructedData, 
@@ -233,6 +268,9 @@ function getPlotLayout(selectedParameters, data = null, dimensions = null) {
     // If data is provided, calculate the proper x-axis range
     if (data && data.length > 0) {
         let timestamps;
+        
+        // Note: We use the original data (not sampled) to get the true time range
+        // This ensures the x-axis shows the full time span even with sampled points
         
         // Detect data format and extract timestamps accordingly
         const isObjectFormat = data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0]);
@@ -260,11 +298,11 @@ function getPlotLayout(selectedParameters, data = null, dimensions = null) {
         
         // Add some padding to the range (5% on each side)
         const timeRange = maxTime.getTime() - minTime.getTime();
-        const padding = timeRange * 0.05;
+        // const padding = timeRange * 0.05;
         
         xaxisRange = [
-            new Date(minTime.getTime() - padding),
-            new Date(maxTime.getTime() + padding)
+            new Date(minTime.getTime()),
+            new Date(maxTime.getTime())
         ];
         
         console.log('Setting x-axis range:', xaxisRange);
@@ -327,9 +365,12 @@ function getPlotConfig(labType) {
         displayModeBar: true,
         displaylogo: false,
         modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+        modeBarButtons: [
+            ['toImage', 'zoom2d', 'pan2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d']
+        ],
         toImageButtonOptions: {
             format: 'png',
-            filename: `${labType}_plot_${new Date().toISOString().split('T')[0]}`,
+            filename: `${labType}_plot_${new Date().toLocaleString()}`,
             height: 600,
             width: 1000,
             scale: 2

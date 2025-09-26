@@ -6,11 +6,11 @@ export function clear_cache() {
     console.log('Cache cleared');
 }
 
-// Convert ISO timestamp to database format (yy-mm-dd hh:mm:ss)
-function formatTimestampForDB(isoString) {
-    if (!isoString) return null;
+// Convert locale timestamp to database format (yy-mm-dd hh:mm:ss)
+function formatTimestampForDB(localeString) {
+    if (!localeString) return null;
     
-    const date = new Date(isoString);
+    const date = new Date(localeString);
     const year = date.getFullYear().toString();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
@@ -123,37 +123,7 @@ const COLUMN_TO_TABLE_MAP = {
     'tune_voltage': 'NMR'
 };
 
-// Determine table name based on column names using hash map
-function getTableNameFromColumns(columns) {
-    if (!columns || columns.length === 0) return null;
-    
-    // Convert columns to array if it's a string
-    const columnArray = Array.isArray(columns) ? columns : columns.split(',');
-    
-    // Find the table for the first column (assuming all columns in a query belong to the same table)
-    const firstColumn = columnArray[0].trim();
-    const tableName = COLUMN_TO_TABLE_MAP[firstColumn];
-    
-    if (tableName) {
-        console.log(`Mapped column '${firstColumn}' to table '${tableName}'`);
-        return tableName;
-    }
-    
-    // If first column not found, check all columns
-    for (const column of columnArray) {
-        const trimmedColumn = column.trim();
-        const mappedTable = COLUMN_TO_TABLE_MAP[trimmedColumn];
-        if (mappedTable) {
-            console.log(`Mapped column '${trimmedColumn}' to table '${mappedTable}'`);
-            return mappedTable;
-        }
-    }
-    
-    console.warn(`No table mapping found for columns: ${columnArray.join(', ')}`);
-    return null;
-}
-
-export async function fetchData(pool, table_name, keys, start_time, end_time) {
+export async function fetchData(pool, keys, start_time, end_time, maxPoints = 5000) {
     try {
         // Convert keys to array if it's a string
         const columnArray = Array.isArray(keys) ? keys : keys.split(',');
@@ -182,8 +152,8 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
 
         console.log(`Querying ${Object.keys(tableGroups).length} tables:`, Object.keys(tableGroups));
         
-        // Create cache key
-        const cacheKey = `${Object.keys(tableGroups).sort().join('_')}_${keys}_${start_time}_${end_time}`;
+        // Create cache key including maxPoints for proper caching
+        const cacheKey = `${Object.keys(tableGroups).sort().join('_')}_${keys}_${start_time}_${end_time}_${maxPoints}`;
         
         // Check cache first
         if (cache.has(cacheKey)) {
@@ -196,8 +166,8 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
         
         for (const [tableName, columns] of Object.entries(tableGroups)) {
             try {
-                // Build query for this table
-                let query = `SELECT ${columns.join(', ')}, timestamp FROM ${tableName}`;
+                // First, get total count to calculate sampling interval
+                let countQuery = `SELECT COUNT(*) as total_count FROM ${tableName}`;
                 const conditions = [];
                 
                 if (start_time) {
@@ -210,10 +180,55 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
                 }
                 
                 if (conditions.length > 0) {
-                    query += ` WHERE ${conditions.join(' AND ')}`;
+                    countQuery += ` WHERE ${conditions.join(' AND ')}`;
                 }
                 
-                query += ` ORDER BY timestamp ASC`;
+                // Get total count first to calculate sampling interval
+                const countResult = await new Promise((resolve, reject) => {
+                    pool.query(countQuery, (err, rows) => {
+                        if (err) {
+                            console.error(`Error getting count for table ${tableName}:`, err);
+                            resolve(0); // Continue with 0 count rather than failing
+                        } else {
+                            resolve(rows[0]?.total_count || 0);
+                        }
+                    });
+                });
+                
+                console.log(`Table ${tableName}: Total rows matching criteria: ${countResult}`);
+                
+                let query;
+                
+                if (maxPoints && maxPoints > 0) {
+                    console.log(`Table ${tableName}: Applying modulo sampling with maxPoints: ${maxPoints}`);
+                    
+                    // Build query with modulo sampling on id column using maxPoints directly
+                    // This ensures consistent sampling regardless of dataset size
+                    query = `SELECT ${columns.join(', ')}, timestamp FROM ${tableName}`;
+                    
+                    // Combine time conditions with modulo condition
+                    const allConditions = [...conditions];
+                    allConditions.push(`id % 10 = 0`);
+                    
+                    if (allConditions.length > 0) {
+                        query += ` WHERE ${allConditions.join(' AND ')}`;
+                    }
+                    
+                    query += ` ORDER BY timestamp ASC`;
+                    
+                    console.log(`Table ${tableName}: Using modulo sampling: id % ${maxPoints} = 0`);
+                } else {
+                    // No sampling - return all data
+                    console.log(`Table ${tableName}: No maxPoints specified, returning all data`);
+                    
+                    query = `SELECT ${columns.join(', ')}, timestamp FROM ${tableName}`;
+                    
+                    if (conditions.length > 0) {
+                        query += ` WHERE ${conditions.join(' AND ')}`;
+                    }
+                    
+                    query += ` ORDER BY timestamp ASC`;
+                }
 
                 console.log(`Executing query for table ${tableName}:`, query);
                 
@@ -261,19 +276,21 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
     }
 }
 
-export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null) => {
+export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null, maxPoints = 5000) => {
     const now = new Date();
     const defaultStartTime = startTime || new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
     const defaultEndTime = endTime || now;
     
-    const startTimeStr = defaultStartTime.toISOString();
-    const endTimeStr = defaultEndTime.toISOString();
+    const startTimeStr = defaultStartTime.toLocaleString();
+    const endTimeStr = defaultEndTime.toLocaleString();
+
+    console.log(`Query.js: Fetching data with maxPoints limit: ${maxPoints}`);
     
     const params = new URLSearchParams();
     params.append('keys', selectedKeys.join(','));
     params.append('start_time', startTimeStr);
     params.append('end_time', endTimeStr);
-    
+    params.append('max_points', maxPoints);
     try {
         const response = await fetch(`/query_db?${params.toString()}`);
         

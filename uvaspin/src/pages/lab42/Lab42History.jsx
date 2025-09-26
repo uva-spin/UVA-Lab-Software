@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import Plotly from 'plotly.js-basic-dist';
 import FlexiblePlotlyContainer from '../../containers/FlexiblePlotlyContainer';
-import DateTimePicker from '../../components/DateTimePicker';
+import TimePicker from 'react-time-picker';
+import DatePicker from 'react-date-picker';
+import 'react-date-picker/dist/DatePicker.css';
+import 'react-time-picker/dist/TimePicker.css';
 import DataSelectionDropdown from '../../components/DataSelectionDropdown';
-import { useDataSelection } from '../../utils/useDataSelection';
 import usePageDataCache from '../../utils/usePageDataCache';
+import { fetchDataFromDB } from '../../utils/Query';
+import { createTracesFromData } from '../../utils/plotUtils';
 import '/src/pages/css/HistoryPage.css';
 
 function Lab42History() {
-    const { selectedParameters } = useDataSelection();
     const [dateRange, setDateRange] = useState({ start: null, end: null });
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
-    
+    const [startTime, setStartTime] = useState('00:00:00');
+    const [endTime, setEndTime] = useState('23:59:59');
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
     // Data structure for dropdowns (matching the sidebar structure)
     const dataStructure = {
         'QT': {
@@ -55,6 +58,11 @@ function Lab42History() {
         nmr: []
     });
     
+    // Helper function to check if any data is selected
+    const hasSelectedData = () => {
+        return Object.values(selectedData).some(category => category.length > 0);
+    };
+    
     const { 
         data: historyData, 
         isLoading: cacheLoading, 
@@ -90,97 +98,90 @@ function Lab42History() {
             throw new Error('Please select a date range to view historical data');
         }
 
-        // TODO: Implement actual historical data fetching logic here
-        // This is a template for you to add your history-specific functionality
+        if (!hasSelectedData()) {
+            throw new Error('Please select at least one parameter to view historical data');
+        }
+
+        // Get all selected parameters from all categories
+        const allSelectedParams = [
+            ...selectedData.qt,
+            ...selectedData.pressures,
+            ...selectedData.temperatures,
+            ...selectedData.flows,
+            ...selectedData.nmr
+        ];
+
+        console.log('Fetching historical data for parameters:', allSelectedParams);
         
-        // Example placeholder data structure
-        const mockData = {
-            time: Array.from({ length: 200 }, (_, i) => 
-                new Date(dateRange.start.getTime() + (i / 200) * (dateRange.end.getTime() - dateRange.start.getTime()))
-            ),
-            temperature: Array.from({ length: 200 }, (_, i) => 
-                20 + Math.sin(i * 0.1) * 5 + Math.random() * 2
-            ),
-            pressure: Array.from({ length: 200 }, (_, i) => 
-                1013 + Math.cos(i * 0.15) * 10 + Math.random() * 3
-            ),
-            magneticField: Array.from({ length: 200 }, (_, i) => 
-                1.5 + Math.sin(i * 0.08) * 0.2 + Math.random() * 0.1
-            )
-        };
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        return mockData;
+        try {
+            // Use the real query function to fetch data from database
+            const result = await fetchDataFromDB(allSelectedParams, dateRange.start, dateRange.end);
+            
+            if (!result.data || result.data.length === 0) {
+                throw new Error('No data found for the selected time range and parameters');
+            }
+
+            // Create traces using the same utility function as the real-time plots
+            const traces = createTracesFromData(result.data, result.availableKeys, allSelectedParams);
+            
+            return traces;
+            
+        } catch (error) {
+            console.error('Error fetching historical data:', error);
+            throw new Error(`Failed to fetch historical data: ${error.message}`);
+        }
     };
 
     const handleRefreshData = () => {
-        if (dateRange.start && dateRange.end) {
+        if (dateRange.start && dateRange.end && hasSelectedData()) {
             fetchData(fetchHistoryDataFunction);
         }
     };
 
     const plotConfig = {
-        data: historyData ? [
-            {
-                x: historyData.time,
-                y: historyData.temperature,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Temperature (°C)',
-                line: { color: '#e74c3c', width: 2 }
-            },
-            {
-                x: historyData.time,
-                y: historyData.pressure,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Pressure (mbar)',
-                line: { color: '#3498db', width: 2 },
-                yaxis: 'y2'
-            },
-            {
-                x: historyData.time,
-                y: historyData.magneticField,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Magnetic Field (T)',
-                line: { color: '#2ecc71', width: 2 },
-                yaxis: 'y3'
-            }
-        ] : [],
+        data: historyData || [],
         layout: {
             title: 'Lab 042 Historical Data',
             xaxis: { 
-                title: 'Time',
-                type: 'date'
+                title: 'Time (EST)',
+                type: 'date',
+                showgrid: true,
+                gridcolor: '#e0e0e0',
+                zeroline: false
             },
             yaxis: { 
-                title: 'Temperature (°C)',
-                side: 'left',
-                color: '#e74c3c'
+                title: 'Value',
+                showgrid: true,
+                gridcolor: '#e0e0e0',
+                zeroline: false
             },
-            yaxis2: {
-                title: 'Pressure (mbar)',
-                side: 'right',
-                overlaying: 'y',
-                color: '#3498db'
-            },
-            yaxis3: {
-                title: 'Magnetic Field (T)',
-                side: 'right',
-                overlaying: 'y',
-                position: 0.85,
-                color: '#2ecc71'
+            legend: {
+                orientation: 'v',
+                x: 1.02,
+                y: 1,
+                bgcolor: 'rgba(255,255,255,0.8)',
+                bordercolor: '#ccc',
+                borderwidth: 1
             },
             showlegend: true,
-            margin: { t: 50, r: 100, b: 50, l: 50 },
+            margin: { r: 150, t: 50, b: 50, l: 60 },
+            plot_bgcolor: 'white',
+            paper_bgcolor: 'white',
+            font: { family: 'Arial, sans-serif' },
             hovermode: 'closest'
         },
         config: {
             displayModeBar: true,
-            responsive: true
+            responsive: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+            toImageButtonOptions: {
+                format: 'png',
+                filename: `lab42_history_${new Date().toISOString().split('T')[0]}`,
+                height: 600,
+                width: 1000,
+                scale: 2
+            }
         }
     };
 
@@ -189,9 +190,39 @@ function Lab42History() {
             <div className="history-header">
                 <h2>Lab 042 Historical Data</h2>
                 <div className="history-controls">
+                <DatePicker 
+                        value={startDate}
+                        onChange={setStartDate}
+                        className="date-input"
+                        label="Start Date"
+                    />
+                    <TimePicker 
+                        value={startTime}
+                        onChange={setStartTime}
+                        format="HH:mm:ss"
+                        disableClock={true}
+                        clearIcon={null}
+                        className="time-input"
+                        label="Start Time"
+                    />
+                    <DatePicker 
+                        value={endDate}
+                        onChange={setEndDate}
+                        className="date-input"
+                        label="End Date"
+                    />
+                    <TimePicker 
+                        value={endTime}
+                        onChange={setEndTime}
+                        format="HH:mm:ss"
+                        disableClock={true}
+                        clearIcon={null}
+                        className="time-input"
+                            label="End Time"
+                        />
                     <button 
                         onClick={handleRefreshData} 
-                        disabled={cacheLoading || !dateRange.start || !dateRange.end}
+                        disabled={cacheLoading || !dateRange.start || !dateRange.end || !hasSelectedData()}
                         className="refresh-button"
                     >
                         {cacheLoading ? 'Loading...' : 'Load Historical Data'}
@@ -204,13 +235,7 @@ function Lab42History() {
             </div>
 
             <div className="control-grid">
-                <div className="control-section">
-                    <h3>Time Range Selection</h3>
-                    <DateTimePicker 
-                        onDateRangeChange={handleDateRangeChange}
-                    />
-                </div>
-                
+
                 <div className="control-section">
                     <h3>Data Selection</h3>
                     <div className="data-selection-grid">
@@ -278,7 +303,7 @@ function Lab42History() {
                     </div>
                     <div className="info-item">
                         <label>Data Points:</label>
-                        <span>{historyData ? historyData.time.length : 0}</span>
+                        <span>{historyData ? historyData.length : 0}</span>
                     </div>
                     <div className="info-item">
                         <label>Time Range:</label>

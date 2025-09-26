@@ -5,6 +5,8 @@ import DateTimePicker from '../../components/DateTimePicker';
 import DataSelectionDropdown from '../../components/DataSelectionDropdown';
 import { useDataSelection } from '../../utils/useDataSelection';
 import usePageDataCache from '../../utils/usePageDataCache';
+import { fetchDataFromDB } from '../../utils/Query';
+import { createTracesFromData } from '../../utils/plotUtils';
 import '/src/pages/css/HistoryPage.css';
 
 function Lab36History() {
@@ -55,6 +57,11 @@ function Lab36History() {
         nmr: []
     });
     
+    // Helper function to check if any data is selected
+    const hasSelectedData = () => {
+        return Object.values(selectedData).some(category => category.length > 0);
+    };
+    
     const { 
         data: historyData, 
         isLoading: cacheLoading, 
@@ -90,97 +97,90 @@ function Lab36History() {
             throw new Error('Please select a date range to view historical data');
         }
 
-        // TODO: Implement actual historical data fetching logic here
-        // This is a template for you to add your history-specific functionality
+        if (!hasSelectedData()) {
+            throw new Error('Please select at least one parameter to view historical data');
+        }
+
+        // Get all selected parameters from all categories
+        const allSelectedParams = [
+            ...selectedData.qt,
+            ...selectedData.pressures,
+            ...selectedData.temperatures,
+            ...selectedData.flows,
+            ...selectedData.nmr
+        ];
+
+        console.log('Fetching historical data for parameters:', allSelectedParams);
         
-        // Example placeholder data structure
-        const mockData = {
-            time: Array.from({ length: 200 }, (_, i) => 
-                new Date(dateRange.start.getTime() + (i / 200) * (dateRange.end.getTime() - dateRange.start.getTime()))
-            ),
-            temperature: Array.from({ length: 200 }, (_, i) => 
-                18 + Math.sin(i * 0.12) * 4 + Math.random() * 1.5
-            ),
-            pressure: Array.from({ length: 200 }, (_, i) => 
-                1008 + Math.cos(i * 0.18) * 8 + Math.random() * 2.5
-            ),
-            magneticField: Array.from({ length: 200 }, (_, i) => 
-                1.2 + Math.sin(i * 0.09) * 0.15 + Math.random() * 0.08
-            )
-        };
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        return mockData;
+        try {
+            // Use the real query function to fetch data from database
+            const result = await fetchDataFromDB(allSelectedParams, dateRange.start, dateRange.end);
+            
+            if (!result.data || result.data.length === 0) {
+                throw new Error('No data found for the selected time range and parameters');
+            }
+
+            // Create traces using the same utility function as the real-time plots
+            const traces = createTracesFromData(result.data, result.availableKeys, allSelectedParams);
+            
+            return traces;
+            
+        } catch (error) {
+            console.error('Error fetching historical data:', error);
+            throw new Error(`Failed to fetch historical data: ${error.message}`);
+        }
     };
 
     const handleRefreshData = () => {
-        if (dateRange.start && dateRange.end) {
+        if (dateRange.start && dateRange.end && hasSelectedData()) {
             fetchData(fetchHistoryDataFunction);
         }
     };
 
     const plotConfig = {
-        data: historyData ? [
-            {
-                x: historyData.time,
-                y: historyData.temperature,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Temperature (°C)',
-                line: { color: '#e74c3c', width: 2 }
-            },
-            {
-                x: historyData.time,
-                y: historyData.pressure,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Pressure (mbar)',
-                line: { color: '#3498db', width: 2 },
-                yaxis: 'y2'
-            },
-            {
-                x: historyData.time,
-                y: historyData.magneticField,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Magnetic Field (T)',
-                line: { color: '#2ecc71', width: 2 },
-                yaxis: 'y3'
-            }
-        ] : [],
+        data: historyData || [],
         layout: {
             title: 'Lab 036 Historical Data',
             xaxis: { 
-                title: 'Time',
-                type: 'date'
+                title: 'Time (EST)',
+                type: 'date',
+                showgrid: true,
+                gridcolor: '#e0e0e0',
+                zeroline: false
             },
             yaxis: { 
-                title: 'Temperature (°C)',
-                side: 'left',
-                color: '#e74c3c'
+                title: 'Value',
+                showgrid: true,
+                gridcolor: '#e0e0e0',
+                zeroline: false
             },
-            yaxis2: {
-                title: 'Pressure (mbar)',
-                side: 'right',
-                overlaying: 'y',
-                color: '#3498db'
-            },
-            yaxis3: {
-                title: 'Magnetic Field (T)',
-                side: 'right',
-                overlaying: 'y',
-                position: 0.85,
-                color: '#2ecc71'
+            legend: {
+                orientation: 'v',
+                x: 1.02,
+                y: 1,
+                bgcolor: 'rgba(255,255,255,0.8)',
+                bordercolor: '#ccc',
+                borderwidth: 1
             },
             showlegend: true,
-            margin: { t: 50, r: 100, b: 50, l: 50 },
+            margin: { r: 150, t: 50, b: 50, l: 60 },
+            plot_bgcolor: 'white',
+            paper_bgcolor: 'white',
+            font: { family: 'Arial, sans-serif' },
             hovermode: 'closest'
         },
         config: {
             displayModeBar: true,
-            responsive: true
+            responsive: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+            toImageButtonOptions: {
+                format: 'png',
+                filename: `lab36_history_${new Date().toISOString().split('T')[0]}`,
+                height: 600,
+                width: 1000,
+                scale: 2
+            }
         }
     };
 
@@ -191,7 +191,7 @@ function Lab36History() {
                 <div className="history-controls">
                     <button 
                         onClick={handleRefreshData} 
-                        disabled={cacheLoading || !dateRange.start || !dateRange.end}
+                        disabled={cacheLoading || !dateRange.start || !dateRange.end || !hasSelectedData()}
                         className="refresh-button"
                     >
                         {cacheLoading ? 'Loading...' : 'Load Historical Data'}
@@ -278,7 +278,7 @@ function Lab36History() {
                     </div>
                     <div className="info-item">
                         <label>Data Points:</label>
-                        <span>{historyData ? historyData.time.length : 0}</span>
+                        <span>{historyData ? historyData.length : 0}</span>
                     </div>
                     <div className="info-item">
                         <label>Time Range:</label>
