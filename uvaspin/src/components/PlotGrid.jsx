@@ -3,7 +3,7 @@ import IndividualPlot from './IndividualPlot';
 import { useResizeDetector } from 'react-resize-detector';
 import './plot.css';
 
-function PlotGrid({ numPlots, labType = 'lab42', dateRange, timeTravelInterval }) {
+function PlotGrid({ numPlots, labType = 'lab42', dateRange }) {
     const [gridDimensions, setGridDimensions] = useState({ width: 0, height: 0 });
     const [responsiveLayout, setResponsiveLayout] = useState('auto');
     
@@ -81,7 +81,6 @@ function PlotGrid({ numPlots, labType = 'lab42', dateRange, timeTravelInterval }
                         plotNumber={index + 1}
                         labType={labType}
                         dateRange={dateRange}
-                        timeTravelInterval={timeTravelInterval}
                         gridDimensions={gridDimensions}
                         responsiveLayout={responsiveLayout}
                     />

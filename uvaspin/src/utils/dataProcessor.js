@@ -24,7 +24,7 @@ export const updatePlotData = (newData, availableKeys, selectedKeys, isIncrement
 };
 
 // Generate plot data from selected parameters
-export const generatePlotData = async (selectedParams, isIncremental, labType, dateRange, lastTimestamp, cachedData, timeTravelInterval, setState) => {
+export const generatePlotData = async (selectedParams, isIncremental, dateRange, lastTimestamp, cachedData, timeTravelInterval, setState) => {
     if (selectedParams.size === 0) {
         setState({
             data: [],
@@ -53,6 +53,7 @@ export const generatePlotData = async (selectedParams, isIncremental, labType, d
             endTime = dateRange.end || new Date();
         } else if (timeTravelInterval) {
             // Calculate time range based on timeTravelInterval
+            console.log(`DataProcessor: Processing timeTravelInterval: ${timeTravelInterval}`);
             const now = new Date();
             endTime = now;
             
@@ -63,7 +64,7 @@ export const generatePlotData = async (selectedParams, isIncremental, labType, d
             // Calculate start time by subtracting the interval from now
             startTime = new Date(now.getTime() - totalMilliseconds);
             
-            console.log(`TimeTravel: Fetching data from ${startTime.toISOString()} to ${endTime.toISOString()}`);
+            console.log(`DataProcessor: Calculated time range - Start: ${startTime.toISOString()}, End: ${endTime.toISOString()}, Interval: ${totalMilliseconds}ms`);
         } else if (isIncremental && lastTimestamp) {
             // For incremental updates, only fetch data after the last timestamp
             startTime = new Date(lastTimestamp);

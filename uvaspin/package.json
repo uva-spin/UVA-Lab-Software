@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node src/server.js",
-    "dev:server": "nodemon src/server.js"
+    "dev:server": "nodemon src/server.js",
+    "shutdown": "curl -X POST http://localhost:5000/shutdown || echo 'Server may already be stopped'"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

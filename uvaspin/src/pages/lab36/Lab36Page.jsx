@@ -4,7 +4,7 @@ import '/src/pages/css/LabPage.css';
 
 function Lab36Page() {
     const [numPlots, setNumPlots] = useState(1);
-    const [timeTravelInterval, setTimeTravelInterval] = useState("00:01:00");
+    const [timeTravelInterval, setTimeTravelInterval] = useState("01:00:00");
 
     return (
         <div className="lab-page">

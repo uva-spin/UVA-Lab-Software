@@ -52,6 +52,8 @@ app.get('/query_db', async (req, res) => {
     try {
         const { keys, start_time, end_time } = req.query;
         
+        console.log('Server: Received query_db request with:', { keys, start_time, end_time });
+        
         if (!keys) {
             return res.status(400).json({ error: 'Keys parameter is required' });
         }
@@ -99,6 +101,23 @@ app.post('/clear_cache', (req, res) => {
     } catch {
         res.status(500).json({ error: 'Failed to clear cache' });
     }
+});
+
+// Shutdown endpoint
+app.post('/shutdown', (req, res) => {
+    console.log('Shutdown request received');
+    res.json({ message: 'Server shutting down...' });
+    
+    // Close database connections gracefully
+    if (dbConnection) {
+        closePoolConnection(dbConnection.pool);
+    }
+    
+    // Give the response time to be sent before shutting down
+    setTimeout(() => {
+        console.log('Server shutdown complete');
+        process.exit(0);
+    }, 1000);
 });
 
 // Serve React app for all other routes

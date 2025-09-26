@@ -1,23 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TimePicker from 'react-time-picker';
 import 'react-time-picker/dist/TimePicker.css';
 import '/src/pages/css/LabPage.css';
 
-function TimeTravel({ value, onChange, maxHours = 72 }) {
-    const [time, setTime] = useState(value || '00:01:00');
-
+function TimeTravel({ time, setTime, maxHours = 72 }) {
     // Update internal state when value prop changes
     useEffect(() => {
-        if (value !== undefined) {
-            setTime(value);
+        if (time !== undefined) {
+            setTime(time);
         }
-    }, [value]);
+    }, [time]);
 
-    const handleTimeChange = (newTime) => {
-        setTime(newTime);
+    const validateAndUpdateTime = (newTime) => {
+        if (!newTime) return null;
         
-        // Validate maximum hours limit
-        if (newTime) {
+        try {
             const [hours, minutes, seconds] = newTime.split(':').map(Number);
             const totalHours = hours + minutes / 60 + seconds / 3600;
             
@@ -25,20 +22,21 @@ function TimeTravel({ value, onChange, maxHours = 72 }) {
                 // Cap at maximum hours
                 const cappedHours = Math.min(hours, maxHours);
                 const cappedTime = `${cappedHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                setTime(cappedTime);
-                onChange && onChange(cappedTime);
-                return;
+                console.log('TimeTravel: Capped time to:', cappedTime);
+                return cappedTime;
             }
+            return newTime;
+        } catch (error) {
+            console.warn('TimeTravel: Invalid time format:', newTime);
+            return null;
         }
-        
-        onChange && onChange(newTime);
     };
 
     return (
         <div className="my-custom-time-picker">
             <TimePicker 
                 value={time} 
-                onChange={handleTimeChange} 
+                onChange={setTime}
                 format="HH:mm:ss" 
                 disableClock={true}
                 maxDetail="second"

@@ -67,7 +67,6 @@ class DataPlot extends React.Component {
         await generatePlotDataUtil(
             selectedParams, 
             isIncremental, 
-            labType, 
             dateRange, 
             lastTimestamp, 
             cachedData, 
@@ -150,6 +149,25 @@ class DataPlot extends React.Component {
         // Handle dimension changes
         if (prevProps.dimensions !== this.props.dimensions) {
             this.handleResize();
+        }
+        
+        // Handle dateRange changes - trigger immediate data refresh
+        if (prevProps.dateRange !== this.props.dateRange) {
+            this.setState({
+                cachedData: new Map(),
+                lastTimestamp: null
+            });
+            this.generatePlotData(this.props.selectedParameters, false);
+        }
+        
+        // Handle timeTravelInterval changes - trigger immediate data refresh
+        if (prevProps.timeTravelInterval !== this.props.timeTravelInterval) {
+            console.log('Time travel interval changed from', prevProps.timeTravelInterval, 'to', this.props.timeTravelInterval);
+            this.setState({
+                cachedData: new Map(),
+                lastTimestamp: null
+            });
+            this.generatePlotData(this.props.selectedParameters, false);
         }
         
         // Restart auto-refresh if labType, dateRange, or timeTravelInterval changes

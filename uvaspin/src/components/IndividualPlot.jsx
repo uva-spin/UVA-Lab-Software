@@ -4,7 +4,7 @@ import { Lab42Plot, Lab36Plot, HistoryPlot } from './Plots';
 import TimeTravel from './TimeTravel';
 import { useResizeDetector } from 'react-resize-detector';
 
-function IndividualPlot({ plotId, plotNumber, labType, dateRange, timeTravelInterval}) {
+function IndividualPlot({ plotId, plotNumber, labType, dateRange}) {
     const { 
         getPlotParameters, 
         setActivePlot, 
@@ -14,7 +14,7 @@ function IndividualPlot({ plotId, plotNumber, labType, dateRange, timeTravelInte
     } = useDataSelection();
     const [lastUpdate, setLastUpdate] = useState(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-    const [localTimeTravelInterval, setLocalTimeTravelInterval] = useState(timeTravelInterval || '00:01:00');
+    const [localTimeTravelInterval, setLocalTimeTravelInterval] = useState(new Date().toLocaleTimeString());
     const selectedParameters = getPlotParameters(plotId, labType);
     const isActive = activePlotId === plotId;
     const plotRef = useRef(null);
@@ -43,8 +43,9 @@ function IndividualPlot({ plotId, plotNumber, labType, dateRange, timeTravelInte
     };
 
     const handleTimeTravelChange = (newTime) => {
+        console.log(`Plot ${plotNumber}: Time travel interval changing from ${localTimeTravelInterval} to ${newTime}`);
         setLocalTimeTravelInterval(newTime);
-    };
+    }
 
     const renderPlot = () => {
         if (selectedParameters.size === 0) {
