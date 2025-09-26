@@ -8,8 +8,15 @@ function SidePanel({ isOpen, onToggle }) {
         selectedParameters, 
         toggleParameter, 
         activePlotId,
+        activeLabType,
+        getPlotParameters,
         clearSelection 
     } = useDataSelection();
+    
+    // Get parameters for the active plot if one is selected
+    const currentPlotParameters = activePlotId && activeLabType 
+        ? getPlotParameters(activePlotId, activeLabType)
+        : selectedParameters;
 
     return (
         <>
@@ -41,7 +48,7 @@ function SidePanel({ isOpen, onToggle }) {
                 </div>
                 <DataSelectionSidebar 
                     onParameterToggle={toggleParameter}
-                    selectedParameters={selectedParameters}
+                    selectedParameters={currentPlotParameters}
                 />
             </div>
         </>

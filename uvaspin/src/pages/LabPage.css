@@ -41,3 +41,27 @@
     top: 0;
     height: 100vh;
 }
+
+.my-custom-time-picker {
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 8px;
+    font-size: 16px;
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+    box-shadow: none;
+    outline: none;
+  }
+
+.my-custom-time-picker:hover {
+    /* border-color: var(--accent-primary); */
+    transform: scale(1.05);
+}
+ 
+ .react-time-picker__wrapper {
+    border: none;
+} 
+
+.react-time-picker__inputGroup__input {
+    border: none;
+}

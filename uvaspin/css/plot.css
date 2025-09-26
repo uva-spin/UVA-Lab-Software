@@ -23,6 +23,28 @@
     margin: 0 auto;
 }
 
+/* Responsive Layout Styles */
+.plot-grid-container.responsive-mobile .plot-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.plot-grid-container.responsive-tablet .plot-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-rows: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+.plot-grid-container.responsive-desktop .plot-grid {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)) !important;
+    grid-template-rows: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    padding: 2rem;
+}
+
 /* Individual Plot Styles */
 .individual-plot {
     background: white;
@@ -38,6 +60,25 @@
     max-height: 900px;
     max-width: 800px;
     width: 100%;
+}
+
+/* Responsive Individual Plot Styles */
+.responsive-mobile .individual-plot {
+    min-height: 400px;
+    max-height: 600px;
+    max-width: 100%;
+}
+
+.responsive-tablet .individual-plot {
+    min-height: 500px;
+    max-height: 700px;
+    max-width: 100%;
+}
+
+.responsive-desktop .individual-plot {
+    min-height: 600px;
+    max-height: 800px;
+    max-width: 100%;
 }
 
 .individual-plot:hover {
@@ -60,11 +101,79 @@
     color: white;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
+    position: relative;
+    height: 10%;
+    min-height: 50px;
 }
 
 .plot-title {
     font-weight: 600;
     font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    position: relative;
+}
+
+.plot-dimensions {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 400;
+    background: var(--background-secondary);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    align-self: flex-start;
+    margin-top: 0.25rem;
+}
+
+.time-travel-container {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    /* background: rgba(255, 255, 255, 0.1); */
+    /* padding: 0.25rem 0.5rem; */
+    border-radius: 6px;
+    /* border: 1px solid rgba(255, 255, 255, 0.2); */
+    flex: 1;
+}
+
+.time-travel-label {
+    flex: 1;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: white;
+    white-space: nowrap;
+}
+
+/* TimeTravel component styles */
+.time-travel-container .my-custom-time-picker {
+    background: white;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.time-travel-container .my-custom-time-picker .react-time-picker__wrapper {
+    border: none;
+    background: transparent;
+}
+
+.time-travel-container .my-custom-time-picker .react-time-picker__inputGroup {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+}
+
+.time-travel-container .my-custom-time-picker .react-time-picker__button {
+    padding: 0.125rem;
+    color: var(--text-secondary);
+}
+
+.time-travel-container .my-custom-time-picker .react-time-picker__button:hover {
+    color: var(--text-primary);
 }
 
 .plot-controls {
@@ -140,6 +249,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    width: 100%;
+    height: 100%;
 }
 
 .plot-container.loading,
@@ -307,12 +418,14 @@
 
 /* Plot Wrapper */
 .plot-wrapper {
-    padding: 1rem;
+    padding: 0;
     background: white;
     flex: 1;
     overflow: hidden;
-    min-height: 600px;
+    min-height: 400px;
     height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Plotly Overrides */
@@ -378,6 +491,28 @@
         min-height: 350px;
         max-height: 500px;
         max-width: 100%;
+    }
+    
+    .time-travel-container {
+        position: static;
+        transform: none;
+        margin: 0.5rem 0;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .plot-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    
+    .plot-title {
+        text-align: center;
+    }
+    
+    .plot-info {
+        text-align: center;
     }
 }
 

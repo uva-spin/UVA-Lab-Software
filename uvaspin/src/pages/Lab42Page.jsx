@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import PlotGrid from '../components/PlotGrid';
-import { TimeField } from '@mui/x-date-pickers/TimeField';
+import 'react-time-picker/dist/TimePicker.css';
 import { AddPlotButton, RemovePlotButton } from '../components/Buttons';
 import './LabPage.css';
 
 function Lab42Page() {
     const [numPlots, setNumPlots] = useState(1);
-    const [updateTime, setUpdateTime] = useState(new Date());
+    const [timeTravelInterval, setTimeTravelInterval] = useState("00:01:00");
 
     const addPlot = () => {
         if (numPlots < 6) {
@@ -26,14 +26,10 @@ function Lab42Page() {
                 <div className="lab-page-header-content">
                 <AddPlotButton onAddPlot={addPlot} />
                 <RemovePlotButton onRemovePlot={removePlot} />
-                <TimeField
-                label="Back Time"
-                // defaultValue={dayjs('2022-04-17T15:30')}
-                />
                 </div>
             </div>
             <div className="lab-page-content">
-                <PlotGrid numPlots={numPlots} labType="lab42" updateTime={updateTime} />
+                <PlotGrid numPlots={numPlots} labType="lab42" timeTravelInterval={timeTravelInterval} />
             </div>
         </div>
     );

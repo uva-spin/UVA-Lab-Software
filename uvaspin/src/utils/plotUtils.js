@@ -225,7 +225,7 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
 };
 
 // Plot layout configuration
-function getPlotLayout(selectedParameters, data = null) {
+function getPlotLayout(selectedParameters, data = null, dimensions = null) {
     let xaxisRange = undefined;
     
     // If data is provided, calculate the proper x-axis range
@@ -268,6 +268,15 @@ function getPlotLayout(selectedParameters, data = null) {
         console.log('Setting x-axis range:', xaxisRange);
     }
     
+    // Calculate dynamic dimensions if provided
+    let width = undefined;
+    let height = undefined;
+    
+    if (dimensions && dimensions.width > 0 && dimensions.height > 0) {
+        width = Math.max(300, dimensions.width - 20); // Account for container padding
+        height = Math.max(400, dimensions.height - 120); // Account for header and margins
+    }
+    
     return {
         title: {
             text: selectedParameters.size === 0 
@@ -300,6 +309,8 @@ function getPlotLayout(selectedParameters, data = null) {
             borderwidth: 1
         },
         margin: { r: 150, t: 50, b: 50, l: 60 },
+        width: width,
+        height: height,
         plot_bgcolor: 'white',
         paper_bgcolor: 'white',
         font: { family: 'Arial, sans-serif' },

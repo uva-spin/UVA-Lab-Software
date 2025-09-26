@@ -6,7 +6,7 @@ import './LabPage.css';
 
 function Lab36Page() {
     const [numPlots, setNumPlots] = useState(1);
-    const [dateRange, setDateRange] = useState({ start: null, end: null });
+    const [timeTravelInterval, setTimeTravelInterval] = useState("00:01:00");
 
     const addPlot = () => {
         if (numPlots < 6) {
@@ -20,19 +20,16 @@ function Lab36Page() {
         }
     };
 
-    const handleDateRangeChange = useCallback((startDate, endDate) => {
-        setDateRange({ start: startDate, end: endDate });
-    }, []);
-
     return (
         <div className="lab-page">
             <div className="lab-page-header">
+                <div className="lab-page-header-content">
                 <AddPlotButton onAddPlot={addPlot} />
                 <RemovePlotButton onRemovePlot={removePlot} />
-                <DateTimePicker onDateRangeChange={handleDateRangeChange} />
+                </div>
             </div>
             <div className="lab-page-content">
-                <PlotGrid numPlots={numPlots} labType="lab36" dateRange={dateRange} />
+                <PlotGrid numPlots={numPlots} labType="lab36" timeTravelInterval={timeTravelInterval} />
             </div>
         </div>
     );

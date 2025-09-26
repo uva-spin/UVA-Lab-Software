@@ -8,21 +8,23 @@ export const DataSelectionProvider = ({ children }) => {
     const [selectedParameters, setSelectedParameters] = useState(new Set());
     const [activePlotId, setActivePlotId] = useState(null);
     const [plotData, setPlotData] = useState({}); // Store data for each plot
+    const [activeLabType, setActiveLabTypeState] = useState(null); // Track current lab type
 
     const toggleParameter = useCallback((parameter) => {
-        if (activePlotId) {
+        if (activePlotId && activeLabType) {
+            const labSpecificPlotId = `${activeLabType}-${activePlotId}`;
             setPlotData(prev => {
                 const newPlotData = { ...prev };
-                if (!newPlotData[activePlotId]) {
-                    newPlotData[activePlotId] = new Set();
+                if (!newPlotData[labSpecificPlotId]) {
+                    newPlotData[labSpecificPlotId] = new Set();
                 }
-                const plotParams = new Set(newPlotData[activePlotId]);
+                const plotParams = new Set(newPlotData[labSpecificPlotId]);
                 if (plotParams.has(parameter)) {
                     plotParams.delete(parameter);
                 } else {
                     plotParams.add(parameter);
                 }
-                newPlotData[activePlotId] = plotParams;
+                newPlotData[labSpecificPlotId] = plotParams;
                 return newPlotData;
             });
         } else {
@@ -36,57 +38,62 @@ export const DataSelectionProvider = ({ children }) => {
                 return newSet;
             });
         }
-    }, [activePlotId]);
+    }, [activePlotId, activeLabType]);
 
     const clearSelection = useCallback(() => {
-        if (activePlotId) {
+        if (activePlotId && activeLabType) {
+            const labSpecificPlotId = `${activeLabType}-${activePlotId}`;
             setPlotData(prev => {
                 const newPlotData = { ...prev };
-                newPlotData[activePlotId] = new Set();
+                newPlotData[labSpecificPlotId] = new Set();
                 return newPlotData;
             });
         } else {
             setSelectedParameters(new Set());
         }
-    }, [activePlotId]);
+    }, [activePlotId, activeLabType]);
 
-    const clearPlot = useCallback((plotId) => {
+    const clearPlot = useCallback((plotId, labType) => {
+        const labSpecificPlotId = `${labType}-${plotId}`;
         setPlotData(prev => {
             const newPlotData = { ...prev };
-            newPlotData[plotId] = new Set();
+            newPlotData[labSpecificPlotId] = new Set();
             return newPlotData;
         });
     }, []);
 
     const selectAll = useCallback((parameters) => {
-        if (activePlotId) {
+        if (activePlotId && activeLabType) {
+            const labSpecificPlotId = `${activeLabType}-${activePlotId}`;
             setPlotData(prev => {
                 const newPlotData = { ...prev };
-                newPlotData[activePlotId] = new Set(parameters);
+                newPlotData[labSpecificPlotId] = new Set(parameters);
                 return newPlotData;
             });
         } else {
             setSelectedParameters(new Set(parameters));
         }
-    }, [activePlotId]);
+    }, [activePlotId, activeLabType]);
 
     const isSelected = useCallback((parameter) => {
-        if (activePlotId && plotData[activePlotId]) {
-            return plotData[activePlotId].has(parameter);
+        if (activePlotId && activeLabType) {
+            const labSpecificPlotId = `${activeLabType}-${activePlotId}`;
+            return plotData[labSpecificPlotId]?.has(parameter) || false;
         }
         return selectedParameters.has(parameter);
-    }, [selectedParameters, activePlotId, plotData]);
+    }, [selectedParameters, activePlotId, activeLabType, plotData]);
 
     const addParameters = useCallback((parameters) => {
-        if (activePlotId) {
+        if (activePlotId && activeLabType) {
+            const labSpecificPlotId = `${activeLabType}-${activePlotId}`;
             setPlotData(prev => {
                 const newPlotData = { ...prev };
-                if (!newPlotData[activePlotId]) {
-                    newPlotData[activePlotId] = new Set();
+                if (!newPlotData[labSpecificPlotId]) {
+                    newPlotData[labSpecificPlotId] = new Set();
                 }
-                const plotParams = new Set(newPlotData[activePlotId]);
+                const plotParams = new Set(newPlotData[labSpecificPlotId]);
                 parameters.forEach(param => plotParams.add(param));
-                newPlotData[activePlotId] = plotParams;
+                newPlotData[labSpecificPlotId] = plotParams;
                 return newPlotData;
             });
         } else {
@@ -96,17 +103,20 @@ export const DataSelectionProvider = ({ children }) => {
                 return newSet;
             });
         }
-    }, [activePlotId]);
+    }, [activePlotId, activeLabType]);
 
     const removeParameters = useCallback((parameters) => {
-        if (activePlotId && plotData[activePlotId]) {
-            setPlotData(prev => {
-                const newPlotData = { ...prev };
-                const plotParams = new Set(newPlotData[activePlotId]);
-                parameters.forEach(param => plotParams.delete(param));
-                newPlotData[activePlotId] = plotParams;
-                return newPlotData;
-            });
+        if (activePlotId && activeLabType) {
+            const labSpecificPlotId = `${activeLabType}-${activePlotId}`;
+            if (plotData[labSpecificPlotId]) {
+                setPlotData(prev => {
+                    const newPlotData = { ...prev };
+                    const plotParams = new Set(newPlotData[labSpecificPlotId]);
+                    parameters.forEach(param => plotParams.delete(param));
+                    newPlotData[labSpecificPlotId] = plotParams;
+                    return newPlotData;
+                });
+            }
         } else {
             setSelectedParameters(prev => {
                 const newSet = new Set(prev);
@@ -114,19 +124,25 @@ export const DataSelectionProvider = ({ children }) => {
                 return newSet;
             });
         }
-    }, [activePlotId, plotData]);
+    }, [activePlotId, activeLabType, plotData]);
 
     const setActivePlot = useCallback((plotId) => {
         setActivePlotId(plotId);
     }, []);
 
-    const getPlotParameters = useCallback((plotId) => {
-        return plotData[plotId] || new Set();
+    const setActiveLabType = useCallback((labType) => {
+        setActiveLabTypeState(labType);
+    }, []);
+
+    const getPlotParameters = useCallback((plotId, labType) => {
+        const labSpecificPlotId = `${labType}-${plotId}`;
+        return plotData[labSpecificPlotId] || new Set();
     }, [plotData]);
 
     const value = {
         selectedParameters,
         activePlotId,
+        activeLabType,
         plotData,
         toggleParameter,
         clearSelection,
@@ -136,6 +152,7 @@ export const DataSelectionProvider = ({ children }) => {
         addParameters,
         removeParameters,
         setActivePlot,
+        setActiveLabType,
         getPlotParameters,
         count: selectedParameters.size
     };

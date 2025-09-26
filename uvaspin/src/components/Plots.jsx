@@ -10,6 +10,8 @@ import {
 } from '../utils/plotUtils';
 import { generatePlotData as generatePlotDataUtil } from '../utils/dataProcessor';
 import { fetchDataFromDB } from '../utils/Query';
+import TimeTravel from './TimeTravel';
+import {useResizeDetector} from 'react-resize-detector';
 
 
 
@@ -19,8 +21,11 @@ class DataPlot extends React.Component {
         super(props);
         this.state = {
             data: [],
-            layout: getPlotLayout(props.selectedParameters),
-            config: getPlotConfig(props.labType),
+            layout: getPlotLayout(props.selectedParameters, null, props.dimensions),
+            config: {...getPlotConfig(props.labType), 
+                scrollZoom: true,
+                responsive: true
+            },
             frames: [],
             loading: false,
             error: null,
@@ -31,7 +36,10 @@ class DataPlot extends React.Component {
         this.plotRef = React.createRef();
         this.isInitialized = false;
         this.intervalId = null;
+        this.timeTravelInterval = null;
+        this.lastDimensions = { width: 0, height: 0 };
     }
+
 
     // Function to update plot data without recreation
     updatePlotData = (newData, availableKeys, selectedKeys, isIncremental = false) => {
@@ -45,7 +53,7 @@ class DataPlot extends React.Component {
             // Create new traces for initial load or parameter changes
             console.log('Creating new traces for', isIncremental ? 'incremental' : 'initial', 'update with', newData.length, 'data points');
             const traces = createTracesFromData(newData, availableKeys, selectedKeys);
-            const layout = getPlotLayout(this.props.selectedParameters, newData);
+            const layout = getPlotLayout(this.props.selectedParameters, newData, this.props.dimensions);
             this.setState({ 
                 data: traces,
                 layout: layout
@@ -56,7 +64,7 @@ class DataPlot extends React.Component {
 
     // Generate plot data from selected parameters
     generatePlotData = async (selectedParams, isIncremental = false) => {
-        const { labType, dateRange } = this.props;
+        const { labType, dateRange, timeTravelInterval } = this.props;
         const { lastTimestamp, cachedData } = this.state;
         
         await generatePlotDataUtil(
@@ -66,14 +74,65 @@ class DataPlot extends React.Component {
             dateRange, 
             lastTimestamp, 
             cachedData, 
+            timeTravelInterval,
             this.setState.bind(this)
         );
+    };
+
+    // Handle plot resize
+    handleResize = () => {
+        if (this.plotRef.current && this.isInitialized) {
+            const { dimensions } = this.props;
+            if (dimensions && dimensions.width > 0 && dimensions.height > 0) {
+                // Check if dimensions actually changed
+                if (this.lastDimensions.width !== dimensions.width || 
+                    this.lastDimensions.height !== dimensions.height) {
+                    
+                    console.log(`Resizing plot to ${dimensions.width}x${dimensions.height}`);
+                    
+                    // Calculate available space for the plot (accounting for header and margins)
+                    const plotWidth = Math.max(300, dimensions.width - 20); // Account for container padding
+                    const plotHeight = Math.max(400, dimensions.height - 120); // Account for header (~60px) and margins
+                    
+                    // Update layout with new dimensions
+                    const updatedLayout = {
+                        ...this.state.layout,
+                        width: plotWidth,
+                        height: plotHeight,
+                        margin: { 
+                            r: 150, 
+                            t: 50, 
+                            b: 50, 
+                            l: 60 
+                        }
+                    };
+                    
+                    this.setState({ layout: updatedLayout });
+                    
+                    // Use Plotly.relayout for smoother resizing
+                    Plotly.relayout(this.plotRef.current, {
+                        width: plotWidth,
+                        height: plotHeight
+                    });
+                    
+                    this.lastDimensions = { ...dimensions };
+                }
+            }
+        }
     };
 
     // Lifecycle methods
     componentDidMount() {
         this.generatePlotData(this.props.selectedParameters, false);
         this.startAutoRefresh();
+        
+        // Handle initial resize if dimensions are available
+        if (this.props.dimensions && this.props.dimensions.width > 0 && this.props.dimensions.height > 0) {
+            // Use setTimeout to ensure the plot is fully initialized
+            setTimeout(() => {
+                this.handleResize();
+            }, 100);
+        }
     }
 
     componentDidUpdate(prevProps) {
@@ -89,9 +148,15 @@ class DataPlot extends React.Component {
             this.generatePlotData(this.props.selectedParameters, false); // Full refresh for parameter changes
         }
         
-        // Restart auto-refresh if labType or dateRange changes
+        // Handle dimension changes
+        if (prevProps.dimensions !== this.props.dimensions) {
+            this.handleResize();
+        }
+        
+        // Restart auto-refresh if labType, dateRange, or timeTravelInterval changes
         if (prevProps.labType !== this.props.labType || 
-            prevProps.dateRange !== this.props.dateRange) {
+            prevProps.dateRange !== this.props.dateRange ||
+            prevProps.timeTravelInterval !== this.props.timeTravelInterval) {
             this.stopAutoRefresh();
             this.startAutoRefresh();
         }
@@ -109,6 +174,12 @@ class DataPlot extends React.Component {
             this.props.dateRange && 
             this.props.dateRange.start && 
             this.props.dateRange.end) {
+            return;
+        }
+
+
+        // don't auto-refresh if timeTravelInterval is set
+        if (this.props.timeTravelInterval) {
             return;
         }
 
@@ -170,29 +241,7 @@ class DataPlot extends React.Component {
         }
 
         return (
-            <div className="plot-container">
-                <div className="plot-header">
-                    <div className="plot-info">
-                        <span className="parameter-count">
-                            {selectedParameters.size} parameter{selectedParameters.size !== 1 ? 's' : ''} selected
-                        </span>
-                        {lastUpdate && (
-                            <span className="last-update">
-                                Last updated: {lastUpdate.toLocaleTimeString()}
-                            </span>
-                        )}
-                    </div>
-                    <div className="plot-controls">
-                        <button 
-                            className="refresh-button"
-                            onClick={() => this.generatePlotData(selectedParameters, true)}
-                            title="Refresh Data"
-                        >
-                            <i className="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
-                </div>
-                
+            <div className="plot-container">                
                 <div className="plot-wrapper">
                     <Plot
                         ref={this.plotRef}
@@ -200,9 +249,11 @@ class DataPlot extends React.Component {
                         layout={this.state.layout}
                         config={this.state.config}
                         shouldComponentUpdate={(nextProps) => shouldComponentUpdate(nextProps, this.props)}
-                        style={{ width: '100%', height: '100%', minHeight: '600px' }}
+                        style={{ width: '100%', height: '100%', minHeight: '400px' }}
                         onInitialized={(figure) => this.setState(figure)}
                         onUpdate={(figure) => this.setState(figure)}
+                        showlegend={true}
+                        useResizeHandler={true}
                     />
                 </div>
             </div>
@@ -212,16 +263,37 @@ class DataPlot extends React.Component {
 
 
 // Lab-specific plot components
-function Lab42Plot({ selectedParameters, dateRange }) {
-    return <DataPlot selectedParameters={selectedParameters} labType="lab42" dateRange={dateRange} />;
+function Lab42Plot({ selectedParameters, dateRange, timeTravelInterval, dimensions, plotId }) {
+    return <DataPlot 
+        selectedParameters={selectedParameters} 
+        labType="lab42" 
+        dateRange={dateRange} 
+        timeTravelInterval={timeTravelInterval}
+        dimensions={dimensions}
+        plotId={plotId}
+    />;
 }
 
-function Lab36Plot({ selectedParameters, dateRange }) {
-    return <DataPlot selectedParameters={selectedParameters} labType="lab36" dateRange={dateRange} />;
+function Lab36Plot({ selectedParameters, dateRange, timeTravelInterval, dimensions, plotId }) {
+    return <DataPlot 
+        selectedParameters={selectedParameters} 
+        labType="lab36" 
+        dateRange={dateRange} 
+        timeTravelInterval={timeTravelInterval}
+        dimensions={dimensions}
+        plotId={plotId}
+    />;
 }
 
-function HistoryPlot({ selectedParameters, dateRange }) {
-    return <DataPlot selectedParameters={selectedParameters} labType="history" dateRange={dateRange} />;
+function HistoryPlot({ selectedParameters, dateRange, timeTravelInterval, dimensions, plotId }) {
+    return <DataPlot 
+        selectedParameters={selectedParameters} 
+        labType="history" 
+        dateRange={dateRange} 
+        timeTravelInterval={timeTravelInterval}
+        dimensions={dimensions}
+        plotId={plotId}
+    />;
 }
 
 export { Lab42Plot, Lab36Plot, HistoryPlot, DataPlot };
