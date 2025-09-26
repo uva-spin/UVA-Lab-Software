@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import IndividualPlot from './IndividualPlot';
 import { useResizeDetector } from 'react-resize-detector';
-import '../../css/plot.css';
+import './plot.css';
 
 function PlotGrid({ numPlots, labType = 'lab42', dateRange, timeTravelInterval }) {
     const [gridDimensions, setGridDimensions] = useState({ width: 0, height: 0 });

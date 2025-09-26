@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 5000;
+const PORT = globalThis.process?.env?.PORT || 5000;
 
 // Middleware
 app.use(cors());
@@ -31,9 +31,17 @@ async function initializeDatabase() {
 
 // Health check endpoint
 app.get('/health_check', (req, res) => {
-    if (dbConnection && dbConnection.conn) {
-        checkConnection(dbConnection.conn);
-        res.json({ status: 'connected', message: 'Database is connected' });
+    if (dbConnection && dbConnection.pool) {
+        // Test the connection
+        dbConnection.pool.getConnection((err, conn) => {
+            if (err) {
+                res.status(500).json({ status: 'disconnected', message: 'Database connection failed', error: err.message });
+            } else {
+                checkConnection(conn);
+                conn.release();
+                res.json({ status: 'connected', message: 'Database is connected' });
+            }
+        });
     } else {
         res.status(500).json({ status: 'disconnected', message: 'Database is not connected' });
     }
@@ -59,9 +67,10 @@ app.get('/query_db', async (req, res) => {
             });
         }
 
+        // Use the enhanced fetchData function that handles multiple tables
         const data = await fetchData(
             dbConnection.pool, 
-            'table_name', // adjust here to allow for multiple tables in future
+            null, // Let fetchData determine table names based on columns
             selectedKeys.join(','), 
             start_time, 
             end_time
@@ -87,7 +96,7 @@ app.post('/clear_cache', (req, res) => {
     try {
         clear_cache();
         res.json({ message: 'Cache cleared successfully' });
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Failed to clear cache' });
     }
 });
@@ -98,17 +107,17 @@ app.get('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', async () => {
+const HOST = globalThis.process?.env?.HOST || '0.0.0.0';
+app.listen(PORT, HOST, async () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Server also accessible on http://0.0.0.0:${PORT}`);
-    console.log(`Network accessible on http://128.143.231.224:${PORT}`);
+    console.log(`Server also accessible on http://${HOST}:${PORT}`);
     await initializeDatabase();
 });
 
 // Graceful shutdown
-process.on('SIGINT', () => {
+globalThis.process?.on('SIGINT', () => {
     if (dbConnection) {
         closePoolConnection(dbConnection.pool);
     }
-    process.exit(0);
+    globalThis.process?.exit(0);
 });

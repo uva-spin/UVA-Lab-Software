@@ -12,17 +12,17 @@
     flex-direction: column;
 }
 
-.main-content {
+/* .main-content {
     flex: 1;
-    padding-top: 80px; /* Account for fixed header */
+    padding-top: 40px; 
     min-height: calc(100vh - 80px);
     position: relative;
-    top: 0;
-}
+    top: -50px;
+} */
 
 /* Plot Control Buttons */
 .plot-control-button {
-    background: rgba(255, 255, 255, 0.2);
+    /* background: rgba(255, 255, 255, 0.2);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.3);
     padding: 0.5rem 1.5rem;
@@ -32,9 +32,17 @@
     font-weight: 500;
     display: flex;
     align-items: center;
-    gap: center;
+    gap: 0.5rem;
     font-size: 1.5rem;
-    position: relative;
+    position: relative; */
+    padding: 0.75rem 1.25rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px 8px 8px 8px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    border: 2px solid transparent;
 }
 
 .plot-control-button:hover {
@@ -143,7 +151,4 @@
         flex-wrap: wrap;
     }
     
-    .main-content {
-        padding-top: 120px; /* More space for mobile header */
-    }
 }

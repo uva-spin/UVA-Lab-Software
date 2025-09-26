@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lab42Plot, Lab36Plot, HistoryPlot } from '../components/Plots.jsx';
 import { useDataSelection } from '../utils/useDataSelection';
-import '../../css/plot.css';
+import '../components/plot.css';
 
 function PlotlyContainer({ labType = 'lab42' }) {
     const { selectedParameters } = useDataSelection();

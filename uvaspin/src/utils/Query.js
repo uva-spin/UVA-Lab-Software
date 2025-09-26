@@ -59,8 +59,8 @@ const COLUMN_TO_TABLE_MAP = {
     'heat_exchanger_flow': 'Flow_Rates',
     
     // Lakeshore_Target_Stick table columns
-    'target_stick_buffle_top_temperature': 'Lakeshore_Target_Stick',
-    'target_stick_buffle_bottom_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_buffer_top_temperature': 'Lakeshore_Target_Stick',
+    'target_stick_buffer_bottom_temperature': 'Lakeshore_Target_Stick',
     'target_stick_seperator_top_temperature': 'Lakeshore_Target_Stick',
     'target_stick_seperator_bottom_temperature': 'Lakeshore_Target_Stick',
     'target_stick_heat_exchanger_top_temperature': 'Lakeshore_Target_Stick',
@@ -155,12 +155,35 @@ function getTableNameFromColumns(columns) {
 
 export async function fetchData(pool, table_name, keys, start_time, end_time) {
     try {
-        // Determine the actual table name based on the column names
-        const actualTableName = getTableNameFromColumns(keys);
-        console.log(`Using table: ${actualTableName} for columns: ${keys}`);
+        // Convert keys to array if it's a string
+        const columnArray = Array.isArray(keys) ? keys : keys.split(',');
+        
+        // Group columns by their respective tables
+        const tableGroups = {};
+        columnArray.forEach(column => {
+            const trimmedColumn = column.trim();
+            const tableName = COLUMN_TO_TABLE_MAP[trimmedColumn];
+            
+            if (tableName) {
+                if (!tableGroups[tableName]) {
+                    tableGroups[tableName] = [];
+                }
+                tableGroups[tableName].push(trimmedColumn);
+            } else {
+                console.warn(`No table mapping found for column: ${trimmedColumn}`);
+            }
+        });
+
+        // If no table groups found, return empty result
+        if (Object.keys(tableGroups).length === 0) {
+            console.warn('No valid table mappings found for the requested columns');
+            return [];
+        }
+
+        console.log(`Querying ${Object.keys(tableGroups).length} tables:`, Object.keys(tableGroups));
         
         // Create cache key
-        const cacheKey = `${actualTableName}_${keys}_${start_time}_${end_time}`;
+        const cacheKey = `${Object.keys(tableGroups).sort().join('_')}_${keys}_${start_time}_${end_time}`;
         
         // Check cache first
         if (cache.has(cacheKey)) {
@@ -168,46 +191,69 @@ export async function fetchData(pool, table_name, keys, start_time, end_time) {
             return cache.get(cacheKey);
         }
 
-        // Build query
-        let query = `SELECT ${keys}, timestamp FROM ${actualTableName}`;
-        const conditions = [];
+        // Execute queries for each table and merge results
+        const allResults = [];
         
-        if (start_time) {
-            const formattedStartTime = formatTimestampForDB(start_time);
-            conditions.push(`timestamp >= '${formattedStartTime}'`);
-        }
-        if (end_time) {
-            const formattedEndTime = formatTimestampForDB(end_time);
-            conditions.push(`timestamp <= '${formattedEndTime}'`);
-        }
-        
-        if (conditions.length > 0) {
-            query += ` WHERE ${conditions.join(' AND ')}`;
-        }
-        
-        query += ` ORDER BY timestamp ASC`;
-
-        console.log('Executing query:', query);
-        
-        // Execute query using promise-based approach
-        const result = await new Promise((resolve, reject) => {
-            pool.query(query, (err, rows) => {
-                if (err) {
-                    console.error('Error in fetchData:', err);
-                    reject(err);
-                } else {
-                    console.log('Query executed successfully, rows returned:', rows ? rows.length : 0);
-                    resolve(rows);
+        for (const [tableName, columns] of Object.entries(tableGroups)) {
+            try {
+                // Build query for this table
+                let query = `SELECT ${columns.join(', ')}, timestamp FROM ${tableName}`;
+                const conditions = [];
+                
+                if (start_time) {
+                    const formattedStartTime = formatTimestampForDB(start_time);
+                    conditions.push(`timestamp >= '${formattedStartTime}'`);
                 }
-            });
-        });
+                if (end_time) {
+                    const formattedEndTime = formatTimestampForDB(end_time);
+                    conditions.push(`timestamp <= '${formattedEndTime}'`);
+                }
+                
+                if (conditions.length > 0) {
+                    query += ` WHERE ${conditions.join(' AND ')}`;
+                }
+                
+                query += ` ORDER BY timestamp ASC`;
 
-        console.log('Result:', result);
+                console.log(`Executing query for table ${tableName}:`, query);
+                
+                // Execute query using promise-based approach
+                const result = await new Promise((resolve, reject) => {
+                    pool.query(query, (err, rows) => {
+                        if (err) {
+                            console.error(`Error querying table ${tableName}:`, err);
+                            reject(err);
+                        } else {
+                            console.log(`Query for table ${tableName} executed successfully, rows returned:`, rows ? rows.length : 0);
+                            resolve(rows);
+                        }
+                    });
+                });
+
+                // Add table name to each row for identification
+                if (result && result.length > 0) {
+                    const enrichedResult = result.map(row => ({
+                        ...row,
+                        _table_source: tableName
+                    }));
+                    allResults.push(...enrichedResult);
+                }
+                
+            } catch (tableError) {
+                console.error(`Error querying table ${tableName}:`, tableError);
+                // Continue with other tables even if one fails
+            }
+        }
+
+        // Sort merged results by timestamp
+        allResults.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        console.log(`Total merged results: ${allResults.length} rows`);
         
         // Cache the result
-        cache.set(cacheKey, result);
+        cache.set(cacheKey, allResults);
         
-        return result;
+        return allResults;
         
     } catch (error) {
         console.error('Error in fetchData:', error);

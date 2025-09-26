@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Banner from './Banner';
-import { Lab42Button, Lab36Button, HistoryButton, HomeButton, SidePanelButton } from './Buttons';
+import { Lab42Button, Lab36Button, HomeButton, SidePanelButton } from './Buttons';
 import SidePanel from './SidePanel';
 
 function Layout() {
@@ -12,8 +12,11 @@ function Layout() {
         setSidebarOpen(!sidebarOpen);
     };
 
-    // Don't show sidebar on home page
-    const showSidebar = location.pathname !== '/';
+    // Don't show sidebar on home page or non-realtime tabs
+    const showSidebar = location.pathname !== '/' && 
+                       !location.pathname.includes('/history') && 
+                       !location.pathname.includes('/nmr') && 
+                       !location.pathname.includes('/averaging');
 
     return (
         <div className="app-layout">
@@ -22,10 +25,9 @@ function Layout() {
                 homeButton={<HomeButton />}
                 lab42Button={<Lab42Button />}
                 lab36Button={<Lab36Button />}
-                historyButton={<HistoryButton />}
                 sidePanelButton={showSidebar ? <SidePanelButton onClick={handleSidebarToggle} isActive={sidebarOpen} /> : null}
             />
-            <main className="main-content">
+            <main>
                 <Outlet />
             </main>
             {showSidebar && (

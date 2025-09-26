@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 function Lab42Button() {
     const location = useLocation();
-    const isActive = location.pathname === '/lab42';
+    const isActive = location.pathname.startsWith('/lab42');
     
     return (
         <Link 
-            to="/lab42" 
+            to="/lab42/realtime" 
             className={`banner-link ${isActive ? 'active' : ''}`}
         >
             Lab 042
@@ -17,11 +17,11 @@ function Lab42Button() {
 
 function Lab36Button() {
     const location = useLocation();
-    const isActive = location.pathname === '/lab36';
+    const isActive = location.pathname.startsWith('/lab36');
     
     return (
         <Link 
-            to="/lab36" 
+            to="/lab36/realtime" 
             className={`banner-link ${isActive ? 'active' : ''}`}
         >
             Lab 036

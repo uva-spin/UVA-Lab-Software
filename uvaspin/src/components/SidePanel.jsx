@@ -1,9 +1,10 @@
-import React from 'react';
-import '../../css/SidePanel.css';
+import React, { useEffect, useRef } from 'react';
+import './SidePanel.css';
 import DataSelectionSidebar from './DataSelectionSidebar';
 import { useDataSelection } from '../utils/useDataSelection';
 
 function SidePanel({ isOpen, onToggle }) {
+    const sidebarRef = useRef(null);
     const { 
         selectedParameters, 
         toggleParameter, 
@@ -18,6 +19,27 @@ function SidePanel({ isOpen, onToggle }) {
         ? getPlotParameters(activePlotId, activeLabType)
         : selectedParameters;
 
+    // Handle clicking outside the sidebar to close it
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (isOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+                // Check if the click is not on the sidebar toggle button
+                const toggleButton = document.querySelector('.sidebar-toggle');
+                if (toggleButton && !toggleButton.contains(event.target)) {
+                    onToggle();
+                }
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isOpen, onToggle]);
+
     return (
         <>
             <button 
@@ -27,7 +49,7 @@ function SidePanel({ isOpen, onToggle }) {
             >
                 Data
             </button>
-            <div className={`data-sidebar ${isOpen ? 'active' : ''}`}>
+            <div ref={sidebarRef} className={`data-sidebar ${isOpen ? 'active' : ''}`}>
                 <div className="sidebar-header">
                     <h2>Database Selection</h2>
                     <p>

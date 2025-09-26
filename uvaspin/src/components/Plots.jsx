@@ -1,6 +1,5 @@
 import React from 'react';
 import Plot from 'react-plotly.js';
-import { useDataSelection } from '../utils/useDataSelection';
 import { 
     createTracesFromData, 
     extendTracesWithData, 
@@ -9,9 +8,7 @@ import {
     shouldComponentUpdate
 } from '../utils/plotUtils';
 import { generatePlotData as generatePlotDataUtil } from '../utils/dataProcessor';
-import { fetchDataFromDB } from '../utils/Query';
 import TimeTravel from './TimeTravel';
-import {useResizeDetector} from 'react-resize-detector';
 
 
 
@@ -110,10 +107,12 @@ class DataPlot extends React.Component {
                     this.setState({ layout: updatedLayout });
                     
                     // Use Plotly.relayout for smoother resizing
-                    Plotly.relayout(this.plotRef.current, {
-                        width: plotWidth,
-                        height: plotHeight
-                    });
+                    if (window.Plotly) {
+                        window.Plotly.relayout(this.plotRef.current, {
+                            width: plotWidth,
+                            height: plotHeight
+                        });
+                    }
                     
                     this.lastDimensions = { ...dimensions };
                 }
@@ -196,7 +195,7 @@ class DataPlot extends React.Component {
     }
 
     render() {
-        const { loading, error, lastUpdate } = this.state;
+        const { loading, error } = this.state;
         const { selectedParameters } = this.props;
 
         if (loading) {

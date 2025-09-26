@@ -1,8 +1,42 @@
 import React, { useState } from 'react';
+import { useDataSelection } from '../utils/useDataSelection';
 
 function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
     const [expandedSections, setExpandedSections] = useState(new Set());
     const [expandedSubSections, setExpandedSubSections] = useState(new Set());
+    const [animatingItems, setAnimatingItems] = useState(new Set());
+    const { plotData, activeLabType } = useDataSelection();
+    
+    // Check if a parameter is selected in ANY plot for this lab
+    const isParameterSelectedInAnyPlot = (parameter) => {
+        if (!activeLabType) return false;
+        
+        // Check all plots for this lab type
+        return Object.keys(plotData).some(plotKey => {
+            if (plotKey.startsWith(`${activeLabType}-`)) {
+                return plotData[plotKey]?.has(parameter) || false;
+            }
+            return false;
+        });
+    };
+
+    // Handle parameter toggle with animation
+    const handleParameterToggle = (parameter) => {
+        // Add animation class
+        setAnimatingItems(prev => new Set([...prev, parameter]));
+        
+        // Remove animation class after animation completes
+        setTimeout(() => {
+            setAnimatingItems(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(parameter);
+                return newSet;
+            });
+        }, 400);
+        
+        // Toggle the parameter
+        onParameterToggle(parameter);
+    };
 
     const dataStructure = {
         'QT': {
@@ -14,7 +48,7 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
         },
         'Pressures': [
             'root_exhaust_pressure', 'buffer_pressure', 'magnet_pressure', 
-            'purifier_inlet_pressure', 'fridge_vapor_pressure', 'maxigauge_pressure', 'ivc_pressure'
+            'purifier_inlet_pressure', 'fridge_vapor_pressure', 'maxigauge_seperator_inlet_pressure', 'ivc_pressure'
         ],
         'Temperatures': [
             'thermocouple', 'magnet_bottom_temperature', 'magnet_top_temperature',
@@ -23,10 +57,14 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
             'fridge_target_bottom_up_center_temperature', 'fridge_target_bottom_down_temperature',
             'fridge_target_top_cernox_temperature', 'fridge_target_bottom_cernox_temperature',
             'magnet_channel_1', 'magnet_channel_2', 'magnet_channel_3', 'magnet_channel_4',
-            'magnet_channel_5', 'magnet_channel_6', 'magnet_channel_7', 'magnet_channel_8'
+            'magnet_channel_5', 'magnet_channel_6', 'magnet_channel_7', 'magnet_channel_8',
+            'target_stick_buffer_top_temperature', 'target_stick_buffer_bottom_temperature',
+            'target_stick_seperator_top_temperature', 'target_stick_seperator_bottom_temperature',
+            'target_stick_heat_exchanger_top_temperature', 'target_stick_heat_exchanger_bottom_temperature',
+            'target_stick_annealing_plate_bar_temperature', 'target_stick_annealing_plate_top_temperature'
         ],
         'Flows': [
-            'separator_flow', 'magnet_flow', 'main_flow', 'microwave_flow', 'heat_exchanger_flow'
+            'seperator_flow', 'magnet_flow', 'main_flow', 'microwave_flow', 'heat_exchanger_flow'
         ],
         'NMR': [
             'run_number', 'measurement_type', 'peak_amp', 'peak_center', 'beam_on', 'rf_level',
@@ -37,7 +75,6 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
     };
 
     const toggleMainSection = (sectionId) => {
-        console.log('Main section clicked:', sectionId); // Add debugging
         setExpandedSections(prev => {
             const newSet = new Set(prev);
             if (newSet.has(sectionId)) {
@@ -45,7 +82,6 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
             } else {
                 newSet.add(sectionId);
             }
-            console.log('New expanded sections:', newSet); // Add debugging
             return newSet;
         });
     };
@@ -77,7 +113,20 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
             <div key={subSectionId} className="data-section sub-section">
                 <div 
                     className="section-header sub-header"
-                    onClick={() => toggleSubSection(subSectionId)}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleSubSection(subSectionId);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleSubSection(subSectionId);
+                        }
+                    }}
                 >
                     <i className={`fas fa-chevron-right ${isExpanded ? 'expanded' : ''}`}></i>
                     <span>{categoryName}</span>
@@ -87,8 +136,8 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
                     {columns.map(columnName => (
                         <div 
                             key={columnName}
-                            className={`parameter-item ${selectedParameters.has(columnName) ? 'selected' : ''}`}
-                            onClick={() => onParameterToggle(columnName)}
+                            className={`parameter-item ${isParameterSelectedInAnyPlot(columnName) ? 'selected' : ''} ${animatingItems.has(columnName) ? 'selecting' : ''}`}
+                            onClick={() => handleParameterToggle(columnName)}
                         >
                             {columnName}
                         </div>
@@ -116,11 +165,17 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log('Click event fired for:', mainCategory);
-                                console.log('Current expanded state:', isExpanded);
                                 toggleMainSection(mainSectionId);
                             }}
-                            style={{ cursor: 'pointer' }}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toggleMainSection(mainSectionId);
+                                }
+                            }}
                         >
                             <i className={`fas fa-chevron-right ${isExpanded ? 'expanded' : ''}`}></i>
                             <span>{mainCategory}</span>
@@ -128,9 +183,6 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
                         </div>
                         <div 
                             className={`section-content main-content ${isExpanded ? 'expanded' : ''}`}
-                            style={{ 
-                                display: isExpanded ? 'block' : 'none'
-                            }}
                         >
                             {mainCategory === 'QT' ? (
                                 // QT has subcategories
@@ -142,8 +194,8 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
                                 subCategories.map(columnName => (
                                     <div 
                                         key={columnName}
-                                        className={`parameter-item ${selectedParameters.has(columnName) ? 'selected' : ''}`}
-                                        onClick={() => onParameterToggle(columnName)}
+                                        className={`parameter-item ${isParameterSelectedInAnyPlot(columnName) ? 'selected' : ''} ${animatingItems.has(columnName) ? 'selecting' : ''}`}
+                                        onClick={() => handleParameterToggle(columnName)}
                                     >
                                         {columnName}
                                     </div>

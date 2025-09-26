@@ -121,27 +121,36 @@
 
 /* Data Selection Sidebar */
 .data-selection-sidebar {
-    padding: 0;
+    padding: 0.5rem;
 }
 
 /* Data Sections */
 .data-section {
     margin-bottom: 1rem;
     border-radius: 8px;
-    overflow: hidden;
     background: white;
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
 }
 
 .data-section.main-category {
     background: var(--bg-primary);
+    position: relative;
+    z-index: 10;
+}
+
+.data-section.main-category.expanded {
+    z-index: 20;
 }
 
 .data-section.sub-section {
     background: var(--bg-secondary);
     margin: 0.5rem;
     border-radius: 6px;
+    position: relative;
+    z-index: 5;
 }
 
 /* Section Headers */
@@ -151,15 +160,27 @@
     justify-content: space-between;
     padding: 0.75rem 1rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease;
     border-bottom: 1px solid var(--border-color);
     background: var(--gradient-accent);
     color: white;
+    position: relative;
+    z-index: 15;
+    user-select: none;
 }
 
 .section-header.main-header {
+    background: var(--gradient-accent);
     font-weight: 600;
     font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+    position: relative;
+    z-index: 25;
+    transition: background-color 0.3s ease;
+}
+
+.section-header.main-header:hover {
+    background: var(--accent-secondary);
 }
 
 .section-header.sub-header {
@@ -167,6 +188,9 @@
     font-weight: 500;
     font-size: 0.9rem;
     padding: 0.5rem 0.75rem;
+    position: relative;
+    z-index: 20;
+    transition: background-color 0.3s ease;
 }
 
 .section-header:hover {
@@ -202,45 +226,55 @@
 .section-content {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease;
+    transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
     background: white;
     padding: 0;
+    opacity: 0;
+    position: relative;
+    z-index: 1;
 }
 
 /* Explicitly ensure collapsed state */
 .section-content:not(.expanded) {
     max-height: 0 !important;
     overflow: hidden !important;
+    opacity: 0 !important;
+    padding: 0 !important;
 }
 
 .section-content.expanded {
     max-height: 1000px;
     overflow: visible;
-    padding: 0.25rem 0;
+    padding: 0.5rem 0;
+    opacity: 1;
 }
 
 .section-content.main-content.expanded {
     max-height: 1200px;
-    overflow: visible;
-    padding: 0.25rem 0;
+    overflow: hidden;
+    padding: 0.5rem 0;
+    opacity: 1;
 }
 
 .section-content.sub-content.expanded {
     max-height: 800px; 
     overflow: visible;
     padding: 0.25rem 0;
+    opacity: 1;
 }
 
 /* Parameter Items */
 .parameter-item {
     padding: 0.5rem 1rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-bottom: 1px solid var(--border-color);
     font-size: 0.85rem;
     color: var(--text-primary);
     background: white;
     margin: 0;
+    position: relative;
+    overflow: hidden;
 }
 
 .parameter-item:last-child {
@@ -251,18 +285,23 @@
 .parameter-item:hover {
     background: var(--bg-secondary);
     color: var(--accent-primary);
-    transform: translateX(4px);
+    /* transform: translateX(4px); */
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
 }
 
 .parameter-item.selected {
-    background: var(--accent-primary);
+    background: linear-gradient(135deg, var(--accent-primary) 0%, #667eea 100%);
     color: white;
     font-weight: 600;
+    /* transform: translateX(2px); */
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .parameter-item.selected:hover {
-    background: var(--accent-secondary);
+    background: linear-gradient(135deg, var(--accent-secondary) 0%, #5a6fd8 100%);
     color: white;
+    transform: translateX(4px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
 .data-section {
@@ -284,13 +323,35 @@
     top: 0;
     height: 100%;
     width: 4px;
-    background: var(--accent-primary);
+    background: linear-gradient(180deg, var(--accent-primary) 0%, #667eea 100%);
     transform: scaleY(0);
-    transition: transform 0.2s ease;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 0 2px 2px 0;
 }
 
 .parameter-item.selected::before {
     transform: scaleY(1);
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
+}
+
+/* Selection animation */
+@keyframes selectParameter {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(102, 126, 234, 0);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 12px rgba(102, 126, 234, 0.4);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+}
+
+.parameter-item.selecting {
+    animation: selectParameter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Focus states for accessibility */

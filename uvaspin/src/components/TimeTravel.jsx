@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TimePicker from 'react-time-picker';
 import 'react-time-picker/dist/TimePicker.css';
-import '../pages/LabPage.css';
+import '/src/pages/css/LabPage.css';
 
 function TimeTravel({ value, onChange, maxHours = 72 }) {
     const [time, setTime] = useState(value || '00:01:00');

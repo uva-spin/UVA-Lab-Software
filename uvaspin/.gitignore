@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Configuration files with sensitive data
+config.json
+test-db.js
