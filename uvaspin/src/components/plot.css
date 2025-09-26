@@ -387,7 +387,7 @@
     gap: 0.5rem;
 }
 
-.refresh-button {
+/* .refresh-button {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
@@ -411,7 +411,7 @@
 
 .refresh-button:active {
     transform: scale(0.95);
-}
+} */
 
 /* Plot Wrapper */
 .plot-wrapper {

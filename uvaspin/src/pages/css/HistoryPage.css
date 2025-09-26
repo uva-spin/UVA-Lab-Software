@@ -27,22 +27,23 @@
 }
 
 .refresh-button {
-    padding: 0.5rem 1rem;
-    background-color: #667eea;
+    padding: 1% 1%;
+    background-color: var(--accent-primary);
     color: white;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-weight: 500;
+        font-weight: 600;
+    font-size: 1rem;
     transition: background-color 0.3s ease;
 }
 
 .refresh-button:hover:not(:disabled) {
-    background-color: #5a6fd8;
+    background-color: var(--accent-secondary);
 }
 
 .refresh-button:disabled {
-    background-color: #adb5bd;
+    background-color: var(--border-color);
     cursor: not-allowed;
 }
 
@@ -50,7 +51,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: #6c757d;
 }
 
@@ -58,16 +59,16 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background-color: #28a745;
+    background-color: var(--accent-success);
     animation: pulse 2s infinite;
 }
 
 .status-dot.loading {
-    background-color: #ffc107;
+    background-color: var(--accent-warning);
 }
 
 .status-dot.active {
-    background-color: #28a745;
+    background-color: var(--accent-success);
 }
 
 @keyframes pulse {
@@ -77,7 +78,7 @@
 }
 
 .error-message {
-    background-color: #f8d7da;
+    background-color: var(--accent-danger);
     color: #721c24;
     padding: 1rem;
     border-radius: 6px;
@@ -88,7 +89,7 @@
 }
 
 .error-message button {
-    background-color: #dc3545;
+    background-color: var(--accent-danger);
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -187,7 +188,7 @@
 
 .history-info h3 {
     margin: 0 0 1rem 0;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 1.2rem;
 }
 
@@ -202,17 +203,17 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem;
-    background-color: #f8f9fa;
+    background-color: var(--bg-secondary);
     border-radius: 4px;
 }
 
 .info-item label {
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .info-item span {
-    color: #6c757d;
+    color: var(--text-secondary);
 }
 
 /* Enhanced control styling */
@@ -226,7 +227,7 @@
 
 .control-section h3 {
     margin: 0 0 1rem 0;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 1.1rem;
     border-bottom: 1px solid #e9ecef;
     padding-bottom: 0.5rem;
@@ -241,7 +242,7 @@
 
 /* DateTimePicker styling */
 .datetime-picker {
-    background-color: #f8f9fa;
+    background-color: var(--bg-secondary);
     border-radius: 6px;
     padding: 1rem;
 }
@@ -252,7 +253,7 @@
 
 .datetime-picker-header h3 {
     margin: 0 0 0.5rem 0;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 1rem;
 }
 
@@ -265,7 +266,7 @@
 
 .quick-select-btn {
     padding: 0.4rem 0.8rem;
-    background-color: #667eea;
+    background-color: var(--accent-primary);
     color: white;
     border: none;
     border-radius: 4px;
@@ -276,7 +277,7 @@
 }
 
 .quick-select-btn:hover {
-    background-color: #5a6fd8;
+    background-color: var(--accent-secondary);
 }
 
 .datetime-inputs {
@@ -293,7 +294,7 @@
 
 .datetime-group label {
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 0.9rem;
 }
 
@@ -304,11 +305,11 @@
 
 .date-input, .time-input {
     padding: 0.5rem;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-color);
     border-radius: 4px;
     font-size: 0.9rem;
     transition: border-color 0.3s ease;
-    background-color: white;
+    background-color: var(--bg-secondary);
 }
 
 /* React Time Picker specific styles */
@@ -334,12 +335,12 @@
 }
 
 .time-input .react-time-picker__inputGroup__divider {
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .date-input:focus, .time-input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--accent-primary);
 }
 
 .date-input {
@@ -369,13 +370,13 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem;
-    background-color: #f8f9fa;
+    background-color: var(--bg-secondary);
     border-radius: 4px;
     transition: background-color 0.3s ease;
 }
 
 .option-group:hover {
-    background-color: #e9ecef;
+    background-color: var(--bg-tertiary);
 }
 
 .option-group label {
@@ -384,7 +385,7 @@
     gap: 0.5rem;
     cursor: pointer;
     font-size: 0.9rem;
-    color: #495057;
+    color: var(--text-primary);
     margin: 0;
 }
 

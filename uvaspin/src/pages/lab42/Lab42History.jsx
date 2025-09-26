@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import FlexiblePlotlyContainer from '../../containers/FlexiblePlotlyContainer';
-import TimePicker from 'react-time-picker';
-import DatePicker from 'react-date-picker';
-import 'react-date-picker/dist/DatePicker.css';
-import 'react-time-picker/dist/TimePicker.css';
+import DateTimePicker from '../../components/DateTimePicker';
 import DataSelectionDropdown from '../../components/DataSelectionDropdown';
 import usePageDataCache from '../../utils/usePageDataCache';
 import { fetchDataFromDB } from '../../utils/Query';
@@ -12,11 +9,8 @@ import '/src/pages/css/HistoryPage.css';
 
 function Lab42History() {
     const [dateRange, setDateRange] = useState({ start: null, end: null });
-    const [startTime, setStartTime] = useState('00:00:00');
-    const [endTime, setEndTime] = useState('23:59:59');
-    const [startDate, setStartDate] = useState(null);
-    const [endDate, setEndDate] = useState(null);
-    // Data structure for dropdowns (matching the sidebar structure)
+    
+    // Data structure for dropdowns
     const dataStructure = {
         'QT': {
             'Pressures': ['pt501_ai', 'pt502_ai', 'pt503_ai', 'pt504_ai'],
@@ -58,23 +52,17 @@ function Lab42History() {
         nmr: []
     });
     
-    // Helper function to check if any data is selected
-    const hasSelectedData = () => {
-        return Object.values(selectedData).some(category => category.length > 0);
-    };
-    
     const { 
         data: historyData, 
-        isLoading: cacheLoading, 
-        error: cacheError, 
-        fetchData, 
-        clearCache 
+        isLoading, 
+        error, 
+        fetchData 
     } = usePageDataCache('lab42-history');
     
     const handleDateRangeChange = (startDate, endDate) => {
         setDateRange({ start: startDate, end: endDate });
     };
-    
+
     const handleDataSelectionChange = (category, selectedValues) => {
         setSelectedData(prev => ({
             ...prev,
@@ -93,6 +81,11 @@ function Lab42History() {
         return qtOptions;
     };
 
+    // Helper function to check if any data is selected
+    const hasSelectedData = () => {
+        return Object.values(selectedData).some(category => category.length > 0);
+    };
+
     const fetchHistoryDataFunction = async () => {
         if (!dateRange.start || !dateRange.end) {
             throw new Error('Please select a date range to view historical data');
@@ -102,33 +95,57 @@ function Lab42History() {
             throw new Error('Please select at least one parameter to view historical data');
         }
 
+        // Process QT parameters to remove category prefix
+        const processedQTParams = selectedData.qt.map(param => {
+            // Extract the actual parameter name after the colon
+            const match = param.match(/^[^:]+:\s*(.+)$/);
+            return match ? match[1].trim() : param;
+        });
+
         // Get all selected parameters from all categories
         const allSelectedParams = [
-            ...selectedData.qt,
+            ...processedQTParams,
             ...selectedData.pressures,
             ...selectedData.temperatures,
             ...selectedData.flows,
             ...selectedData.nmr
         ];
 
-        console.log('Fetching historical data for parameters:', allSelectedParams);
+        console.log('Fetching historical data:', {
+            parameters: allSelectedParams,
+            timeRange: {
+                start: dateRange.start.toLocaleString(),
+                end: dateRange.end.toLocaleString()
+            }
+        });
         
         try {
-            // Use the real query function to fetch data from database
             const result = await fetchDataFromDB(allSelectedParams, dateRange.start, dateRange.end);
             
             if (!result.data || result.data.length === 0) {
-                throw new Error('No data found for the selected time range and parameters');
+                console.warn('No data returned from database:', {
+                    result,
+                    parameters: allSelectedParams,
+                    timeRange: {
+                        start: dateRange.start.toLocaleString(),
+                        end: dateRange.end.toLocaleString()
+                    }
+                });
+                throw new Error('No data found for the selected time range and parameters. Please try a different time range or parameters.');
             }
 
-            // Create traces using the same utility function as the real-time plots
+            console.log('Data received:', {
+                points: result.data.length,
+                availableKeys: result.availableKeys,
+                missingKeys: result.missingKeys
+            });
+
             const traces = createTracesFromData(result.data, result.availableKeys, allSelectedParams);
-            
             return traces;
             
         } catch (error) {
             console.error('Error fetching historical data:', error);
-            throw new Error(`Failed to fetch historical data: ${error.message}`);
+            throw error; // Preserve the original error message
         }
     };
 
@@ -177,7 +194,7 @@ function Lab42History() {
             modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
             toImageButtonOptions: {
                 format: 'png',
-                filename: `lab42_history_${new Date().toISOString().split('T')[0]}`,
+                filename: `lab42_history_${new Date().toLocaleDateString()}`,
                 height: 600,
                 width: 1000,
                 scale: 2
@@ -190,52 +207,24 @@ function Lab42History() {
             <div className="history-header">
                 <h2>Lab 042 Historical Data</h2>
                 <div className="history-controls">
-                <DatePicker 
-                        value={startDate}
-                        onChange={setStartDate}
-                        className="date-input"
-                        label="Start Date"
+                    <DateTimePicker 
+                        onDateRangeChange={handleDateRangeChange}
                     />
-                    <TimePicker 
-                        value={startTime}
-                        onChange={setStartTime}
-                        format="HH:mm:ss"
-                        disableClock={true}
-                        clearIcon={null}
-                        className="time-input"
-                        label="Start Time"
-                    />
-                    <DatePicker 
-                        value={endDate}
-                        onChange={setEndDate}
-                        className="date-input"
-                        label="End Date"
-                    />
-                    <TimePicker 
-                        value={endTime}
-                        onChange={setEndTime}
-                        format="HH:mm:ss"
-                        disableClock={true}
-                        clearIcon={null}
-                        className="time-input"
-                            label="End Time"
-                        />
                     <button 
                         onClick={handleRefreshData} 
-                        disabled={cacheLoading || !dateRange.start || !dateRange.end || !hasSelectedData()}
+                        disabled={isLoading || !dateRange.start || !dateRange.end || !hasSelectedData()}
                         className="refresh-button"
                     >
-                        {cacheLoading ? 'Loading...' : 'Load Historical Data'}
+                        {isLoading ? 'Loading...' : 'Load Historical Data'}
                     </button>
                     <div className="status-indicator">
-                        <span className={`status-dot ${cacheLoading ? 'loading' : 'active'}`}></span>
-                        {cacheLoading ? 'Loading' : 'Ready'}
+                        <span className={`status-dot ${isLoading ? 'loading' : 'active'}`}></span>
+                        {isLoading ? 'Loading' : 'Ready'}
                     </div>
                 </div>
             </div>
 
             <div className="control-grid">
-
                 <div className="control-section">
                     <h3>Data Selection</h3>
                     <div className="data-selection-grid">
@@ -278,9 +267,9 @@ function Lab42History() {
                 </div>
             </div>
 
-            {cacheError && (
+            {error && (
                 <div className="error-message">
-                    <p>{cacheError}</p>
+                    <p>{error}</p>
                     <button onClick={handleRefreshData}>Retry</button>
                 </div>
             )}
@@ -315,8 +304,8 @@ function Lab42History() {
                         </span>
                     </div>
                     <div className="info-item">
-                        <label>Last Update:</label>
-                        <span>{new Date().toLocaleTimeString()}</span>
+                        <label>Selected Parameters:</label>
+                        <span>{Object.values(selectedData).reduce((total, category) => total + category.length, 0)}</span>
                     </div>
                 </div>
             </div>

@@ -46,16 +46,16 @@ function DateTimePicker({ onDateRangeChange, initialStartDate, initialEndDate })
             const startDateTime = new Date(`${startDate}T${formattedStartTime}:00`);
             const endDateTime = new Date(`${endDate}T${formattedEndTime}:59`);
             
-            console.log('DateTimePicker: Creating date range:', {
-                startDate,
-                startTime,
-                formattedStartTime,
-                startDateTime: startDateTime.toLocaleString(),
-                endDate,
-                endTime,
-                formattedEndTime,
-                endDateTime: endDateTime.toLocaleString()
-            });
+            // console.log('DateTimePicker: Creating date range:', {
+            //     startDate,
+            //     startTime,
+            //     formattedStartTime,
+            //     startDateTime: startDateTime.toLocaleString(),
+            //     endDate,
+            //     endTime,
+            //     formattedEndTime,
+            //     endDateTime: endDateTime.toLocaleString()
+            // });
             
             onDateRangeChange(startDateTime, endDateTime);
         }
