@@ -1,15 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import TimePicker from 'react-time-picker';
 import 'react-time-picker/dist/TimePicker.css';
 import '/src/pages/css/LabPage.css';
 
 function TimeTravel({ time, setTime, maxHours = 72 }) {
-    // Update internal state when value prop changes
-    useEffect(() => {
-        if (time !== undefined) {
-            setTime(time);
-        }
-    }, [time]);
 
     const validateAndUpdateTime = (newTime) => {
         if (!newTime) return null;
@@ -32,11 +26,18 @@ function TimeTravel({ time, setTime, maxHours = 72 }) {
         }
     };
 
+    const handleTimeChange = (newTime) => {
+        const validatedTime = validateAndUpdateTime(newTime);
+        if (validatedTime !== null) {
+            setTime(validatedTime);
+        }
+    };
+
     return (
         <div className="my-custom-time-picker">
             <TimePicker 
                 value={time} 
-                onChange={setTime}
+                onChange={handleTimeChange}
                 format="HH:mm:ss" 
                 disableClock={true}
                 maxDetail="second"

@@ -4,7 +4,7 @@ import { Lab42Plot, Lab36Plot, HistoryPlot } from './Plots';
 import TimeTravel from './TimeTravel';
 import { useResizeDetector } from 'react-resize-detector';
 
-function IndividualPlot({ plotId, plotNumber, labType, dateRange}) {
+function IndividualPlot({ plotId, plotNumber, labType, dateRange, timeTravelInterval}) {
     const { 
         getPlotParameters, 
         setActivePlot, 
@@ -14,10 +14,17 @@ function IndividualPlot({ plotId, plotNumber, labType, dateRange}) {
     } = useDataSelection();
     const [lastUpdate, setLastUpdate] = useState(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-    const [localTimeTravelInterval, setLocalTimeTravelInterval] = useState(new Date().toLocaleTimeString());
+    const [localTimeTravelInterval, setLocalTimeTravelInterval] = useState(timeTravelInterval || "00:01:00");
     const selectedParameters = getPlotParameters(plotId, labType);
     const isActive = activePlotId === plotId;
     const plotRef = useRef(null);
+
+    // Update local time travel interval when prop changes
+    useEffect(() => {
+        if (timeTravelInterval) {
+            setLocalTimeTravelInterval(timeTravelInterval);
+        }
+    }, [timeTravelInterval]);
 
     // Resize detection hook
     const { width, height } = useResizeDetector({
@@ -103,8 +110,8 @@ function IndividualPlot({ plotId, plotNumber, labType, dateRange}) {
                     <div className="time-travel-container">
                         <span className="time-travel-label">Time Travel Interval:</span>
                         <TimeTravel 
-                            value={localTimeTravelInterval}
-                            onChange={handleTimeTravelChange}
+                            time={localTimeTravelInterval}
+                            setTime={handleTimeTravelChange}
                             maxHours={72}
                         />
                     </div>

@@ -193,8 +193,10 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
                 index === 0 || point[0] !== arr[index - 1][0]
             );
         
-        if (mergedData.length > 1000) {
-            mergedData.splice(0, mergedData.length - 1000);
+        // Increase cache limit to allow for more historical data
+        // With data every few seconds, 10000 points = ~8-10 hours of data
+        if (mergedData.length > 10000) {
+            mergedData.splice(0, mergedData.length - 10000);
         }
         
         newCachedData.set(key, mergedData);

@@ -53,12 +53,32 @@ export const generatePlotData = async (selectedParams, isIncremental, dateRange,
             endTime = dateRange.end || new Date();
         } else if (timeTravelInterval) {
             // Calculate time range based on timeTravelInterval
-            console.log(`DataProcessor: Processing timeTravelInterval: ${timeTravelInterval}`);
+            console.log(`DataProcessor: Processing timeTravelInterval: ${timeTravelInterval} (supports HH:mm:ss and h:mm:ss AM/PM formats)`);
             const now = new Date();
             endTime = now;
             
-            // Parse timeTravelInterval (format: HH:mm:ss)
-            const [hours, minutes, seconds] = timeTravelInterval.split(':').map(Number);
+            // Parse timeTravelInterval (supports both HH:mm:ss and h:mm:ss AM/PM formats)
+            let hours, minutes, seconds;
+            
+            if (timeTravelInterval.toLowerCase().includes('am') || timeTravelInterval.toLowerCase().includes('pm')) {
+                // Handle 12-hour format with AM/PM
+                const isAM = timeTravelInterval.toLowerCase().includes('am');
+                const timeOnly = timeTravelInterval.replace(/\s*(am|pm)/i, '').trim();
+                const [h, m, s] = timeOnly.split(':').map(Number);
+                
+                // Convert to 24-hour format
+                if (isAM) {
+                    hours = h === 12 ? 0 : h; // 12 AM = 0, other AM hours stay the same
+                } else {
+                    hours = h === 12 ? 12 : h + 12; // 12 PM = 12, other PM hours add 12
+                }
+                minutes = m;
+                seconds = s;
+            } else {
+                // Handle 24-hour format (HH:mm:ss)
+                [hours, minutes, seconds] = timeTravelInterval.split(':').map(Number);
+            }
+            
             const totalMilliseconds = (hours * 3600 + minutes * 60 + seconds) * 1000;
             
             // Calculate start time by subtracting the interval from now
