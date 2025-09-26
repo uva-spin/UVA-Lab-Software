@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import PlotGrid from '../components/PlotGrid';
-import TimePicker from 'react-time-picker';
+import { TimeField } from '@mui/x-date-pickers/TimeField';
 import { AddPlotButton, RemovePlotButton } from '../components/Buttons';
 import './LabPage.css';
 
@@ -26,18 +26,9 @@ function Lab42Page() {
                 <div className="lab-page-header-content">
                 <AddPlotButton onAddPlot={addPlot} />
                 <RemovePlotButton onRemovePlot={removePlot} />
-                <TimePicker
-                ampm = {true}
-                closeOnSelect={true}
-                defaultValue={new Date()}
-                onChange={(e) => setUpdateTime(e)}
-                actionbarDisplayMode="compact"
-                clockIcon="refresh"
-                clockIconColor="white"
-                clockIconSize="24"
-                clockIconPosition="left"
-                clockIconStyle={{ marginRight: '10px' }}
-                clockIconClassName="refresh-icon"
+                <TimeField
+                label="Back Time"
+                // defaultValue={dayjs('2022-04-17T15:30')}
                 />
                 </div>
             </div>

@@ -12,8 +12,13 @@
     "dev:server": "nodemon src/server.js"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.2",
+    "@mui/x-date-pickers": "^8.12.0",
     "buffer": "^6.0.3",
     "cors": "^2.8.5",
+    "dayjs": "^1.11.18",
     "dotenv": "^17.2.2",
     "express": "^4.21.2",
     "mariadb": "^3.4.5",
