@@ -138,7 +138,7 @@ export async function fetchData(pool, keys, start_time, end_time) {
         }
         // over an hour //
         else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 60 * 60 * 1000) {
-            moduloFactor = 1;
+            moduloFactor = 10;
         }
         else { //default back to 1 //
             moduloFactor = 1;
