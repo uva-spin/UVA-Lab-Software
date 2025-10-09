@@ -127,14 +127,14 @@ export async function fetchData(pool, keys, start_time, end_time) {
     let moduloFactor = 1;
         // if time is over a month //
         if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 30 * 24 * 60 * 60 * 1000) {
-            moduloFactor = 500;
+            moduloFactor = 1000;
         }
         // if time is over a week //
         else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 7 * 24 * 60 * 60 * 1000) {
-            moduloFactor = 100;
+            moduloFactor = 500;
         } // over a day //
         else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 24 * 60 * 60 * 1000) {
-            moduloFactor = 10;
+            moduloFactor = 100;
         }
         // over an hour //
         else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 60 * 60 * 1000) {
@@ -143,6 +143,8 @@ export async function fetchData(pool, keys, start_time, end_time) {
         else { //default back to 1 //
             moduloFactor = 1;
         }
+
+        console.log(`Query.js: Using modulo factor: ${moduloFactor}`);
 
     try {
         // Convert keys to array if it's a string
