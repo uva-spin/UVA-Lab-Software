@@ -6,37 +6,6 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
     const [expandedSubSections, setExpandedSubSections] = useState(new Set());
     const [animatingItems, setAnimatingItems] = useState(new Set());
     const { plotData, activeLabType } = useDataSelection();
-    
-    // Check if a parameter is selected in ANY plot for this lab
-    const isParameterSelectedInAnyPlot = (parameter) => {
-        if (!activeLabType) return false;
-        
-        // Check all plots for this lab type
-        return Object.keys(plotData).some(plotKey => {
-            if (plotKey.startsWith(`${activeLabType}-`)) {
-                return plotData[plotKey]?.has(parameter) || false;
-            }
-            return false;
-        });
-    };
-
-    // Handle parameter toggle with animation
-    const handleParameterToggle = (parameter) => {
-        // Add animation class
-        setAnimatingItems(prev => new Set([...prev, parameter]));
-        
-        // Remove animation class after animation completes
-        setTimeout(() => {
-            setAnimatingItems(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(parameter);
-                return newSet;
-            });
-        }, 400);
-        
-        // Toggle the parameter
-        onParameterToggle(parameter);
-    };
 
     const dataStructure = {
         'QT': {
@@ -73,6 +42,35 @@ function DataSelectionSidebar({ onParameterToggle, selectedParameters }) {
             'center_freq', 'freq_span', 'area', 'phase_voltage', 'tune_voltage'
         ]
     };
+    
+    const isParameterSelectedInAnyPlot = (parameter) => {
+        if (!activeLabType) return false;
+        
+        // Check all plots for this lab type
+        return Object.keys(plotData).some(plotKey => {
+            if (plotKey.startsWith(`${activeLabType}-`)) {
+                return plotData[plotKey]?.has(parameter) || false;
+            }
+            return false;
+        });
+    };
+
+    const handleParameterToggle = (parameter) => {
+        
+        setAnimatingItems(prev => new Set([...prev, parameter]));
+        
+        setTimeout(() => {
+            setAnimatingItems(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(parameter);
+                return newSet;
+            });
+        }, 400);
+        
+        // Toggle the parameter
+        onParameterToggle(parameter);
+    };
+
 
     const toggleMainSection = (sectionId) => {
         setExpandedSections(prev => {

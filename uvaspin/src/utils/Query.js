@@ -123,7 +123,31 @@ const COLUMN_TO_TABLE_MAP = {
     'tune_voltage': 'NMR'
 };
 
-export async function fetchData(pool, keys, start_time, end_time, maxPoints = 5000) {
+export async function fetchData(pool, keys, start_time, end_time, sampling=False, samplingRate=1) {
+
+    if (!sampling) {
+        // if time is over a month //
+            if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 30 * 24 * 60 * 60 * 1000) {
+                moduloFactor = 1000;
+            }
+            // if time is over a week //
+            else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 7 * 24 * 60 * 60 * 1000) {
+                moduloFactor = 100;
+            } // over a day //
+            else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 24 * 60 * 60 * 1000) {
+                moduloFactor = 10;
+            }
+            // over an hour //
+            else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 60 * 60 * 1000) {
+                moduloFactor = 1;
+            }
+            else { //default to 1 //
+                moduloFactor = 1;
+            }
+        } else {
+        moduloFactor = samplingRate;
+    }
+
     try {
         // Convert keys to array if it's a string
         const columnArray = Array.isArray(keys) ? keys : keys.split(',');
@@ -153,7 +177,7 @@ export async function fetchData(pool, keys, start_time, end_time, maxPoints = 50
         console.log(`Querying ${Object.keys(tableGroups).length} tables:`, Object.keys(tableGroups));
         
         // Create cache key including maxPoints for proper caching
-        const cacheKey = `${Object.keys(tableGroups).sort().join('_')}_${keys}_${start_time}_${end_time}_${maxPoints}`;
+        const cacheKey = `${Object.keys(tableGroups).sort().join('_')}_${keys}_${start_time}_${end_time}_${moduloFactor}`;
         
         // Check cache first
         if (cache.has(cacheKey)) {
@@ -198,37 +222,21 @@ export async function fetchData(pool, keys, start_time, end_time, maxPoints = 50
                 console.log(`Table ${tableName}: Total rows matching criteria: ${countResult}`);
                 
                 let query;
+                                
+                query = `SELECT ${columns.join(', ')}, timestamp FROM ${tableName}`;
                 
-                if (maxPoints && maxPoints > 0) {
-                    console.log(`Table ${tableName}: Applying modulo sampling with maxPoints: ${maxPoints}`);
-                    
-                    // Build query with modulo sampling on id column using maxPoints directly
-                    // This ensures consistent sampling regardless of dataset size
-                    query = `SELECT ${columns.join(', ')}, timestamp FROM ${tableName}`;
-                    
-                    // Combine time conditions with modulo condition
-                    const allConditions = [...conditions];
-                    allConditions.push(`id % 10 = 0`);
-                    
-                    if (allConditions.length > 0) {
-                        query += ` WHERE ${allConditions.join(' AND ')}`;
-                    }
-                    
-                    query += ` ORDER BY timestamp ASC`;
-                    
-                    console.log(`Table ${tableName}: Using modulo sampling: id % ${maxPoints} = 0`);
-                } else {
-                    // No sampling - return all data
-                    console.log(`Table ${tableName}: No maxPoints specified, returning all data`);
-                    
-                    query = `SELECT ${columns.join(', ')}, timestamp FROM ${tableName}`;
-                    
-                    if (conditions.length > 0) {
-                        query += ` WHERE ${conditions.join(' AND ')}`;
-                    }
-                    
-                    query += ` ORDER BY timestamp ASC`;
+                const allConditions = [...conditions];
+                allConditions.push(`id % ${moduloFactor} = 0`);
+                
+                if (allConditions.length > 0) {
+                    query += ` WHERE ${allConditions.join(' AND ')}`;
                 }
+                
+                query += ` ORDER BY timestamp ASC`;
+                
+                console.log(`Table ${tableName}: Using modulo sampling: id % ${moduloFactor} = 0`);
+
+
 
                 console.log(`Executing query for table ${tableName}:`, query);
                 
@@ -276,7 +284,7 @@ export async function fetchData(pool, keys, start_time, end_time, maxPoints = 50
     }
 }
 
-export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null, maxPoints = 5000) => {
+export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null, sampling=False, samplingRate=1) => {
     const now = new Date();
     const defaultStartTime = startTime || new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
     const defaultEndTime = endTime || now;
