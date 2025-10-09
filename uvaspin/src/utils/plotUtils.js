@@ -184,21 +184,21 @@ function extendTracesWithData(plotRef, newData, availableKeys, selectedKeys) {
     Plotly.extendTraces(plotRef.current, extensionData, Array.from({length: selectedKeys.length}, (_, i) => i));
     
     // Check if we need to limit data points to prevent memory issues
-    const maxPoints = 100000;
-    if (newTimestamps.length > maxPoints) {
-        // Get current data lengths
-        const currentData = plotRef.current.data;
-        const currentLength = currentData[0]?.x?.length || 0;
+    // const maxPoints = 100000;
+    // if (newTimestamps.length > maxPoints) {
+    //     // Get current data lengths
+    //     const currentData = plotRef.current.data;
+    //     const currentLength = currentData[0]?.x?.length || 0;
         
-        if (currentLength > maxPoints) {
-            // Remove old data points by keeping only the last maxPoints
-            const removeCount = currentLength - maxPoints;
-            Plotly.relayout(plotRef.current, {
-                'xaxis.range': [newTimestamps[Math.max(0, newTimestamps.length - maxPoints)], newTimestamps[newTimestamps.length - 1]]
-            });
-        }
-    }
-};
+    //     if (currentLength > maxPoints) {
+    //         // Remove old data points by keeping only the last maxPoints
+    //         const removeCount = currentLength - maxPoints;
+    //         Plotly.relayout(plotRef.current, {
+    //             'xaxis.range': [newTimestamps[Math.max(0, newTimestamps.length - maxPoints)], newTimestamps[newTimestamps.length - 1]]
+    //         });
+    //     }
+    // }
+    };
 
 // Function to merge new data with existing cached data
 function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {

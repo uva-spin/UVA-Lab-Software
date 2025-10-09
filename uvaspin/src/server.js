@@ -50,7 +50,7 @@ app.get('/health_check', (req, res) => {
 // Main data query endpoint
 app.get('/query_db', async (req, res) => {
     try {
-        const { keys, start_time, end_time } = req.query;
+        const { keys, start_time, end_time, sampling, samplingRate } = req.query;
         
         console.log('Server: Received query_db request with:', { keys, start_time, end_time });
         
@@ -74,7 +74,9 @@ app.get('/query_db', async (req, res) => {
             dbConnection.pool, 
             selectedKeys.join(','), 
             start_time, 
-            end_time
+            end_time,
+            sampling,
+            samplingRate
         );
 
         res.json({

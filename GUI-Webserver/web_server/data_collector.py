@@ -348,6 +348,8 @@ def query_db():
         
         # Extract the end_time:
         end_time = request.args.get('end_time', '')
+
+        sampling = request.args.get('sampling', 'False')
         
         keys = [key.strip() for key in keys if key.strip()]
         
@@ -400,12 +402,6 @@ def query_db():
                 ORDER BY id, Timestamp ASC
             """
 
-            # query = f"""
-            #     SELECT {columns_str}
-            #     FROM {table}
-            #     WHERE Timestamp BETWEEN %s AND %s
-            #     ORDER BY Timestamp ASC
-            # """
             logger.info(f"DB start time: {db_start_time}")
             logger.info(f"DB end time: {db_end_time}")
             logger.info(f"Executing query: {query} with params: {db_start_time}, {db_end_time}")

@@ -123,30 +123,26 @@ const COLUMN_TO_TABLE_MAP = {
     'tune_voltage': 'NMR'
 };
 
-export async function fetchData(pool, keys, start_time, end_time, sampling=False, samplingRate=1) {
-
-    if (!sampling) {
+export async function fetchData(pool, keys, start_time, end_time) {
+    let moduloFactor = 1;
         // if time is over a month //
-            if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 30 * 24 * 60 * 60 * 1000) {
-                moduloFactor = 1000;
-            }
-            // if time is over a week //
-            else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 7 * 24 * 60 * 60 * 1000) {
-                moduloFactor = 100;
-            } // over a day //
-            else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 24 * 60 * 60 * 1000) {
-                moduloFactor = 10;
-            }
-            // over an hour //
-            else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 60 * 60 * 1000) {
-                moduloFactor = 1;
-            }
-            else { //default to 1 //
-                moduloFactor = 1;
-            }
-        } else {
-        moduloFactor = samplingRate;
-    }
+        if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 30 * 24 * 60 * 60 * 1000) {
+            moduloFactor = 500;
+        }
+        // if time is over a week //
+        else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 7 * 24 * 60 * 60 * 1000) {
+            moduloFactor = 100;
+        } // over a day //
+        else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 24 * 60 * 60 * 1000) {
+            moduloFactor = 10;
+        }
+        // over an hour //
+        else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 60 * 60 * 1000) {
+            moduloFactor = 1;
+        }
+        else { //default back to 1 //
+            moduloFactor = 1;
+        }
 
     try {
         // Convert keys to array if it's a string
@@ -176,7 +172,6 @@ export async function fetchData(pool, keys, start_time, end_time, sampling=False
 
         console.log(`Querying ${Object.keys(tableGroups).length} tables:`, Object.keys(tableGroups));
         
-        // Create cache key including maxPoints for proper caching
         const cacheKey = `${Object.keys(tableGroups).sort().join('_')}_${keys}_${start_time}_${end_time}_${moduloFactor}`;
         
         // Check cache first
@@ -207,12 +202,11 @@ export async function fetchData(pool, keys, start_time, end_time, sampling=False
                     countQuery += ` WHERE ${conditions.join(' AND ')}`;
                 }
                 
-                // Get total count first to calculate sampling interval
                 const countResult = await new Promise((resolve, reject) => {
                     pool.query(countQuery, (err, rows) => {
                         if (err) {
                             console.error(`Error getting count for table ${tableName}:`, err);
-                            resolve(0); // Continue with 0 count rather than failing
+                            resolve(0); 
                         } else {
                             resolve(rows[0]?.total_count || 0);
                         }
@@ -284,21 +278,18 @@ export async function fetchData(pool, keys, start_time, end_time, sampling=False
     }
 }
 
-export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null, sampling=False, samplingRate=1) => {
+export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = null) => {
     const now = new Date();
     const defaultStartTime = startTime || new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
     const defaultEndTime = endTime || now;
     
     const startTimeStr = defaultStartTime.toLocaleString();
     const endTimeStr = defaultEndTime.toLocaleString();
-
-    console.log(`Query.js: Fetching data with maxPoints limit: ${maxPoints}`);
     
     const params = new URLSearchParams();
     params.append('keys', selectedKeys.join(','));
     params.append('start_time', startTimeStr);
     params.append('end_time', endTimeStr);
-    params.append('max_points', maxPoints);
     try {
         const response = await fetch(`/query_db?${params.toString()}`);
         

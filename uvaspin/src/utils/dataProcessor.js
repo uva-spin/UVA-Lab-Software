@@ -75,11 +75,9 @@ export const generatePlotData = async (selectedParams, isIncremental, dateRange,
             endTime = new Date();
         }
         
-        // Pass maxPoints to SQL query for database-level sampling (default 5000)
-        const maxPoints = 5000;
-        const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys, startTime, endTime, maxPoints);
+        const { data, availableKeys, missingKeys } = await fetchDataFromDB(selectedKeys, startTime, endTime);
         
-        console.log(`DataProcessor: Requesting max ${maxPoints} data points from database`);
+        console.log(`DataProcessor: Requesting data points from database`);
         
         if (missingKeys && missingKeys.length > 0) {
             console.warn('Missing data for keys:', missingKeys);
