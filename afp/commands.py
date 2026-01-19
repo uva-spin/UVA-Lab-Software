@@ -111,5 +111,75 @@ class Controller:
          
         return sweep_spacing
 
+    # === Frequency Modulation (FM) Methods ===
+    
+    def set_fm_state(self, enabled: bool):
+        """Enable or disable frequency modulation"""
+        state = "ON" if enabled else "OFF"
+        self.instr.write(f'SOURCE:FM:STATE {state}')
+
+    def get_fm_state(self) -> bool:
+        """Get FM state (on/off)"""
+        return self.instr.query_bool('SOURCE:FM:STATE?')
+
+    def set_fm_deviation(self, deviation: float):
+        """Set FM deviation in kHz"""
+        self.instr.write(f'SOURCE:FM:DEViation {deviation}kHz')
+
+    def get_fm_deviation(self) -> float:
+        """Get FM deviation in kHz"""
+        return self.instr.query_float('SOURCE:FM:DEViation?') / 1000  # Convert to kHz
+
+    def set_fm_frequency(self, frequency: float):
+        """Set FM modulation frequency in Hz"""
+        self.instr.write(f'SOURCE:FM:INTernal:FREQuency {frequency}Hz')
+
+    def get_fm_frequency(self) -> float:
+        """Get FM modulation frequency in Hz"""
+        return self.instr.query_float('SOURCE:FM:INTernal:FREQuency?')
+
+    def set_fm_source(self, source: str):
+        """Set FM source (INT or EXT)"""
+        self.instr.write(f'SOURCE:FM:SOURce {source}')
+
+    def get_fm_source(self) -> str:
+        """Get FM source"""
+        return self.instr.query_str('SOURCE:FM:SOURce?').strip()
+
+    # === Amplitude Modulation (AM) Methods ===
+    
+    def set_am_state(self, enabled: bool):
+        """Enable or disable amplitude modulation"""
+        state = "ON" if enabled else "OFF"
+        self.instr.write(f'SOURCE:AM:STATE {state}')
+
+    def get_am_state(self) -> bool:
+        """Get AM state (on/off)"""
+        return self.instr.query_bool('SOURCE:AM:STATE?')
+
+    def set_am_depth(self, depth: float):
+        """Set AM depth in percent"""
+        self.instr.write(f'SOURCE:AM:DEPTh {depth}')
+
+    def get_am_depth(self) -> float:
+        """Get AM depth in percent"""
+        return self.instr.query_float('SOURCE:AM:DEPTh?')
+
+    def set_am_frequency(self, frequency: float):
+        """Set AM modulation frequency in Hz"""
+        self.instr.write(f'SOURCE:AM:INTernal:FREQuency {frequency}Hz')
+
+    def get_am_frequency(self) -> float:
+        """Get AM modulation frequency in Hz"""
+        return self.instr.query_float('SOURCE:AM:INTernal:FREQuency?')
+
+    def set_am_source(self, source: str):
+        """Set AM source (INT or EXT)"""
+        self.instr.write(f'SOURCE:AM:SOURce {source}')
+
+    def get_am_source(self) -> str:
+        """Get AM source"""
+        return self.instr.query_str('SOURCE:AM:SOURce?').strip()
+
     def close(self):
         self.instr.close()
