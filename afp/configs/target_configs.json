@@ -1,0 +1,38 @@
+{
+    "targets": {
+        "nh3": {
+            "start_freq": 207.0,
+            "stop_freq": 219.0,
+            "spacing": "LINear",
+            "power": -14.0,
+            "mode": "CW",
+            "sweep_points": 500,
+            "sweep_dwell": 10,
+            "fm_state": "OFF",
+            "fm_deviation": 10.0,
+            "fm_frequency": 1000.0,
+            "fm_source": "INT",
+            "am_state": "OFF",
+            "am_depth": 50.0,
+            "am_frequency": 1000.0,
+            "am_source": "INT"
+        },
+        "nd3": {
+            "start_freq": 26.6,
+            "stop_freq": 38.6,
+            "spacing": "LINear",
+            "power": -7.0,
+            "mode": "CW",
+            "sweep_points": 500,
+            "sweep_dwell": 10,
+            "fm_state": "OFF",
+            "fm_deviation": 10.0,
+            "fm_frequency": 1000.0,
+            "fm_source": "INT",
+            "am_state": "OFF",
+            "am_depth": 50.0,
+            "am_frequency": 1000.0,
+            "am_source": "INT"
+        }
+    }
+}
