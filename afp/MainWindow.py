@@ -90,6 +90,41 @@ class MainWindow(QMainWindow):
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready")
     
+    def closeEvent(self, event):
+        """Handle application close event - cleanup resources"""
+        try:
+            # Turn off modulation and RF power for safety
+            try:
+                # Turn off FM modulation
+                if hasattr(self.controller, 'set_fm_state'):
+                    self.controller.set_fm_state(False)
+            except Exception as e:
+                print(f"Warning: Error turning off FM: {e}")
+            
+            try:
+                # Turn off AM modulation
+                if hasattr(self.controller, 'set_am_state'):
+                    self.controller.set_am_state(False)
+            except Exception as e:
+                print(f"Warning: Error turning off AM: {e}")
+            
+            try:
+                # Turn off RF power
+                if hasattr(self.controller, 'instr') and self.controller.instr:
+                    self.controller.instr.write('OUTPUT:STATE OFF')
+            except Exception as e:
+                print(f"Warning: Error turning off RF: {e}")
+            
+            # Stop external waveform if running
+            if hasattr(self.controller, 'stop_external_waveform'):
+                self.controller.stop_external_waveform()
+            
+            # Close controller (cleans up waveform generator and instrument)
+            self.controller.close()
+        except Exception as e:
+            print(f"Warning: Error during cleanup: {e}")
+        event.accept()
+    
     def _apply_global_styles(self):
         """Apply a modern global stylesheet to the application"""
         self.setStyleSheet(f"""
@@ -821,8 +856,79 @@ class MainWindow(QMainWindow):
         self.fm_source_input = QComboBox()
         self.fm_source_input.addItems(["INT", "EXT"])
         self.fm_source_input.setStyleSheet(mod_combo_style)
-        self.fm_source_input.currentTextChanged.connect(lambda: self.update_modulation_parameter('fm_source', self.fm_source_input.currentText()))
+        self.fm_source_input.currentTextChanged.connect(self.on_fm_source_changed)
         fm_params_layout.addWidget(self.fm_source_input, 2, 1)
+        
+        # External Clock Controls (only visible when EXT source is selected)
+        self.ext_clock_widget = QWidget()
+        ext_clock_layout = QGridLayout(self.ext_clock_widget)
+        ext_clock_layout.setContentsMargins(0, 8, 0, 0)
+        ext_clock_layout.setSpacing(8)
+        ext_clock_layout.setColumnStretch(1, 1)
+        
+        # External Clock Status Label
+        self.ext_clock_status_label = QLabel("Status: Inactive")
+        self.ext_clock_status_label.setStyleSheet(f"{mod_label_style} font-weight: bold;")
+        ext_clock_layout.addWidget(self.ext_clock_status_label, 0, 0, 1, 2)
+        
+        # External Clock Amplitude
+        ext_amp_label = QLabel("Amplitude:")
+        ext_amp_label.setStyleSheet(mod_label_style)
+        ext_clock_layout.addWidget(ext_amp_label, 1, 0)
+        
+        self.ext_clock_amplitude_input = QDoubleSpinBox()
+        self.ext_clock_amplitude_input.setRange(0.1, 10.0)
+        self.ext_clock_amplitude_input.setDecimals(2)
+        self.ext_clock_amplitude_input.setValue(2.0)
+        self.ext_clock_amplitude_input.setSuffix(" V")
+        self.ext_clock_amplitude_input.setStyleSheet(mod_input_style)
+        self.ext_clock_amplitude_input.editingFinished.connect(self.update_external_clock)
+        ext_clock_layout.addWidget(self.ext_clock_amplitude_input, 1, 1)
+        
+        # External Clock Offset
+        ext_offset_label = QLabel("Offset:")
+        ext_offset_label.setStyleSheet(mod_label_style)
+        ext_clock_layout.addWidget(ext_offset_label, 2, 0)
+        
+        self.ext_clock_offset_input = QDoubleSpinBox()
+        self.ext_clock_offset_input.setRange(-10.0, 10.0)
+        self.ext_clock_offset_input.setDecimals(2)
+        self.ext_clock_offset_input.setValue(0.0)
+        self.ext_clock_offset_input.setSuffix(" V")
+        self.ext_clock_offset_input.setStyleSheet(mod_input_style)
+        self.ext_clock_offset_input.editingFinished.connect(self.update_external_clock)
+        ext_clock_layout.addWidget(self.ext_clock_offset_input, 2, 1)
+        
+        # External Clock Dwell Time
+        ext_dwell_label = QLabel("Dwell Time:")
+        ext_dwell_label.setStyleSheet(mod_label_style)
+        ext_clock_layout.addWidget(ext_dwell_label, 3, 0)
+        
+        self.ext_clock_dwell_input = QDoubleSpinBox()
+        self.ext_clock_dwell_input.setRange(0.001, 1000.0)  # 1ms to 1000ms
+        self.ext_clock_dwell_input.setDecimals(3)
+        self.ext_clock_dwell_input.setValue(10.0)  # Default 10ms
+        self.ext_clock_dwell_input.setSuffix(" ms")
+        self.ext_clock_dwell_input.setStyleSheet(mod_input_style)
+        self.ext_clock_dwell_input.editingFinished.connect(self.update_external_clock)
+        ext_clock_layout.addWidget(self.ext_clock_dwell_input, 3, 1)
+        
+        # Device info label
+        ni_daq_available = hasattr(self.controller, 'waveform_generator') and self.controller.waveform_generator is not None
+        device_name = getattr(self.controller, 'ni_daq_device', 'Dev1/ao0')
+        if not ni_daq_available:
+            device_info_text = f"Device: {device_name} (NI DAQ not available - install nidaqmx)"
+            device_info_color = COLORS['warning']
+        else:
+            device_info_text = f"Device: {device_name}"
+            device_info_color = COLORS['gray']
+        
+        device_info_label = QLabel(device_info_text)
+        device_info_label.setStyleSheet(f"{mod_label_style} font-size: 9px; color: {device_info_color};")
+        ext_clock_layout.addWidget(device_info_label, 4, 0, 1, 2)
+        
+        self.ext_clock_widget.setVisible(False)  # Hidden by default
+        fm_params_layout.addWidget(self.ext_clock_widget, 3, 0, 1, 2)
         
         fm_group_layout.addWidget(self.fm_params_widget)
         self.fm_params_widget.setEnabled(False)  # Initially disabled
@@ -1117,6 +1223,10 @@ class MainWindow(QMainWindow):
                 if index >= 0:
                     self.spacing_input.setCurrentIndex(index)
             
+            # Update external clock status if visible
+            if self.ext_clock_widget.isVisible():
+                self.update_external_clock_status()
+            
             if not self.power_input.hasFocus():
                 power = self.controller.get_power()
                 self.power_input.setValue(power)
@@ -1206,7 +1316,7 @@ class MainWindow(QMainWindow):
             
             # Create new instrument connection
             new_instr = RsInstrument(resource, True, True, options='TerminationCharacter = \r\n')
-            self.controller = Controller(new_instr)
+            self.controller = Controller(new_instr, ni_daq_device="Dev1/ao0")
             
             # Update connection status
             idn = self.available_devices.get(resource, "Unknown device")
@@ -1235,6 +1345,21 @@ class MainWindow(QMainWindow):
             self.controller.set_fm_state(enabled)
             status = "enabled" if enabled else "disabled"
             self.statusBar().showMessage(f"FM {status}", 2000)
+            
+            # If enabling with EXT source, start external clock
+            if enabled and self.fm_source_input.currentText() == "EXT":
+                self.update_external_clock()
+            elif not enabled:
+                # Stop external clock when FM is disabled, but only if AM is not using it
+                try:
+                    if not (self.am_enable_checkbox.isChecked() and self.am_source_input.currentText() == "EXT"):
+                        self.controller.stop_external_waveform()
+                        self.update_external_clock_status()
+                    else:
+                        # AM is still using it, just update the status
+                        self.update_external_clock_status()
+                except:
+                    pass
         except Exception as e:
             self.statusBar().showMessage(f"Error toggling FM: {str(e)}", 3000)
 
@@ -1246,9 +1371,110 @@ class MainWindow(QMainWindow):
             self.controller.set_am_state(enabled)
             status = "enabled" if enabled else "disabled"
             self.statusBar().showMessage(f"AM {status}", 2000)
+            
+            # If enabling with EXT source, start external clock (coupled with FM if also using EXT)
+            if enabled and self.am_source_input.currentText() == "EXT":
+                self.update_external_clock()
+            elif not enabled:
+                # Stop external clock when AM is disabled, but only if FM is not using it
+                try:
+                    if not (self.fm_enable_checkbox.isChecked() and self.fm_source_input.currentText() == "EXT"):
+                        self.controller.stop_external_waveform()
+                        self.update_external_clock_status()
+                    else:
+                        # FM is still using it, just update the status
+                        self.update_external_clock_status()
+                except:
+                    pass
         except Exception as e:
             self.statusBar().showMessage(f"Error toggling AM: {str(e)}", 3000)
 
+    def on_fm_source_changed(self, source: str):
+        """Handle FM source change - show/hide external clock controls"""
+        self.update_modulation_parameter('fm_source', source)
+        
+        # Show/hide external clock controls based on source
+        if source == "EXT":
+            self.ext_clock_widget.setVisible(True)
+            # If FM is enabled, start the external waveform
+            if self.fm_enable_checkbox.isChecked():
+                self.update_external_clock()
+        else:
+            # Only hide external clock widget if AM is not using EXT
+            if not (self.am_enable_checkbox.isChecked() and self.am_source_input.currentText() == "EXT"):
+                self.ext_clock_widget.setVisible(False)
+            # Stop external waveform when switching to INT, but only if AM is not using it
+            try:
+                if not (self.am_enable_checkbox.isChecked() and self.am_source_input.currentText() == "EXT"):
+                    self.controller.stop_external_waveform()
+                self.update_external_clock_status()
+            except Exception as e:
+                self.statusBar().showMessage(f"Error stopping external clock: {str(e)}", 3000)
+    
+    def update_external_clock(self):
+        """Update external clock waveform with current settings"""
+        # Check if either FM or AM is using EXT source
+        fm_using_ext = self.fm_enable_checkbox.isChecked() and self.fm_source_input.currentText() == "EXT"
+        am_using_ext = self.am_enable_checkbox.isChecked() and self.am_source_input.currentText() == "EXT"
+        
+        if not (fm_using_ext or am_using_ext):
+            return
+        
+        # Check if NI DAQ is available
+        if not hasattr(self.controller, 'waveform_generator') or self.controller.waveform_generator is None:
+            self.statusBar().showMessage("NI DAQ not available. Install nidaqmx: pip install nidaqmx", 3000)
+            return
+        
+        try:
+            # If both FM and AM are using EXT, use FM frequency (they share the waveform)
+            if fm_using_ext:
+                frequency = self.fm_frequency_input.value()
+            else:
+                frequency = self.am_frequency_input.value()
+            
+            amplitude = self.ext_clock_amplitude_input.value()
+            offset = self.ext_clock_offset_input.value()
+            dwell_time_ms = self.ext_clock_dwell_input.value()
+            dwell_time = dwell_time_ms / 1000.0  # Convert ms to seconds
+            
+            if frequency > 0:
+                self.controller.start_external_waveform(frequency, amplitude, offset, dwell_time)
+                sources = []
+                if fm_using_ext:
+                    sources.append("FM")
+                if am_using_ext:
+                    sources.append("AM")
+                source_str = "+".join(sources)
+                self.statusBar().showMessage(f"External clock started ({source_str}): {frequency} Hz, dwell: {dwell_time_ms} ms", 2000)
+            else:
+                self.controller.stop_external_waveform()
+                self.statusBar().showMessage("External clock stopped: frequency must be > 0", 2000)
+            
+            self.update_external_clock_status()
+        except Exception as e:
+            self.statusBar().showMessage(f"Error updating external clock: {str(e)}", 3000)
+            self.update_external_clock_status()
+    
+    def update_external_clock_status(self):
+        """Update the external clock status label"""
+        try:
+            is_active = self.controller.is_external_waveform_active()
+            if is_active:
+                self.ext_clock_status_label.setText("Status: ● Active")
+                self.ext_clock_status_label.setStyleSheet(
+                    f"color: {COLORS['success']}; font-family: 'Segoe UI'; font-size: 11px; font-weight: bold;"
+                )
+            else:
+                self.ext_clock_status_label.setText("Status: ○ Inactive")
+                self.ext_clock_status_label.setStyleSheet(
+                    f"color: {COLORS['gray']}; font-family: 'Segoe UI'; font-size: 11px; font-weight: bold;"
+                )
+        except Exception as e:
+            self.ext_clock_status_label.setText(f"Status: Error ({str(e)[:30]})")
+            self.ext_clock_status_label.setStyleSheet(
+                f"color: {COLORS['danger']}; font-family: 'Segoe UI'; font-size: 11px; font-weight: bold;"
+            )
+    
     def update_modulation_parameter(self, param_name, value):
         """Update a modulation parameter in the controller"""
         try:
@@ -1256,14 +1482,43 @@ class MainWindow(QMainWindow):
                 self.controller.set_fm_deviation(value)
             elif param_name == 'fm_frequency':
                 self.controller.set_fm_frequency(value)
+                # If using external source, update the waveform
+                if self.fm_source_input.currentText() == "EXT" and self.fm_enable_checkbox.isChecked():
+                    self.update_external_clock()
+                # Also update if AM is using EXT (they share the waveform, FM frequency takes precedence)
+                elif self.am_enable_checkbox.isChecked() and self.am_source_input.currentText() == "EXT":
+                    self.update_external_clock()
             elif param_name == 'fm_source':
                 self.controller.set_fm_source(value)
             elif param_name == 'am_depth':
                 self.controller.set_am_depth(value)
             elif param_name == 'am_frequency':
                 self.controller.set_am_frequency(value)
+                # If using external source, update the waveform (but only if FM is not also using EXT)
+                if self.am_source_input.currentText() == "EXT" and self.am_enable_checkbox.isChecked():
+                    # Only update if FM is not using EXT (otherwise FM frequency takes precedence)
+                    if not (self.fm_enable_checkbox.isChecked() and self.fm_source_input.currentText() == "EXT"):
+                        self.update_external_clock()
             elif param_name == 'am_source':
                 self.controller.set_am_source(value)
+                # Show/hide external clock widget based on source
+                if value == "EXT":
+                    self.ext_clock_widget.setVisible(True)
+                    # If AM is enabled, start the waveform
+                    if self.am_enable_checkbox.isChecked():
+                        self.update_external_clock()
+                else:
+                    # Only hide external clock widget if FM is not using EXT
+                    if not (self.fm_enable_checkbox.isChecked() and self.fm_source_input.currentText() == "EXT"):
+                        self.ext_clock_widget.setVisible(False)
+                        try:
+                            self.controller.stop_external_waveform()
+                            self.update_external_clock_status()
+                        except:
+                            pass
+                    else:
+                        # FM is still using it, just update the status
+                        self.update_external_clock_status()
             
             self.statusBar().showMessage(f"Updated {param_name} to {value}", 2000)
         except Exception as e:

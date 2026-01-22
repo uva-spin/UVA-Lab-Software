@@ -19,6 +19,6 @@ from MainWindow import MainWindow
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow(Controller(RsInstrument('USB0::0x0AAD::0x0048::101548::INSTR', True, True, options='TerminationCharacter = \r\n, Simulate=True')))
+    window = MainWindow(Controller(RsInstrument('USB0::0x0AAD::0x0048::101548::INSTR', True, True, options='TerminationCharacter = \r\n, Simulate=True'), ni_daq_device="Dev1/ao0"))
     sys.exit(app.exec())
     
