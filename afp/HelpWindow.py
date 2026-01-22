@@ -232,20 +232,23 @@ class HelpWindow(QDialog):
         <h2>Controller Parameters</h2>
         <p>These parameters control the fundamental characteristics of the RF signal output.</p>
         
-        <h3><span class="param-name">Start Frequency</span></h3>
-        <p>The beginning frequency for sweep operations, specified in <strong>MHz</strong>.</p>
+        <h3><span class="param-name">Center Frequency</span></h3>
+        <p>The center frequency for sweep operations, specified in <strong>MHz</strong>.</p>
         <ul>
             <li>In CW mode: This value is not used</li>
-            <li>In Sweep mode: The sweep begins at this frequency</li>
+            <li>In Sweep mode: The sweep is centered at this frequency</li>
+            <li>The actual sweep range extends from (Center - Width/2) to (Center + Width/2)</li>
             <li>Range: 0 - 10,000 MHz (device dependent)</li>
         </ul>
         
-        <h3><span class="param-name">Stop Frequency</span></h3>
-        <p>The ending frequency for sweep operations, specified in <strong>MHz</strong>.</p>
+        <h3><span class="param-name">Frequency Width</span></h3>
+        <p>The total frequency width (bandwidth) for sweep operations, specified in <strong>MHz</strong>.</p>
         <ul>
             <li>In CW mode: This value is not used</li>
-            <li>In Sweep mode: The sweep ends at this frequency</li>
-            <li>Can be higher or lower than Start Frequency (determines sweep direction)</li>
+            <li>In Sweep mode: The sweep spans this width around the center frequency</li>
+            <li>Start frequency = Center Frequency - Frequency Width / 2</li>
+            <li>Stop frequency = Center Frequency + Frequency Width / 2</li>
+            <li>Range: 0 - 10,000 MHz (device dependent)</li>
         </ul>
         
         <h3><span class="param-name">Spacing</span></h3>
@@ -271,7 +274,7 @@ class HelpWindow(QDialog):
         <p>Selects the operating mode of the signal generator.</p>
         <ul>
             <li><strong>CW (Continuous Wave):</strong> Outputs a single, fixed frequency</li>
-            <li><strong>Sweep:</strong> Automatically sweeps between Start and Stop frequencies</li>
+            <li><strong>Sweep:</strong> Automatically sweeps across the frequency width centered at the center frequency</li>
         </ul>
         
         <h3><span class="param-name">Sweep Points</span></h3>
@@ -488,7 +491,7 @@ class HelpWindow(QDialog):
         <h3>Sweep Not Working</h3>
         <ul>
             <li>Ensure Mode is set to "Sweep" not "CW"</li>
-            <li>Verify Start and Stop frequencies are different</li>
+            <li>Verify Frequency Width is greater than zero</li>
             <li>Check that sweep points and dwell time are set appropriately</li>
         </ul>
         

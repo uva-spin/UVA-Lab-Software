@@ -1,8 +1,8 @@
 {
     "targets": {
         "nh3": {
-            "start_freq": 207.0,
-            "stop_freq": 219.0,
+            "center_freq": 213.0,
+            "freq_width": 12.0,
             "spacing": "LINear",
             "power": -14.0,
             "mode": "CW",
@@ -18,8 +18,8 @@
             "am_source": "INT"
         },
         "nd3": {
-            "start_freq": 26.6,
-            "stop_freq": 38.6,
+            "center_freq": 32.6,
+            "freq_width": 12.0,
             "spacing": "LINear",
             "power": -7.0,
             "mode": "CW",

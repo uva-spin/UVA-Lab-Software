@@ -367,21 +367,21 @@ class MainWindow(QMainWindow):
         left_panel_layout.addSpacing(5)
         
         # Create styled parameter cards stacked vertically (no scroll)
-        # Start Frequency Card
-        self.start_freq_input = self._create_parameter_card(
+        # Center Frequency Card
+        self.center_freq_input = self._create_parameter_card(
             left_panel_layout,
-            "Start Frequency", "MHz", 
-            QDoubleSpinBox, 0, 10000, 3
+            "Center Frequency", "MHz", 
+            QDoubleSpinBox, 0, 300, 3
         )
-        self.start_freq_input.editingFinished.connect(lambda: self.update_parameter('start_freq', self.start_freq_input.value()))
+        self.center_freq_input.editingFinished.connect(lambda: self.update_parameter('center_freq', self.center_freq_input.value()))
         
-        # Stop Frequency Card
-        self.stop_freq_input = self._create_parameter_card(
+        # Frequency Width Card
+        self.freq_width_input = self._create_parameter_card(
             left_panel_layout,
-            "Stop Frequency", "MHz",
-            QDoubleSpinBox, 0, 10000, 3
+            "Frequency Width", "MHz",
+            QDoubleSpinBox, 0, 300, 3
         )
-        self.stop_freq_input.editingFinished.connect(lambda: self.update_parameter('stop_freq', self.stop_freq_input.value()))
+        self.freq_width_input.editingFinished.connect(lambda: self.update_parameter('freq_width', self.freq_width_input.value()))
         
         # Spacing Card
         self.spacing_input = self._create_parameter_card(
@@ -1023,8 +1023,8 @@ class MainWindow(QMainWindow):
 
     def update_parameter(self, param_name, value):
         
-        methods = {'start_freq': self.controller.set_start_freq, 
-                   'stop_freq': self.controller.set_stop_freq, 
+        methods = {'center_freq': self.controller.set_center_freq, 
+                   'freq_width': self.controller.set_freq_width,
                    'spacing': self.controller.set_spacing, 
                    'power': self.controller.set_power, 
                    'mode': self.controller.set_mode, 
@@ -1101,14 +1101,15 @@ class MainWindow(QMainWindow):
                     }}
                 """)
                 self.turn_on_off_rf_button.setText("⏻ Turn On RF")
-            # Update all parameter displays (only if not currently being edited)
-            if not self.start_freq_input.hasFocus():
-                start_freq = self.controller.get_start_freq()
-                self.start_freq_input.setValue(start_freq)
+
+
+            if not self.center_freq_input.hasFocus():
+                center_freq = self.controller.get_center_freq()
+                self.center_freq_input.setValue(center_freq)
             
-            if not self.stop_freq_input.hasFocus():
-                stop_freq = self.controller.get_stop_freq()
-                self.stop_freq_input.setValue(stop_freq)
+            if not self.freq_width_input.hasFocus():
+                freq_width = self.controller.get_freq_width()
+                self.freq_width_input.setValue(freq_width)
             
             if not self.spacing_input.hasFocus():
                 spacing = self.controller.get_sweep_spacing()

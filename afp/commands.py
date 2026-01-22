@@ -22,8 +22,13 @@ class Controller:
     
     def set_stop_freq(self, freq: float):
         self.instr.write(f'SOURCE:FREQUENCY:STOP {freq}MHz')
-         
     
+    def set_center_freq(self, freq: float):
+        self.instr.write(f'SOURCE:FREQUENCY:CW {freq}MHz')
+    
+    def set_freq_width(self, width: float):
+        self.instr.write(f'SOURCE:FREQUENCY:SPAN {width}MHz')
+         
     def set_spacing(self, spacing: str):
         '''
         SPACING can be:
@@ -42,7 +47,21 @@ class Controller:
         - CW
         - SWEep
         '''
+        # Preserve FM state when changing modes (some instruments disable FM on mode change)
+        fm_was_enabled = False
+        try:
+            fm_was_enabled = self.get_fm_state()
+        except:
+            pass  # If we can't query FM state, continue anyway
+        
         self.instr.write(f'SOURCE:FREQUENCY:MODE {mode}')
+        
+        # Re-enable FM if it was enabled before (so FM works with CW setting)
+        if fm_was_enabled:
+            try:
+                self.set_fm_state(True)
+            except:
+                pass  # If re-enabling fails, continue anyway
          
 
     def set_sweep_points(self, points: int):
@@ -74,12 +93,12 @@ class Controller:
     def get_start_freq(self):
         freq = self.instr.query_float('SOURCE:FREQUENCY:START?')
          
-        return freq / 1e6  # Convert to MHz
+        return freq  
 
     def get_stop_freq(self):
         freq = self.instr.query_float('SOURCE:FREQUENCY:STOP?')
          
-        return freq / 1e6  # Convert to MHz
+        return freq 
 
     def get_mode(self):
         mode = self.instr.query_str('SOURCE:FREQUENCY:MODE?')

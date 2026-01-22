@@ -6,7 +6,9 @@ if not instr_list:
     exit()
 print(instr_list)
 
-instr = RsInstrument('USB0::0x0AAD::0x0048::101548::INSTR', True, True,options='TerminationCharacter = \r\n')
+# instr = RsInstrument('USB0::0x0AAD::0x0048::101548::INSTR', True, True,options='TerminationCharacter = \r\n')
+
+instr = RsInstrument('GPIB0::19::INSTR', True, True,options='TerminationCharacter = \r\n')
 idn = instr.query_str('*IDN?')
 print(f"\nHello, I am: '{idn}'")
 
@@ -27,7 +29,7 @@ instr.write('SOURCE:SWEEP:SPACING LINear')
 # instr.write('SOURCE:FUNCTION:SHAPE SIN')
 # instr.write('SOURCE:FREQ:STEP 10kHz')
 instr.write('SOURCE:SWEEP:POINTS 500')
-instr.write('SOURCE:POWER:POWER 12')
+instr.write('SOURCE:POWER:POWER -3')
 instr.write('SOURCE:FREQUENCY:MODE SWEep')
 instr.write('SOURCE:SWEEP:DWELl 10ms')
 instr.write('SOURCE:SWEEP:MODE AUTO')
