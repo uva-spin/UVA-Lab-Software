@@ -114,6 +114,11 @@ class HelpWindow(QDialog):
         mod_help.setHtml(self._get_modulation_content())
         tabs.addTab(mod_help, "Modulation")
         
+        # Sequence Configuration tab
+        sequence_help = QTextBrowser()
+        sequence_help.setHtml(self._get_sequence_content())
+        tabs.addTab(sequence_help, "Sequence Configuration")
+        
         # Troubleshooting tab
         troubleshoot_help = QTextBrowser()
         troubleshoot_help.setHtml(self._get_troubleshooting_content())
@@ -450,6 +455,172 @@ class HelpWindow(QDialog):
         <div class="warning">
             <strong>Note:</strong> FM and AM can be enabled simultaneously for complex 
             modulation schemes, but ensure your device supports this combination.
+        </div>
+        """
+    
+    def _get_sequence_content(self):
+        return self._get_style_header() + """
+        <h2>Sequence Configuration</h2>
+        <p>The Sequence Configuration window allows you to execute a series of configurations 
+        automatically, iterating through multiple parameter sets with specified delays between each step.</p>
+        
+        <h3>Accessing the Sequence Window</h3>
+        <p>Click the <strong>"Sequences"</strong> button in the toolbar to open the Sequence Configuration window.</p>
+        
+        <h3>Two Ways to Create Sequences</h3>
+        
+        <h4>1. Load Sequence Tab</h4>
+        <p>Load a JSON file containing a pre-defined sequence of configurations.</p>
+        <ol>
+            <li>Click <strong>"Browse..."</strong> to select a JSON file</li>
+            <li>The file will be parsed and displayed in the configuration table</li>
+            <li>Review the configurations before executing</li>
+            <li>Click <strong>"Start Sequence"</strong> to begin execution</li>
+        </ol>
+        
+        <h4>2. Manual Configuration Tab</h4>
+        <p>Manually enter configurations one at a time and add them to the sequence.</p>
+        <ol>
+            <li>Enter the desired parameter values in the form</li>
+            <li>Click <strong>"Add to Sequence"</strong> to add the configuration</li>
+            <li>Repeat for each configuration you want in the sequence</li>
+            <li>Click <strong>"Start Sequence"</strong> to execute all configurations</li>
+        </ol>
+        
+        <h3>Configuration Parameters</h3>
+        <table>
+            <tr>
+                <th>Parameter</th>
+                <th>Description</th>
+                <th>Units</th>
+            </tr>
+            <tr>
+                <td><strong>Center Frequency</strong></td>
+                <td>The center frequency for the RF signal</td>
+                <td>MHz</td>
+            </tr>
+            <tr>
+                <td><strong>FM Frequency</strong></td>
+                <td>Frequency modulation rate (modulation frequency)</td>
+                <td>Hz</td>
+            </tr>
+            <tr>
+                <td><strong>Power</strong></td>
+                <td>Output power level</td>
+                <td>dBm</td>
+            </tr>
+            <tr>
+                <td><strong>Waveform Type</strong></td>
+                <td>Type of waveform (currently only "Triangular" supported)</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td><strong>Number of Steps</strong></td>
+                <td>Number of steps per triangular period (for external waveform)</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td><strong>Number of Sweeps</strong></td>
+                <td>Number of complete triangular sweeps (periods)</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td><strong>Time of Sweep</strong></td>
+                <td>Total time for the sweep</td>
+                <td>seconds</td>
+            </tr>
+            <tr>
+                <td><strong>Delay</strong></td>
+                <td>Delay after applying this configuration before moving to the next</td>
+                <td>seconds</td>
+            </tr>
+        </table>
+        
+        <h3>JSON File Format</h3>
+        <p>The JSON file can be in one of two formats:</p>
+        
+        <h4>Format 1: Object with configurations array</h4>
+        <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto;">
+{
+  "configurations": [
+    {
+      "center_frequency": 100.0,
+      "frequency_modulation": 1000.0,
+      "power": 10.0,
+      "waveform_type": "triangular",
+      "num_steps": 100,
+      "num_sweeps": 1,
+      "time_of_sweep": 1.0,
+      "delay": 0.5
+    },
+    {
+      "center_frequency": 150.0,
+      "frequency_modulation": 2000.0,
+      "power": 12.0,
+      "waveform_type": "triangular",
+      "num_steps": 200,
+      "num_sweeps": 2,
+      "time_of_sweep": 2.0,
+      "delay": 1.0
+    }
+  ]
+}</pre>
+        
+        <h4>Format 2: Direct array</h4>
+        <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto;">
+[
+  {
+    "center_frequency": 100.0,
+    "frequency_modulation": 1000.0,
+    "power": 10.0,
+    "waveform_type": "triangular",
+    "num_steps": 100,
+    "num_sweeps": 1,
+    "time_of_sweep": 1.0,
+    "delay": 0.5
+  }
+]</pre>
+        
+        <div class="tip">
+            <strong>Tip:</strong> All parameters are optional. Only include the parameters you want 
+            to change for each configuration. Parameters not specified will remain at their current values.
+        </div>
+        
+        <h3>Execution Process</h3>
+        <ol>
+            <li>Configurations are executed in the order they appear in the sequence</li>
+            <li>Each configuration is applied to the device</li>
+            <li>After applying all parameters, the specified delay is waited</li>
+            <li>Then the next configuration is applied</li>
+            <li>Progress is shown in real-time with a progress bar and status messages</li>
+        </ol>
+        
+        <div class="warning">
+            <strong>Important:</strong> 
+            <ul>
+                <li>Ensure your device is connected before starting a sequence</li>
+                <li>The sequence will stop if the device disconnects</li>
+                <li>You can stop the sequence at any time using the "Stop" button</li>
+                <li>FM will be automatically enabled if a frequency_modulation value > 0 is specified</li>
+            </ul>
+        </div>
+        
+        <h3>Example Use Cases</h3>
+        <ul>
+            <li><strong>Frequency Sweep:</strong> Create a sequence that steps through different 
+            center frequencies to scan a wide range</li>
+            <li><strong>Power Ramp:</strong> Gradually increase or decrease power levels with 
+            delays to allow system stabilization</li>
+            <li><strong>Modulation Testing:</strong> Test different FM frequencies and modulation 
+            parameters systematically</li>
+            <li><strong>Multi-Point Measurements:</strong> Automate measurements at multiple 
+            frequency/power combinations</li>
+        </ul>
+        
+        <div class="tip">
+            <strong>Example File Location:</strong> An example sequence file is available in the 
+            <code>configs</code> folder as <code>sequence_example.json</code>. You can use this 
+            as a template for creating your own sequences.
         </div>
         """
     

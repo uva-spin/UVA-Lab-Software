@@ -1,34 +1,39 @@
 from dataclasses import dataclass
 from RsInstrument import * 
-from typing import List, Union, Optional
-from more_itertools import always_iterable
+from typing import Optional
 
 try:
-    from ni_daq_waveform import TriangularWaveformGenerator, NI_DAQ_AVAILABLE
+    from ni_daq_waveform import WaveformGenerator, NI_DAQ_AVAILABLE
 except ImportError:
     NI_DAQ_AVAILABLE = False
-    TriangularWaveformGenerator = None
+    WaveformGenerator = None
 
 @dataclass
 class Controller:
-    def __init__(self, instr: RsInstrument, ni_daq_device: str = "Dev1/ao0"):
+    def __init__(self, instr: RsInstrument = None, ni_daq_device: str = None):
         self.instr = instr
         self.rf_status = False
-        self.device_info = {'RsInstrument driver version': self.instr.driver_version,
-                            'Visa manufacturer': self.instr.visa_manufacturer,
-                            'Instrument full name': self.instr.full_instrument_model_name,
-                            'Instrument installed options': ",".join(self.instr.instrument_options)}
+        if self.instr is not None:
+            self.device_info = {'RsInstrument driver version': self.instr.driver_version,
+                                'Visa manufacturer': self.instr.visa_manufacturer,
+                                'Instrument full name': self.instr.full_instrument_model_name,
+                                'Instrument installed options': ",".join(self.instr.instrument_options)}
+        else:
+            self.device_info = {}
         self.ni_daq_device = ni_daq_device
-        self.waveform_generator: Optional[TriangularWaveformGenerator] = None
-        self.last_dwell_time = 0.01  # Default 10ms, stored for use when starting waveform from state changes
-        if NI_DAQ_AVAILABLE and TriangularWaveformGenerator:
+        self.waveform_generator: Optional[WaveformGenerator] = None
+        self.last_time_of_sweep = 1.0  # Default 1 second, stored for use when starting waveform from state changes
+        self.last_num_sweeps = 1  # Default 1 sweep, stored for use when starting waveform from state changes
+        if NI_DAQ_AVAILABLE and WaveformGenerator and ni_daq_device is not None:
             try:
-                self.waveform_generator = TriangularWaveformGenerator(device_name=ni_daq_device)
+                self.waveform_generator = WaveformGenerator(device_name=ni_daq_device)
             except Exception as e:
                 print(f"Warning: Could not initialize NI DAQ waveform generator: {e}")
                 self.waveform_generator = None
 
     def status(self):
+        if self.instr is None:
+            raise RuntimeError("No instrument connected")
         return self.instr.query_str('*IDN?')
 
     def set_start_freq(self, freq: float):
@@ -88,6 +93,8 @@ class Controller:
          
 
     def activate_rf(self):
+        if self.instr is None:
+            raise RuntimeError("No instrument connected")
         self.rf_status = not self.rf_status
         if self.rf_status:
             self.instr.write('OUTPUT:STATE ON')
@@ -96,6 +103,8 @@ class Controller:
          
 
     def get_rf_status(self):
+        if self.instr is None:
+            return False
         rf_status = self.instr.query_bool('OUTPUT:STATE?')
          
         return rf_status
@@ -183,13 +192,20 @@ class Controller:
                         if am_enabled and am_source == "EXT":
                             # Both FM and AM using EXT - waveform already handles both
                             pass
-                        self.waveform_generator.start_continuous_waveform(fm_freq, dwell_time=self.last_dwell_time)
+                        # Use stored time_of_sweep and num_sweeps
+                        self.waveform_generator.start_continuous_waveform(
+                            num_steps=None,  # Calculate automatically
+                            time_of_sweep=self.last_time_of_sweep,
+                            amplitude=2.0,
+                            offset=0.0,
+                            num_sweeps=self.last_num_sweeps
+                        )
                 elif not enabled:
                     # Stop external waveform when FM is disabled, but only if AM is not using it
                     am_source = self.get_am_source()
                     am_enabled = self.get_am_state()
                     if not (am_enabled and am_source == "EXT"):
-                        if self.waveform_generator.is_active():
+                        if self.waveform_generator.is_running:
                             self.waveform_generator.stop()
             except Exception as e:
                 print(f"Warning: Could not manage external waveform: {e}")
@@ -213,9 +229,16 @@ class Controller:
             current_source = self.get_fm_source()
             if current_source == "EXT" and self.waveform_generator:
                 # Restart waveform with new frequency if it's running
-                if self.waveform_generator.is_active():
+                if self.waveform_generator.is_running:
                     self.waveform_generator.stop()
-                    self.waveform_generator.start_continuous_waveform(frequency, dwell_time=self.last_dwell_time)
+                    # Use stored time_of_sweep and num_sweeps
+                    self.waveform_generator.start_continuous_waveform(
+                        num_steps=None,  # Calculate automatically
+                        time_of_sweep=self.last_time_of_sweep,
+                        amplitude=2.0,
+                        offset=0.0,
+                        num_sweeps=self.last_num_sweeps
+                    )
         except Exception as e:
             print(f"Warning: Could not update external waveform frequency: {e}")
         
@@ -237,10 +260,10 @@ class Controller:
                 print(f"Warning: Could not set FM coupling to DC: {e}")
         # If switching to EXT, ensure waveform generator is ready
         # If switching to INT, stop external waveform (but don't disable FM)
-        if source == "EXT" and self.waveform_generator and not self.waveform_generator.is_active():
+        if source == "EXT" and self.waveform_generator and not self.waveform_generator.is_running:
             # Waveform will be started when FM frequency is set
             pass
-        elif source == "INT" and self.waveform_generator and self.waveform_generator.is_active():
+        elif source == "INT" and self.waveform_generator and self.waveform_generator.is_running:
             # Stop external waveform when switching to internal
             try:
                 self.waveform_generator.stop()
@@ -267,18 +290,25 @@ class Controller:
                 
                 if enabled and current_source == "EXT":
                     # AM enabled with EXT source - start waveform if not already running
-                    if not self.waveform_generator.is_active():
+                    if not self.waveform_generator.is_running:
                         # Use FM frequency if FM is also using EXT, otherwise use AM frequency
                         if fm_enabled and fm_source == "EXT":
                             freq = self.get_fm_frequency()
                         else:
                             freq = self.get_am_frequency()
                         if freq > 0:
-                            self.waveform_generator.start_continuous_waveform(freq, dwell_time=self.last_dwell_time)
+                            # Use stored time_of_sweep and num_sweeps
+                            self.waveform_generator.start_continuous_waveform(
+                                num_steps=None,  # Calculate automatically
+                                time_of_sweep=self.last_time_of_sweep,
+                                amplitude=2.0,
+                                offset=0.0,
+                                num_sweeps=self.last_num_sweeps
+                            )
                 elif not enabled:
                     # AM disabled - stop waveform only if FM is not using it
                     if not (fm_enabled and fm_source == "EXT"):
-                        if self.waveform_generator.is_active():
+                        if self.waveform_generator.is_running:
                             self.waveform_generator.stop()
             except Exception as e:
                 print(f"Warning: Could not manage external waveform for AM: {e}")
@@ -316,18 +346,25 @@ class Controller:
                 
                 if source == "EXT" and am_enabled:
                     # AM wants external source - start waveform if not already running
-                    if not self.waveform_generator.is_active():
+                    if not self.waveform_generator.is_running:
                         # Use FM frequency if FM is also using EXT, otherwise use AM frequency
                         if fm_enabled and fm_source == "EXT":
                             freq = self.get_fm_frequency()
                         else:
                             freq = self.get_am_frequency()
                         if freq > 0:
-                            self.waveform_generator.start_continuous_waveform(freq, dwell_time=self.last_dwell_time)
+                            # Use stored time_of_sweep and num_sweeps
+                            self.waveform_generator.start_continuous_waveform(
+                                num_steps=None,  # Calculate automatically
+                                time_of_sweep=self.last_time_of_sweep,
+                                amplitude=2.0,
+                                offset=0.0,
+                                num_sweeps=self.last_num_sweeps
+                            )
                 elif source != "EXT" and am_enabled:
                     # AM no longer wants external - stop only if FM is not using it
                     if not (fm_enabled and fm_source == "EXT"):
-                        if self.waveform_generator.is_active():
+                        if self.waveform_generator.is_running:
                             self.waveform_generator.stop()
             except Exception as e:
                 print(f"Warning: Could not manage external waveform for AM: {e}")
@@ -336,30 +373,37 @@ class Controller:
         """Get AM source"""
         return self.instr.query_str('SOURCE:AM:SOURce?').strip()
 
-    def start_external_waveform(self, frequency: float, amplitude: float = 5.0, offset: float = 0.0, dwell_time: float = 0.01):
+    def start_external_waveform(self, time_of_sweep: float, num_sweeps: int = 1, amplitude: float = 2.0, offset: float = 0.0):
         """Start the external triangular waveform generator
         
         Args:
-            frequency: Waveform frequency in Hz
+            time_of_sweep: Total time of the sweep in seconds
+            num_sweeps: Number of complete triangular sweeps (periods)
             amplitude: Peak amplitude in Volts
             offset: DC offset in Volts
-            dwell_time: Dwell time per step in seconds (default 10ms)
         """
         if not self.waveform_generator:
             raise RuntimeError("NI DAQ waveform generator is not available")
-        if self.waveform_generator.is_active():
+        if self.waveform_generator.is_running:
             self.waveform_generator.stop()
-        self.last_dwell_time = dwell_time  # Store for use in state change handlers
-        self.waveform_generator.start_continuous_waveform(frequency, amplitude, offset, dwell_time=dwell_time)
+        self.last_time_of_sweep = time_of_sweep  # Store for use in state change handlers
+        self.last_num_sweeps = num_sweeps  # Store for use in state change handlers
+        self.waveform_generator.start_continuous_waveform(
+            num_steps=None,  # Calculate automatically
+            time_of_sweep=time_of_sweep,
+            amplitude=amplitude,
+            offset=offset,
+            num_sweeps=num_sweeps
+        )
     
     def stop_external_waveform(self):
         """Stop the external triangular waveform generator"""
-        if self.waveform_generator and self.waveform_generator.is_active():
+        if self.waveform_generator and self.waveform_generator.is_running:
             self.waveform_generator.stop()
     
     def is_external_waveform_active(self) -> bool:
         """Check if external waveform is currently active"""
-        return self.waveform_generator is not None and self.waveform_generator.is_active()
+        return self.waveform_generator is not None and self.waveform_generator.is_running
     
     def close(self):
         """Close controller and cleanup resources"""
@@ -368,4 +412,8 @@ class Controller:
                 self.waveform_generator.close()
             except Exception as e:
                 print(f"Warning: Error closing waveform generator: {e}")
-        self.instr.close()
+        if self.instr is not None:
+            try:
+                self.instr.close()
+            except Exception as e:
+                print(f"Warning: Error closing instrument: {e}")

@@ -9,6 +9,7 @@ from commands import Controller
 from RsInstrument import RsInstrument
 from ConfigurationWindow import ConfigurationWindow
 from HelpWindow import HelpWindow
+from SequenceWindow import SequenceWindow
 import json
 import os
 
@@ -35,12 +36,14 @@ COLORS = {
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, controller: Controller):
+    def __init__(self):
         super().__init__()
         self.setWindowTitle("ssRF/AFP Control Panel")
         self.setWindowIcon(QIcon('./assets/program.png'))      
         self.setGeometry(100, 100, 950, 700)
-        self.controller = controller
+        # Set a reasonable minimum size to prevent geometry errors
+        self.setMinimumSize(867, 600)
+        self.controller = Controller()
         
         # Load target configurations from JSON file
         self.target_configs = self._load_target_configs()
@@ -83,6 +86,13 @@ class MainWindow(QMainWindow):
         toolbar = QToolBar("Toolbar")
         toolbar.addAction(undo_action)
         toolbar.addAction(redo_action)
+        
+        # Sequence window action
+        sequence_action = QAction("📋 Sequences", self)
+        sequence_action.setToolTip("Open Sequence Configuration Window")
+        sequence_action.triggered.connect(self.open_sequence_window)
+        toolbar.addAction(sequence_action)
+        
         self.addToolBar(toolbar)
 
         ### status bar at bottom
@@ -110,7 +120,7 @@ class MainWindow(QMainWindow):
             
             try:
                 # Turn off RF power
-                if hasattr(self.controller, 'instr') and self.controller.instr:
+                if hasattr(self.controller, 'instr') and self.controller.instr is not None:
                     self.controller.instr.write('OUTPUT:STATE OFF')
             except Exception as e:
                 print(f"Warning: Error turning off RF: {e}")
@@ -218,6 +228,7 @@ class MainWindow(QMainWindow):
         # Window references
         self.config_window = None
         self.help_window = None
+        self.sequence_window = None
 
     def _load_target_configs(self):
         """Load target configurations from JSON file"""
@@ -250,6 +261,15 @@ class MainWindow(QMainWindow):
         else:
             self.help_window.raise_()
             self.help_window.activateWindow()
+    
+    def open_sequence_window(self):
+        """Open the Sequence Configuration window."""
+        if self.sequence_window is None or not self.sequence_window.isVisible():
+            self.sequence_window = SequenceWindow(self, self.controller)
+            self.sequence_window.show()
+        else:
+            self.sequence_window.raise_()
+            self.sequence_window.activateWindow()
 
     def show_about_dialog(self):
         """Show the About dialog."""
@@ -298,26 +318,29 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(main_layout)
         
         # === LEFT PANEL: Controller Parameters (takes entire left side) ===
-        left_panel = QFrame()
+        left_panel = QScrollArea()
+        left_panel.setWidgetResizable(True)
+        left_panel.setFrameShape(QFrame.NoFrame)
         left_panel.setStyleSheet(f"""
-            QFrame#leftPanel {{
-                background-color: {COLORS['card']};
-                border: 1px solid {COLORS['border']};
-                border-radius: 12px;
+            QScrollArea {{
+                background-color: transparent;
+                border: none;
             }}
         """)
-        left_panel.setObjectName("leftPanel")
-        self._add_shadow(left_panel)
         
-        left_panel_layout = QVBoxLayout(left_panel)
+        left_panel_layout = QVBoxLayout()
         left_panel_layout.setContentsMargins(20, 20, 20, 20)
         left_panel_layout.setSpacing(12)
         
+        left_panel_widget = QWidget()
+        left_panel_widget.setLayout(left_panel_layout)
+        left_panel.setWidget(left_panel_widget)
+        
         # Title for parameters section with icon-like decoration
         params_header = QHBoxLayout()
-        params_icon = QLabel("◉")
-        params_icon.setStyleSheet(f"color: {COLORS['primary']}; font-size: 18px; background: transparent;")
-        params_header.addWidget(params_icon)
+        # params_icon = QLabel("◉")
+        # params_icon.setStyleSheet(f"color: {COLORS['primary']}; font-size: 18px; background: transparent;")
+        # params_header.addWidget(params_icon)
         
         params_title = QLabel("Controller Parameters")
         params_title.setFont(QFont("Segoe UI", 16, QFont.Bold))
@@ -346,9 +369,9 @@ class MainWindow(QMainWindow):
         target_card_layout.setSpacing(15)
         
         # Target label with icon
-        target_icon = QLabel("🎯")
-        target_icon.setStyleSheet("font-size: 16px; background: transparent;")
-        target_card_layout.addWidget(target_icon)
+        # target_icon = QLabel("🎯")
+        # target_icon.setStyleSheet("font-size: 16px; background: transparent;")
+        # target_card_layout.addWidget(target_icon)
         
         target_label = QLabel("Targets")
         target_label.setFont(QFont("Segoe UI", 11, QFont.Bold))
@@ -464,6 +487,17 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(left_panel, stretch=1)
         
         # === RIGHT PANEL: RF Status and other controls ===
+        # Create scroll area for right panel to handle content overflow
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QFrame.NoFrame)
+        right_scroll.setStyleSheet(f"""
+            QScrollArea {{
+                background-color: transparent;
+                border: none;
+            }}
+        """)
+        
         right_panel = QFrame()
         right_panel.setStyleSheet(f"""
             QFrame#rightPanel {{
@@ -495,9 +529,9 @@ class MainWindow(QMainWindow):
         
         # Device section title with icon
         device_header = QHBoxLayout()
-        device_icon = QLabel("🔌")
-        device_icon.setStyleSheet("font-size: 16px; background: transparent;")
-        device_header.addWidget(device_icon)
+        # device_icon = QLabel("🔌")
+        # device_icon.setStyleSheet("font-size: 16px; background: transparent;")
+        # device_header.addWidget(device_icon)
         
         device_title = QLabel("Device Selection")
         device_title.setFont(QFont("Segoe UI", 12, QFont.Bold))
@@ -573,7 +607,7 @@ class MainWindow(QMainWindow):
         device_section_layout.addLayout(device_row_layout)
         
         # Connect button
-        self.connect_device_button = QPushButton("⚡ Connect")
+        self.connect_device_button = QPushButton("Connect")
         self.connect_device_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {COLORS['success']};
@@ -626,9 +660,9 @@ class MainWindow(QMainWindow):
         
         # RF section title
         rf_header = QHBoxLayout()
-        rf_icon = QLabel("📡")
-        rf_icon.setStyleSheet("font-size: 16px; background: transparent;")
-        rf_header.addWidget(rf_icon)
+        # rf_icon = QLabel("📡")
+        # rf_icon.setStyleSheet("font-size: 16px; background: transparent;")
+        # rf_header.addWidget(rf_icon)
         
         rf_title = QLabel("RF Output Control")
         rf_title.setFont(QFont("Segoe UI", 12, QFont.Bold))
@@ -703,9 +737,9 @@ class MainWindow(QMainWindow):
         
         # Modulation section title with icon
         mod_header = QHBoxLayout()
-        mod_icon = QLabel("〰")
-        mod_icon.setStyleSheet("font-size: 16px; background: transparent;")
-        mod_header.addWidget(mod_icon)
+        # mod_icon = QLabel("〰")
+        # mod_icon.setStyleSheet("font-size: 16px; background: transparent;")
+        # mod_header.addWidget(mod_icon)
         
         mod_title = QLabel("Modulation")
         mod_title.setFont(QFont("Segoe UI", 12, QFont.Bold))
@@ -899,19 +933,31 @@ class MainWindow(QMainWindow):
         self.ext_clock_offset_input.editingFinished.connect(self.update_external_clock)
         ext_clock_layout.addWidget(self.ext_clock_offset_input, 2, 1)
         
-        # External Clock Dwell Time
-        ext_dwell_label = QLabel("Dwell Time:")
-        ext_dwell_label.setStyleSheet(mod_label_style)
-        ext_clock_layout.addWidget(ext_dwell_label, 3, 0)
+        # External Clock Time of Sweep
+        ext_time_label = QLabel("Time of Sweep:")
+        ext_time_label.setStyleSheet(mod_label_style)
+        ext_clock_layout.addWidget(ext_time_label, 3, 0)
         
-        self.ext_clock_dwell_input = QDoubleSpinBox()
-        self.ext_clock_dwell_input.setRange(0.001, 1000.0)  # 1ms to 1000ms
-        self.ext_clock_dwell_input.setDecimals(3)
-        self.ext_clock_dwell_input.setValue(10.0)  # Default 10ms
-        self.ext_clock_dwell_input.setSuffix(" ms")
-        self.ext_clock_dwell_input.setStyleSheet(mod_input_style)
-        self.ext_clock_dwell_input.editingFinished.connect(self.update_external_clock)
-        ext_clock_layout.addWidget(self.ext_clock_dwell_input, 3, 1)
+        self.ext_clock_time_of_sweep_input = QDoubleSpinBox()
+        self.ext_clock_time_of_sweep_input.setRange(0.001, 10000.0)  # 1ms to 10000s
+        self.ext_clock_time_of_sweep_input.setDecimals(3)
+        self.ext_clock_time_of_sweep_input.setValue(1.0)  # Default 1 second
+        self.ext_clock_time_of_sweep_input.setSuffix(" s")
+        self.ext_clock_time_of_sweep_input.setStyleSheet(mod_input_style)
+        self.ext_clock_time_of_sweep_input.editingFinished.connect(self.update_external_clock)
+        ext_clock_layout.addWidget(self.ext_clock_time_of_sweep_input, 3, 1)
+        
+        # External Clock Number of Sweeps
+        ext_sweeps_label = QLabel("Number of Sweeps:")
+        ext_sweeps_label.setStyleSheet(mod_label_style)
+        ext_clock_layout.addWidget(ext_sweeps_label, 4, 0)
+        
+        self.ext_clock_num_sweeps_input = QSpinBox()
+        self.ext_clock_num_sweeps_input.setRange(1, 10000)
+        self.ext_clock_num_sweeps_input.setValue(1)  # Default 1 sweep
+        self.ext_clock_num_sweeps_input.setStyleSheet(mod_input_style)
+        self.ext_clock_num_sweeps_input.editingFinished.connect(self.update_external_clock)
+        ext_clock_layout.addWidget(self.ext_clock_num_sweeps_input, 4, 1)
         
         # Device info label
         ni_daq_available = hasattr(self.controller, 'waveform_generator') and self.controller.waveform_generator is not None
@@ -925,7 +971,7 @@ class MainWindow(QMainWindow):
         
         device_info_label = QLabel(device_info_text)
         device_info_label.setStyleSheet(f"{mod_label_style} font-size: 9px; color: {device_info_color};")
-        ext_clock_layout.addWidget(device_info_label, 4, 0, 1, 2)
+        ext_clock_layout.addWidget(device_info_label, 5, 0, 1, 2)
         
         self.ext_clock_widget.setVisible(False)  # Hidden by default
         fm_params_layout.addWidget(self.ext_clock_widget, 3, 0, 1, 2)
@@ -1031,8 +1077,11 @@ class MainWindow(QMainWindow):
         
         right_panel_layout.addStretch()  # Push content to top
         
-        # Add right panel to main layout (stretch factor 1 for equal sizing, adjust as needed)
-        main_layout.addWidget(right_panel, stretch=1)
+        # Set the right panel as the scroll area's widget
+        right_scroll.setWidget(right_panel)
+        
+        # Add scroll area to main layout (stretch factor 1 for equal sizing, adjust as needed)
+        main_layout.addWidget(right_scroll, stretch=1)
 
     def _create_parameter_card(self, layout, title, unit, input_type, min_val, max_val, decimals):
         """Create a compact styled parameter card with horizontal layout."""
@@ -1316,7 +1365,8 @@ class MainWindow(QMainWindow):
             
             # Create new instrument connection
             new_instr = RsInstrument(resource, True, True, options='TerminationCharacter = \r\n')
-            self.controller = Controller(new_instr, ni_daq_device="Dev1/ao0")
+            # Use None for NI DAQ device - it will be set up separately if needed
+            self.controller = Controller(new_instr, ni_daq_device=None)
             
             # Update connection status
             idn = self.available_devices.get(resource, "Unknown device")
@@ -1426,29 +1476,23 @@ class MainWindow(QMainWindow):
             return
         
         try:
-            # If both FM and AM are using EXT, use FM frequency (they share the waveform)
-            if fm_using_ext:
-                frequency = self.fm_frequency_input.value()
-            else:
-                frequency = self.am_frequency_input.value()
-            
             amplitude = self.ext_clock_amplitude_input.value()
             offset = self.ext_clock_offset_input.value()
-            dwell_time_ms = self.ext_clock_dwell_input.value()
-            dwell_time = dwell_time_ms / 1000.0  # Convert ms to seconds
+            time_of_sweep = self.ext_clock_time_of_sweep_input.value()
+            num_sweeps = self.ext_clock_num_sweeps_input.value()
             
-            if frequency > 0:
-                self.controller.start_external_waveform(frequency, amplitude, offset, dwell_time)
+            if time_of_sweep > 0 and num_sweeps > 0:
+                self.controller.start_external_waveform(time_of_sweep, num_sweeps, amplitude, offset)
                 sources = []
                 if fm_using_ext:
                     sources.append("FM")
                 if am_using_ext:
                     sources.append("AM")
                 source_str = "+".join(sources)
-                self.statusBar().showMessage(f"External clock started ({source_str}): {frequency} Hz, dwell: {dwell_time_ms} ms", 2000)
+                self.statusBar().showMessage(f"External clock started ({source_str}): {time_of_sweep} s, {num_sweeps} sweep(s)", 2000)
             else:
                 self.controller.stop_external_waveform()
-                self.statusBar().showMessage("External clock stopped: frequency must be > 0", 2000)
+                self.statusBar().showMessage("External clock stopped: time of sweep and number of sweeps must be > 0", 2000)
             
             self.update_external_clock_status()
         except Exception as e:

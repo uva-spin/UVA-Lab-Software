@@ -4,17 +4,20 @@ Generates triangular waveforms for FM modulation clock using NI PCIe 6321 and BN
 """
 
 import numpy as np
+import time
 try:
     import nidaqmx
     from nidaqmx import stream_writers
-    from nidaqmx.constants import AcquisitionType, Signal
+    from nidaqmx.constants import AcquisitionType
+    from scipy import signal
+    import matplotlib.pyplot as plt
     NI_DAQ_AVAILABLE = True
 except ImportError:
     NI_DAQ_AVAILABLE = False
     print("Warning: nidaqmx not available. Install with: pip install nidaqmx")
 
 
-class TriangularWaveformGenerator:
+class WaveformGenerator:
     """
     Generate triangular waveforms for FM modulation clock.
     
@@ -23,13 +26,14 @@ class TriangularWaveformGenerator:
     signal generator and can be swept independently while this waveform is active.
     """
     
-    def __init__(self, device_name: str = "Dev1/ao0", voltage_range: tuple = (-2.0, 2.0)):
+    def __init__(self, device_name: str = "Dev1/ao0", voltage_range: tuple = (-2.0, 2.0), waveform_type: str = "triangular"):
         """
         Initialize the triangular waveform generator
         
         Args:
             device_name: NI DAQ device and analog output channel (e.g., "Dev1/ao0")
             voltage_range: Tuple of (min_voltage, max_voltage) for output range
+            waveform_type: Type of waveform to generate (triangular, square, sawtooth)
         """
         if not NI_DAQ_AVAILABLE:
             raise ImportError("nidaqmx library is not installed. Install with: pip install nidaqmx")
@@ -38,154 +42,182 @@ class TriangularWaveformGenerator:
         self.voltage_range = voltage_range
         self.task = None
         self.is_running = False
-        self.frequency = 1.0  # Hz (default 1 Hz)
         self.amplitude = 2.0   # Volts (waveform goes from -amplitude to +amplitude, so -2V to +2V)
         self.offset = 0.0      # DC offset in Volts
         self.sample_rate = 1000  # Samples per second
-        self.dwell_time = 0.01  # Dwell time per step in seconds (default 10ms)
-        
-    def generate_triangular_waveform(self, frequency: float, duration: float = None, 
-                                     amplitude: float = None, offset: float = None,
-                                     dwell_time: float = None) -> np.ndarray:
+        self.waveform_type = waveform_type
+
+    def generate_triangular_waveform(self, num_steps: int = None, time_of_sweep: float = None, 
+                                     amplitude: float = None, offset: float = None, 
+                                     num_sweeps: int = None) -> np.ndarray:
         """
         Generate a stepped triangular waveform with uniform step duration
         
         Args:
-            frequency: Frequency of the triangular wave in Hz
-            duration: Duration to generate in seconds (None = one period)
-            amplitude: Peak amplitude in Volts (None = use self.amplitude)
-            offset: DC offset in Volts (None = use self.offset)
-            dwell_time: Dwell time per step in seconds (None = use self.dwell_time)
-            
-        Returns:
-            numpy array of voltage values
+            num_steps: Number of steps per triangular period
+            time_of_sweep: Total time of the sweep in seconds
+            amplitude: Peak amplitude in Volts
+            offset: DC offset in Volts
+            num_sweeps: Number of complete triangular sweeps (periods)
         """
-        if amplitude is None:
-            amplitude = self.amplitude
-        if offset is None:
-            offset = self.offset
-        if dwell_time is None:
-            dwell_time = self.dwell_time
-            
-        period = 1.0 / frequency
-        
-        # Calculate number of steps in one period (must be even for symmetric triangle)
-        # Each step has uniform duration = dwell_time
-        steps_per_period = max(2, int(period / dwell_time))
-        # Make it even for symmetric up/down triangle
+        num_steps = num_steps or 100
+        time_of_sweep = time_of_sweep or 1.0
+        amplitude = amplitude or 2.0
+        offset = offset or 0.0
+        num_sweeps = num_sweeps or 1
+
+        # Ensure even number of steps for symmetric triangle
+        steps_per_period = max(2, num_steps)
         if steps_per_period % 2 != 0:
             steps_per_period += 1
         
-        # Calculate actual dwell time to fit exactly in period
-        actual_dwell = period / steps_per_period
+        # Calculate period from time_of_sweep and num_sweeps
+        period = time_of_sweep / num_sweeps
         
-        # Generate voltage levels for each step
-        # Triangle goes from -amplitude to +amplitude and back
-        # First half: -amplitude to +amplitude (steps_per_period/2 steps)
-        # Second half: +amplitude to -amplitude (steps_per_period/2 steps)
-        half_steps = steps_per_period // 2
+        time_per_step = period / steps_per_period
+        samples_per_step = max(1, int(self.sample_rate * time_per_step))
         
-        # Create voltage levels for one period
-        voltage_levels = []
-        # Upward ramp: -amplitude to +amplitude
-        for i in range(half_steps + 1):
-            voltage = -amplitude + (2 * amplitude * i / half_steps)
-            voltage_levels.append(voltage)
-        # Downward ramp: +amplitude to -amplitude (skip first point to avoid duplicate)
-        for i in range(1, half_steps + 1):
-            voltage = amplitude - (2 * amplitude * i / half_steps)
-            voltage_levels.append(voltage)
+        # Generate triangular waveform using signal.sawtooth (width=0.5 creates symmetric triangle)
+        t = np.linspace(0, 2 * np.pi * num_sweeps, steps_per_period * num_sweeps, endpoint=False)
+        voltage_levels = amplitude * signal.sawtooth(t, width=0.5) + offset
+
+        # Generate samples for each step
+        waveform = np.repeat(voltage_levels, samples_per_step)
         
-        # Remove duplicate at the end (last point = first point for next period)
-        voltage_levels = voltage_levels[:-1]
+        return np.clip(waveform, self.voltage_range[0], self.voltage_range[1])
+
+    def generate_square_waveform(self, num_steps: int = None, time_of_sweep: float = None, 
+                                 amplitude: float = None, offset: float = None, 
+                                 num_sweeps: int = None) -> np.ndarray:
+        """
+        Generate a stepped square waveform with uniform step duration
+        """
+        num_steps = num_steps or 100
+        time_of_sweep = time_of_sweep or 1.0
+        amplitude = amplitude or 2.0
+
+        steps_per_period = max(2, num_steps)
+        if steps_per_period % 2 != 0:
+            steps_per_period += 1
         
-        # Calculate how many periods to generate
-        if duration is None:
-            num_periods = 1
-        else:
-            num_periods = max(1, int(duration / period))
+        period = time_of_sweep / num_sweeps
+        time_per_step = period / steps_per_period
+        samples_per_step = max(1, int(self.sample_rate * time_per_step))
+        
+        # Generate square waveform
+        t = np.linspace(0, 2 * np.pi * num_sweeps, steps_per_period * num_sweeps, endpoint=False)
+        voltage_levels = amplitude * signal.square(t, duty=0.5) + offset
+        # Generate samples for each step
+        waveform = np.repeat(voltage_levels, samples_per_step)
+        
+        return np.clip(waveform, self.voltage_range[0], self.voltage_range[1])
+
+    
+    def generate_sawtooth_waveform(self, num_steps: int = None, time_of_sweep: float = None, 
+                                 amplitude: float = None, offset: float = None, 
+                                 num_sweeps: int = None) -> np.ndarray:
+        """
+        Generate a stepped sawtooth waveform with uniform step duration
+        """
+        num_steps = num_steps or 100
+        time_of_sweep = time_of_sweep or 1.0
+        amplitude = amplitude or 2.0
+        
+        steps_per_period = max(2, num_steps)
+        if steps_per_period % 2 != 0:
+            steps_per_period += 1
+        
+        period = time_of_sweep / num_sweeps
+        time_per_step = period / steps_per_period
+        samples_per_step = max(1, int(self.sample_rate * time_per_step))
+        
+        # Generate sawtooth waveform
+        t = np.linspace(0, 2 * np.pi * num_sweeps, steps_per_period * num_sweeps, endpoint=False)
+        voltage_levels = amplitude * signal.sawtooth(t, width=1.0) + offset
         
         # Generate samples for each step
-        samples_per_step = max(1, int(self.sample_rate * actual_dwell))
-        waveform = []
+        waveform = np.repeat(voltage_levels, samples_per_step)
         
-        for period_idx in range(num_periods):
-            for step_idx, voltage_level in enumerate(voltage_levels):
-                # Hold this voltage level for dwell_time
-                step_samples = [voltage_level + offset] * samples_per_step
-                waveform.extend(step_samples)
-        
-        waveform = np.array(waveform, dtype=np.float64)
-        
-        # Clamp to voltage range
-        waveform = np.clip(waveform, self.voltage_range[0], self.voltage_range[1])
-        
-        return waveform
+        return np.clip(waveform, self.voltage_range[0], self.voltage_range[1])
+
     
-    def start_continuous_waveform(self, frequency: float, amplitude: float = None, 
-                                  offset: float = None, sample_rate: float = None,
-                                  dwell_time: float = None):
+    def start_continuous_waveform(self, num_steps: int = None, time_of_sweep: float = None, 
+                                    amplitude: float = None, offset: float = None, 
+                                    sample_rate: float = None,
+                                    num_sweeps: int = None):
         """
         Start generating a continuous stepped triangular waveform
         
         Args:
-            frequency: Frequency of the triangular wave in Hz
+            num_steps: Number of steps per period (None = calculated automatically)
+            time_of_sweep: Total time of the sweep in seconds
             amplitude: Peak amplitude in Volts (None = use self.amplitude)
             offset: DC offset in Volts (None = use self.offset)
             sample_rate: Sample rate in Hz (None = use self.sample_rate)
-            dwell_time: Dwell time per step in seconds (None = use self.dwell_time)
+            num_sweeps: Number of complete triangular sweeps (periods)
         """
         if self.is_running:
             self.stop()
             
-        if amplitude is None:
-            amplitude = self.amplitude
-        if offset is None:
-            offset = self.offset
-        if sample_rate is None:
-            sample_rate = self.sample_rate
-        if dwell_time is None:
-            dwell_time = self.dwell_time
-            
-        self.frequency = frequency  # Frequency is already in Hz
-        self.amplitude = amplitude
-        self.offset = offset
-        self.sample_rate = sample_rate
-        self.dwell_time = dwell_time
+        amplitude = amplitude or 2.0
+        offset = offset or 0.0
+        sample_rate = sample_rate or self.sample_rate
+        num_sweeps = num_sweeps or 1
+        time_of_sweep = time_of_sweep or 1.0
+
+        period = time_of_sweep / num_sweeps
         
-        try:
-            # Create a new task
-            self.task = nidaqmx.Task()
+        # Calculate num_steps if not provided
+        # Use a minimum step duration of 1ms to ensure reasonable resolution
+        min_step_duration = 0.001  # 1ms
+        if num_steps is None:
+            num_steps = max(2, int(period / min_step_duration))
             
-            # Add analog output channel
+        try:
+            self.task = nidaqmx.Task()
             self.task.ao_channels.add_ao_voltage_chan(
                 self.device_name,
                 min_val=self.voltage_range[0],
                 max_val=self.voltage_range[1]
             )
             
-            # Generate one period of the stepped waveform
-            waveform = self.generate_triangular_waveform(
-                self.frequency, 
-                amplitude=amplitude, 
-                offset=offset,
-                dwell_time=dwell_time
-            )
+            # Calculate parameters for one period
+            # Generate one period of the waveform
+            if self.waveform_type == "triangular":
+                waveform = self.generate_triangular_waveform(
+                    num_steps=num_steps,
+                    time_of_sweep=period,
+                    amplitude=amplitude,
+                    offset=offset,
+                    num_sweeps=num_sweeps
+                )
+            elif self.waveform_type == "square":
+                waveform = self.generate_square_waveform(
+                    num_steps=num_steps,
+                    time_of_sweep=period,
+                    amplitude=amplitude,
+                    offset=offset,
+                    num_sweeps=num_sweeps
+                )
+            elif self.waveform_type == "sawtooth":
+                waveform = self.generate_sawtooth_waveform(
+                    num_steps=num_steps,
+                    time_of_sweep=period,
+                    amplitude=amplitude,
+                    offset=offset,
+                    num_sweeps=num_sweeps
+                )
+            else:
+                raise ValueError(f"Invalid waveform type: {self.waveform_type}")
             
-            # Configure timing for continuous generation
             self.task.timing.cfg_samp_clk_timing(
                 rate=sample_rate,
                 sample_mode=AcquisitionType.CONTINUOUS,
                 samps_per_chan=len(waveform)
             )
             
-            # Create stream writer
             writer = stream_writers.AnalogSingleChannelWriter(self.task.out_stream, auto_start=False)
-            
-            # Write the waveform (it will repeat continuously)
             writer.write_many_sample(waveform)
-            
-            # Start the task
             self.task.start()
             self.is_running = True
             
@@ -199,7 +231,6 @@ class TriangularWaveformGenerator:
             raise Exception(f"Failed to start waveform generation: {str(e)}")
     
     def stop(self):
-        """Stop waveform generation"""
         if self.task is not None:
             try:
                 if self.is_running:
@@ -209,14 +240,9 @@ class TriangularWaveformGenerator:
                 print(f"Error stopping waveform: {str(e)}")
             finally:
                 self.task = None
-                self.is_running = False
-    
-    def is_active(self) -> bool:
-        """Check if waveform generation is active"""
-        return self.is_running and self.task is not None
+                self.is_running = False               
     
     def close(self):
-        """Clean up resources"""
         self.stop()
     
     def __enter__(self):
@@ -224,3 +250,15 @@ class TriangularWaveformGenerator:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+if __name__ == "__main__":
+    waveform_generator = WaveformGenerator(device_name="Dev1/ao0", waveform_type="triangular")
+    waveform_triangular = waveform_generator.generate_triangular_waveform(num_steps=100, time_of_sweep=10.0, amplitude=2.0, offset=0.0, num_sweeps=1)
+    plt.plot(waveform_triangular)
+    plt.show()
+    waveform_square = waveform_generator.generate_square_waveform(num_steps=500, time_of_sweep=10.0, amplitude=2.0, offset=0.0, num_sweeps=10)
+    plt.plot(waveform_square)
+    plt.show()
+    waveform_sawtooth = waveform_generator.generate_sawtooth_waveform(num_steps=500, time_of_sweep=10.0, amplitude=2.0, offset=0.0, num_sweeps=10)
+    plt.plot(waveform_sawtooth)
+    plt.show()
