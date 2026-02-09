@@ -1,3 +1,4 @@
-.specstory/ai_rules_backups
-.DS_Store
-.vs
+*.specstory/ai_rules_backups
+*.DS_Store
+*.vs
+*.sqlite
