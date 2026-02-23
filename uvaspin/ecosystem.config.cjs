@@ -1,7 +1,9 @@
 module.exports = {
   apps: [{
     name: 'uvaspin',
-    script: 'src/server.js',
+    cwd: __dirname,
+    script: './src/server.js',
+    interpreter: 'node',
     instances: 1,
     autorestart: true,
     watch: false,
