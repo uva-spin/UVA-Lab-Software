@@ -43,7 +43,7 @@ function SidePanel({ isOpen, onToggle }) {
     return (
         <>
             <button 
-                className={`sidebar-toggle ${isOpen ? 'active' : ''}`}
+                className={`sidebar-toggle sidebar-toggle-label ${isOpen ? 'active' : ''}`}
                 onClick={onToggle}
                 title="Toggle Data Selection"
             >

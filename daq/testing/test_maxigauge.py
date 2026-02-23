@@ -6,11 +6,13 @@ Tests connection, data reading, and proper cleanup for TCP-based pressure gauge:
 """
 
 import sys
+import os
+sys.path.append(os.path.dirname(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..')))
 import time
 import logging
 import traceback
 from datetime import datetime
-from _MaxiGaugeReader import MaxiGaugeReader
+from devices._MaxiGaugeReader import MaxiGaugeReader
 
 # Set up logging
 logging.basicConfig(

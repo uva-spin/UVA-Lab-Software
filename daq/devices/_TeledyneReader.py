@@ -19,7 +19,6 @@ class TeledyneDataReader:
 
     console_handler.setFormatter(logging.Formatter( ## Format for what shows on console
         '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
-        style="{",
         datefmt="%Y-%m-%d %H:%M:%S"
     ))
     
@@ -34,27 +33,31 @@ class TeledyneDataReader:
         self.TELEDYNE_THCD_401_TCP_IP = "172.29.36.192"
         self.TELEDYNE_THCD_401_TCP_UNIT_ID = 2
         self.socket = None
+        self.connected = False
+        self.timeout = 3
+        self.last_connection_attempt = 0
+        self.connection_retry_interval = 3  # seconds
+        self.read_command = b"ar\r\n"
         self.connection_pool = connection_pool
         self.EST = pytz.timezone('America/New_York')
 
 
     def _socket_read(self):
         """Read data from Teledyne device using raw TCP socket and extract first three numbers after READ:"""
-        socket.setdefaulttimeout(1)
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((self.TELEDYNE_THCD_401_TCP_IP, self.TELEDYNE_THCD_401_TCP_PORT))
+        if not self._socket_connection():
+            return [None, None, None]
 
-            # Send a command if needed, or just try to read
+        try:
+            # Send a command to request latest values.
             ## a: address
             ## r: read
             ## \r\n: end of command
-            sock.send(b"ar\r\n")
-            data = sock.recv(1024)
-            sock.close()
+            self.socket.sendall(self.read_command)
+            data = self.socket.recv(1024)
 
             if not data:
                 self.logger.warning("No data received from Teledyne Flow Meter!")
+                self._close_socket()
                 return [None, None, None]
 
             ascii_data = data.decode('ascii', errors='ignore')
@@ -89,29 +92,61 @@ class TeledyneDataReader:
             self.logger.info(f"Successfully parsed values: {floats}")
             return floats
 
+        except socket.timeout:
+            self.logger.warning("Teledyne socket timed out waiting for response")
+            return [None, None, None]
         except Exception as e:
             self.logger.error(f"Error in TCP connection: {e}")
+            self._close_socket()
             return [None, None, None]
         
     def _socket_connection(self):
         """Connect to the Teledyne THCD-401 socket"""
+        if self.connected and self.socket:
+            return True
+
+        current_time = time.time()
+        if current_time - self.last_connection_attempt < self.connection_retry_interval:
+            return False
+
+        self.last_connection_attempt = current_time
         try:
+            self._close_socket()
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.settimeout(self.timeout)
             self.socket.connect((self.TELEDYNE_THCD_401_TCP_IP, self.TELEDYNE_THCD_401_TCP_PORT))
+            self.connected = True
+            self.logger.info(
+                f"Connected to Teledyne at {self.TELEDYNE_THCD_401_TCP_IP}:{self.TELEDYNE_THCD_401_TCP_PORT}"
+            )
+            return True
         except Exception as e:
             self.logger.error(f"Error connecting to Teledyne THCD-401: {e}")
-            return None
+            self._close_socket()
+            return False
+
+    def _close_socket(self):
+        """Close and clear the current Teledyne socket."""
+        if self.socket:
+            try:
+                self.socket.close()
+            except Exception:
+                pass
+        self.socket = None
+        self.connected = False
         
     def start(self):
         """Start the teledyne data reading"""
         self.running = True
         self.logger.info("Started teledyne data monitoring via TCP")
+        self._socket_connection()
         return True
         
     def stop(self):
         """Stop the teledyne data reading"""
         self.logger.info("Stopping teledyne flow meter reader")
         self.running = False
+        self._close_socket()
             
     def get_latest_data(self):
         """Get the latest teledyne data from TCP connection"""

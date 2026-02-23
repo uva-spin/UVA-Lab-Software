@@ -27,7 +27,7 @@ function Layout() {
                 lab36Button={<Lab36Button />}
                 sidePanelButton={showSidebar ? <SidePanelButton onClick={handleSidebarToggle} isActive={sidebarOpen} /> : null}
             />
-            <main>
+            <main className="app-main">
                 <Outlet />
             </main>
             {showSidebar && (

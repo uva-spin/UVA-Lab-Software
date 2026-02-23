@@ -9,8 +9,8 @@
 .lab-subpage .lab-page-content {
     display: flex;
     justify-content: center;
-    align-items: center;
-    padding: 0.5rem;
+    align-items: stretch;
+    padding: 0;
     background: transparent;
     color: var(--text-primary);
     min-height: auto;

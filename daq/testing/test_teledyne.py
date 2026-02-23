@@ -9,14 +9,14 @@ Tests connection, data reading, and proper cleanup for TCP-based flow meter:
 
 import sys
 import os
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..'))
 sys.path.append(project_root)
 print(f"Added to path: {project_root}")
 import time
 import logging
 import traceback
 from datetime import datetime
-from data_acquisition.daq._TeledyneReader import TeledyneDataReader
+from devices._TeledyneReader import TeledyneDataReader
 
 logger = logging.getLogger(__name__)
 

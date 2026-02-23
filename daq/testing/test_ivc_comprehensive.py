@@ -13,10 +13,10 @@ import traceback
 from datetime import datetime
 
 # Add the GUI-Webserver directory to Python path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..'))
 sys.path.append(project_root)
 print(f"Added to path: {project_root}")
-from data_acquisition.daq._IVCReader import IVCReader
+from devices._IVCReader import IVCReader
 
 logger = logging.getLogger(__name__)
 

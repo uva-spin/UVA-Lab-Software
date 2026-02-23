@@ -7,7 +7,7 @@ Tests connection, data reading, and proper cleanup for serial-based temperature 
 
 import sys
 import os
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..'))
 sys.path.append(project_root)
 print(f"Added to path: {project_root}")
 import time
@@ -15,7 +15,7 @@ import os
 import logging
 import traceback
 from datetime import datetime
-from data_acquisition.daq._LakeShoreReader import LakeShoreReader
+from devices._LakeShoreReader import LakeShoreReader
 
 logger = logging.getLogger(__name__)
 

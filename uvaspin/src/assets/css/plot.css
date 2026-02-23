@@ -559,3 +559,89 @@
 .plot-wrapper::-webkit-scrollbar-thumb:hover {
     background: var(--border-hover);
 }
+
+/* UI refresh overrides */
+.plot-grid-container {
+    padding: var(--space-sm);
+    min-height: auto;
+    align-items: stretch;
+    justify-content: flex-start;
+}
+
+.plot-grid {
+    gap: var(--space-md);
+    max-width: var(--content-max-width-wide);
+    height: auto;
+    min-height: auto;
+    max-height: none;
+    grid-template-rows: auto;
+    align-items: stretch;
+}
+
+.plot-grid-container.responsive-mobile .plot-grid,
+.plot-grid-container.responsive-tablet .plot-grid,
+.plot-grid-container.responsive-desktop .plot-grid {
+    padding: 0;
+}
+
+.individual-plot {
+    min-height: 540px;
+    max-height: none;
+    max-width: none;
+    border-width: 1px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.plot-header {
+    padding: var(--space-sm) var(--space-md);
+    min-height: 52px;
+    height: auto;
+}
+
+.plot-title {
+    font-size: var(--text-sm);
+}
+
+.plot-controls {
+    gap: var(--space-xs);
+}
+
+.clear-plot-button {
+    width: 26px;
+    height: 26px;
+}
+
+.plot-wrapper {
+    min-height: 420px;
+}
+
+.flexible-plotly-wrapper {
+    height: 100%;
+    min-height: 420px;
+}
+
+@media (max-width: 1200px) {
+    .plot-grid {
+        gap: var(--space-sm);
+    }
+
+    .individual-plot {
+        min-height: 460px;
+    }
+}
+
+@media (max-width: 768px) {
+    .plot-grid-container {
+        padding: 0;
+    }
+
+    .individual-plot {
+        min-height: 360px;
+    }
+
+    .plot-wrapper,
+    .flexible-plotly-wrapper {
+        min-height: 320px;
+    }
+}

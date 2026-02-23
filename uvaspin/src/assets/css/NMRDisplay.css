@@ -227,3 +227,93 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* UI refresh overrides */
+.nmr-display {
+    height: auto;
+    gap: var(--space-md);
+    background: transparent;
+}
+
+.nmr-header {
+    margin-bottom: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface-elevated);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-md) var(--space-lg);
+}
+
+.nmr-header h2 {
+    color: var(--text-primary);
+    font-size: 1.35rem;
+}
+
+.nmr-controls {
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.nmr-values-section {
+    margin-bottom: 0;
+}
+
+.control-section,
+.nmr-plot-container,
+.nmr-info {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    background: var(--surface-elevated);
+}
+
+.control-section {
+    padding: var(--panel-padding);
+}
+
+.control-section h3 {
+    color: var(--text-primary);
+}
+
+.nmr-values-grid {
+    gap: var(--space-sm);
+}
+
+.nmr-value-item {
+    padding: var(--space-md);
+    border-width: 1px;
+}
+
+.nmr-plot-container {
+    min-height: 520px;
+    padding: var(--space-sm);
+}
+
+.nmr-info {
+    margin-top: 0;
+    padding: var(--panel-padding);
+}
+
+.info-grid {
+    gap: var(--space-sm);
+}
+
+.info-item {
+    padding: var(--space-sm);
+    border-radius: var(--radius-sm);
+}
+
+@media (max-width: 900px) {
+    .nmr-header {
+        padding: var(--space-md);
+    }
+
+    .nmr-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .nmr-plot-container {
+        min-height: 460px;
+    }
+}

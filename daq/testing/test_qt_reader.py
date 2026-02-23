@@ -6,12 +6,12 @@ Tests reading QT data using the new QTReader class
 
 import sys
 import os
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..'))
 sys.path.append(project_root)
 print(f"Added to path: {project_root}")
 import time
 import logging
-from data_acquisition.daq._QTReader import QTReader
+from devices._QTReader import QTReader
 
 logger = logging.getLogger(__name__)
 

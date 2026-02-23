@@ -432,3 +432,144 @@
         min-width: 80px;
     }
 }
+
+/* UI refresh overrides */
+.history-page {
+    min-height: auto;
+    height: auto;
+    padding: 0;
+    gap: var(--space-md);
+    background: transparent;
+}
+
+.history-header {
+    padding: var(--space-md) var(--space-lg);
+    margin: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface-elevated);
+    box-shadow: var(--shadow-sm);
+}
+
+.history-header h2 {
+    color: var(--text-primary);
+    font-size: 1.35rem;
+}
+
+.history-controls {
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.refresh-button {
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+}
+
+.control-grid {
+    margin-bottom: 0;
+}
+
+.control-section,
+.history-info,
+.history-plot-container {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    background: var(--surface-elevated);
+}
+
+.control-section {
+    margin: 0;
+    padding: var(--panel-padding);
+}
+
+.control-section h3 {
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-xs);
+}
+
+.data-selection-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-sm);
+}
+
+.history-plot-container {
+    height: auto;
+    min-height: 520px;
+    padding: var(--space-sm);
+}
+
+.history-plot-container .flexible-plotly-wrapper {
+    height: 470px;
+}
+
+.history-info {
+    margin-top: 0;
+    padding: var(--panel-padding);
+}
+
+.info-grid {
+    gap: var(--space-sm);
+}
+
+.info-item {
+    padding: var(--space-sm);
+    border-radius: var(--radius-sm);
+}
+
+.datetime-picker {
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+}
+
+.datetime-picker-header {
+    margin-bottom: var(--space-sm);
+}
+
+.datetime-picker-header h3 {
+    margin-bottom: var(--space-xs);
+}
+
+.quick-select-buttons {
+    gap: var(--space-xs);
+}
+
+.quick-select-btn {
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+}
+
+.datetime-inputs {
+    gap: var(--space-sm);
+}
+
+.date-input,
+.time-input {
+    border-radius: var(--radius-sm);
+}
+
+@media (max-width: 900px) {
+    .history-header {
+        padding: var(--space-md);
+    }
+
+    .history-controls {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .history-controls > * {
+        width: 100%;
+    }
+
+    .history-plot-container {
+        min-height: 460px;
+    }
+
+    .history-plot-container .flexible-plotly-wrapper {
+        height: 420px;
+    }
+}

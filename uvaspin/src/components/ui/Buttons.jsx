@@ -60,7 +60,7 @@ function HomeButton() {
 function SidePanelButton({ onClick, isActive = false }) {
     return (
         <button 
-            className={`sidebar-toggle ${isActive ? 'active' : ''}`}
+            className={`sidebar-toggle sidebar-toggle-icon ${isActive ? 'active' : ''}`}
             onClick={onClick}
             title="Toggle Data Selection"
         >

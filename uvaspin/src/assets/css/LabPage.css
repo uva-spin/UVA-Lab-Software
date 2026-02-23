@@ -1,28 +1,27 @@
 .lab-page-content {
     display: flex;
     justify-content: center;
-    align-items: center;
-    padding: 1rem;
-    background: var(--bg-secondary);
+    align-items: stretch;
+    padding: 0;
+    background: transparent;
     color: var(--text-primary);
-    min-height: calc(100vh - 60px);
-    /* height: 100vh; */
+    min-height: calc(100vh - 240px);
     width: 100%;
-    position: absolute;
-    top: -10px;
-    /* margin: 0 auto; */
+    position: relative;
+    top: 0;
+    margin: 0;
 }
 
 .lab-page-header {
-    background: var(--gradient-accent);
+    background: var(--gradient-primary);
     color: white;
-    padding: 1rem 0;
-    box-shadow: var(--shadow-lg);
-    width: autox;
+    padding: var(--space-md) 0;
+    box-shadow: var(--shadow-md);
+    width: auto;
     position: relative;
     display: flex;
     justify-content: center;
-    top: -90px;
+    top: 0;
     left: 0;
     right: 0;
     z-index: 2;
@@ -37,9 +36,10 @@
 
 .lab-page {
     position: relative;
-    min-height: calc(100vh - 80px);
+    min-height: calc(100vh - 180px);
     top: 0;
-    height: 100vh;
+    height: auto;
+    width: 100%;
 }
 
 .my-custom-time-picker {

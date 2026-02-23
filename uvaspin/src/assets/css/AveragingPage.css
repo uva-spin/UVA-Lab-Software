@@ -317,3 +317,132 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* UI refresh overrides */
+.averaging-page {
+    min-height: auto;
+    background: transparent;
+    gap: var(--space-md);
+}
+
+.averaging-header {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface-elevated);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-md) var(--space-lg);
+    margin: 0;
+}
+
+.averaging-header h2 {
+    color: var(--text-primary);
+    font-size: 1.35rem;
+}
+
+.averaging-controls {
+    gap: var(--space-md);
+    margin-bottom: 0;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.control-section,
+.averaging-info,
+.averaging-plot-container {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.control-section {
+    padding: var(--panel-padding);
+    background: var(--surface-elevated);
+}
+
+.control-section h3 {
+    color: var(--text-primary);
+    margin-bottom: var(--space-md);
+}
+
+.parameter-controls,
+.data-selection-grid {
+    gap: var(--space-sm);
+}
+
+.parameter-group input {
+    border-width: 1px;
+    border-radius: var(--radius-sm);
+}
+
+.calculate-button {
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+}
+
+.averaging-plot-container {
+    height: auto;
+    min-height: 520px;
+    margin-bottom: 0;
+    padding: var(--space-sm);
+}
+
+.averaging-plot-container .flexible-plotly-wrapper {
+    height: 470px;
+}
+
+.averaging-info {
+    padding: var(--panel-padding);
+    background: var(--surface-elevated);
+}
+
+.info-grid {
+    gap: var(--space-sm);
+}
+
+.info-item {
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm);
+}
+
+.datetime-picker {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm);
+}
+
+.quick-select-buttons {
+    gap: var(--space-xs);
+}
+
+.quick-select-btn {
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--text-sm);
+}
+
+.datetime-inputs {
+    gap: var(--space-sm);
+}
+
+.date-input,
+.time-input {
+    border-width: 1px;
+    border-radius: var(--radius-sm);
+}
+
+@media (max-width: 900px) {
+    .averaging-header {
+        padding: var(--space-md);
+    }
+
+    .averaging-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .averaging-plot-container {
+        min-height: 460px;
+    }
+
+    .averaging-plot-container .flexible-plotly-wrapper {
+        height: 420px;
+    }
+}

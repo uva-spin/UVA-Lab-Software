@@ -6,10 +6,10 @@ Tests reading from AIN1 and AIN2 channels
 
 import sys
 import os
-sys.path.append('../../')
+sys.path.append(os.path.dirname(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..')))
 import time
 import logging
-from _LabJackReader import LabJackReader_2
+from devices._LabJackReader import LabJackReader_2
 
 logger = logging.getLogger(__name__)
 
