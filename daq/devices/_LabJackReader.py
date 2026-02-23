@@ -48,13 +48,6 @@ class LabJackReader_1:
         self.EST = pytz.timezone('America/New_York')
 
         self.logger = logging.getLogger("LabJack_1")
-        self.console_handler = logging.StreamHandler() ## Console handler
-        self.logger.addHandler(self.console_handler) 
-
-        self.console_handler.setFormatter(logging.Formatter( ## Format for what shows on console
-            '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
-            datefmt="%Y-%m-%d %H:%M:%S"
-        ))
         
 
     def psi_to_torr(self, psi):
@@ -327,13 +320,6 @@ class LabJackReader_2:
         self.EST = pytz.timezone('America/New_York')
 
         self.logger = logging.getLogger("LabJack_2")
-        self.console_handler = logging.StreamHandler() ## Console handler
-        self.logger.addHandler(self.console_handler) 
-
-        self.console_handler.setFormatter(logging.Formatter( ## Format for what shows on console
-            '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
-            datefmt="%Y-%m-%d %H:%M:%S"
-        ))
         
 
     def start(self):

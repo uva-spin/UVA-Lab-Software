@@ -156,7 +156,13 @@ def _print_status(iteration: int, status: dict) -> None:
 async def run_standalone() -> None:
     parser = argparse.ArgumentParser(description="Data Acquisition System")
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
-    parser.add_argument("--terminal-log", action="store_true", help="Show logs in terminal")
+    parser.add_argument(
+        "--terminal-log",
+        "--termil-log",
+        dest="terminal_log",
+        action="store_true",
+        help="Show logs in terminal",
+    )
     args = parser.parse_args()
 
     setup_logging(verbose=args.verbose, terminal=args.terminal_log)

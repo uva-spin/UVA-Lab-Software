@@ -25,7 +25,6 @@ class IVCReader:
         self.logger = logging.getLogger(__name__)
 
         self.logger.setLevel(logging.INFO)
-        self.logger.addHandler(logging.StreamHandler())
 
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         self.log_path = os.path.join(os.path.dirname(self.current_dir), 'data_logs', 'ivc_debug.log')

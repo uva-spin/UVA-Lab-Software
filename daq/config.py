@@ -59,9 +59,9 @@ ASYNC_READ_INTERVAL = 1       # Check for new data (async)
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log"
 
-# Database - use shared config.json from uvaspin (host, port, user, password, database, connectionLimit)
-DATABASE_FILE = os.path.join(_PROJECT_ROOT, "uvaspin", "config.json")
-
 # Network paths
 TWIST_PATH = "//twist.phys.virginia.edu/www/spin"
+
+DATABASE_FILE = os.path.join(_PROJECT_ROOT, "UVA-Lab-Software", "uvaspin", "config.json")
+
 

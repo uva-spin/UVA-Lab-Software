@@ -14,13 +14,6 @@ class TeledyneDataReader:
     """
 
     logger = logging.getLogger(__name__)
-    console_handler = logging.StreamHandler() ## Console handler
-    logger.addHandler(console_handler) 
-
-    console_handler.setFormatter(logging.Formatter( ## Format for what shows on console
-        '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
-        datefmt="%Y-%m-%d %H:%M:%S"
-    ))
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
 

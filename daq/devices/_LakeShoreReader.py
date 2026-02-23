@@ -23,13 +23,6 @@ class LakeShoreReader:
         self.EST = pytz.timezone('America/New_York')
 
         self.logger = logging.getLogger(__name__)
-        self.console_handler = logging.StreamHandler() ## Console handler
-        self.logger.addHandler(self.console_handler) 
-
-        self.console_handler.setFormatter(logging.Formatter( ## Format for what shows on console
-            '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
-            datefmt="%Y-%m-%d %H:%M:%S"
-        ))
 
 
     def start(self):

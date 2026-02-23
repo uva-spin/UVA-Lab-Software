@@ -24,9 +24,8 @@ class MariaDBLoader:
 
     def __init__(self, config_path: str):
         with open(config_path) as f:
-            raw = json.load(f)
-        db_raw = raw.get("database", raw)
-        self._config = db_config(db_raw)
+            db = json.load(f)
+        self._config = db_config(db)
         self._pool: Optional[mariadb.ConnectionPool] = None
 
     def connect(self, pool_size: int = 10) -> None:

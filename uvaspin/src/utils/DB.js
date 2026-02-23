@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 let config = {};
 
-// Read config file - expects keys: host, port, user, password, database, connectionLimit
+// Read config file - expects keys: host, port, user, password, database
 
 const configPath = path.join(__dirname, '../../config.json');
 try {
