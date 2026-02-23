@@ -18,12 +18,12 @@ class TeledyneDataReader:
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-    def __init__(self, check_interval=1, connection_pool=None):
+    def __init__(self, check_interval=1, connection_pool=None, ip_address="172.29.36.192", tcp_port=101):
         self.check_interval = check_interval
         self.data_queue = [None, None, None]
         self.running = False
-        self.TELEDYNE_THCD_401_TCP_PORT = 101
-        self.TELEDYNE_THCD_401_TCP_IP = "172.29.36.192"
+        self.TELEDYNE_THCD_401_TCP_PORT = tcp_port
+        self.TELEDYNE_THCD_401_TCP_IP = ip_address
         self.TELEDYNE_THCD_401_TCP_UNIT_ID = 2
         self.socket = None
         self.connected = False

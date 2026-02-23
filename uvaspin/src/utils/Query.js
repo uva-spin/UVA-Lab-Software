@@ -23,6 +23,34 @@ function formatTimestampForDB(timestampStr) {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
+function parseValidatedTimestamp(timestampStr, label) {
+    if (!timestampStr) return null;
+    const formatted = formatTimestampForDB(timestampStr);
+    if (!formatted) {
+        throw new Error(`Invalid ${label} timestamp`);
+    }
+    return formatted;
+}
+
+function deriveModuloFactor(startTime, endTime) {
+    if (!startTime || !endTime) {
+        return 1;
+    }
+
+    const start = new Date(startTime).getTime();
+    const end = new Date(endTime).getTime();
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+        return 1;
+    }
+
+    const diffMs = end - start;
+    if (diffMs > 30 * 24 * 60 * 60 * 1000) return 1000;
+    if (diffMs > 7 * 24 * 60 * 60 * 1000) return 500;
+    if (diffMs > 24 * 60 * 60 * 1000) return 100;
+    if (diffMs > 60 * 60 * 1000) return 10;
+    return 1;
+}
+
 // Hash map table for column to database table mapping
 const COLUMN_TO_TABLE_MAP = {
     // QT table columns
@@ -126,25 +154,9 @@ const COLUMN_TO_TABLE_MAP = {
 };
 
 export async function fetchData(pool, keys, start_time, end_time) {
-    let moduloFactor = 1;
-        // if time is over a month //
-        if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 30 * 24 * 60 * 60 * 1000) {
-            moduloFactor = 1000;
-        }
-        // if time is over a week //
-        else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 7 * 24 * 60 * 60 * 1000) {
-            moduloFactor = 500;
-        } // over a day //
-        else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 24 * 60 * 60 * 1000) {
-            moduloFactor = 100;
-        }
-        // over an hour //
-        else if (formatTimestampForDB(start_time) && formatTimestampForDB(start_time) > 60 * 60 * 1000) {
-            moduloFactor = 10;
-        }
-        else { //default back to 1 //
-            moduloFactor = 1;
-        }
+    const validatedStartTime = parseValidatedTimestamp(start_time, 'start_time');
+    const validatedEndTime = parseValidatedTimestamp(end_time, 'end_time');
+    const moduloFactor = deriveModuloFactor(start_time, end_time);
 
         console.log(`Query.js: Using modulo factor: ${moduloFactor}`);
 
@@ -176,7 +188,7 @@ export async function fetchData(pool, keys, start_time, end_time) {
 
         console.log(`Querying ${Object.keys(tableGroups).length} tables:`, Object.keys(tableGroups));
         
-        const cacheKey = `${Object.keys(tableGroups).sort().join('_')}_${keys}_${start_time}_${end_time}_${moduloFactor}`;
+        const cacheKey = `${Object.keys(tableGroups).sort().join('_')}_${keys}_${validatedStartTime || ''}_${validatedEndTime || ''}_${moduloFactor}`;
         
         // Check cache first
         if (cache.has(cacheKey)) {
@@ -192,14 +204,15 @@ export async function fetchData(pool, keys, start_time, end_time) {
                 // First, get total count to calculate sampling interval
                 let countQuery = `SELECT COUNT(*) as total_count FROM ${tableName}`;
                 const conditions = [];
+                const conditionParams = [];
                 
-                if (start_time) {
-                    const formattedStartTime = formatTimestampForDB(start_time);
-                    conditions.push(`timestamp >= '${formattedStartTime}'`);
+                if (validatedStartTime) {
+                    conditions.push('timestamp >= ?');
+                    conditionParams.push(validatedStartTime);
                 }
-                if (end_time) {
-                    const formattedEndTime = formatTimestampForDB(end_time);
-                    conditions.push(`timestamp <= '${formattedEndTime}'`);
+                if (validatedEndTime) {
+                    conditions.push('timestamp <= ?');
+                    conditionParams.push(validatedEndTime);
                 }
                 
                 if (conditions.length > 0) {
@@ -207,7 +220,7 @@ export async function fetchData(pool, keys, start_time, end_time) {
                 }
                 
                 const countResult = await new Promise((resolve, reject) => {
-                    pool.query(countQuery, (err, rows) => {
+                    pool.query(countQuery, conditionParams, (err, rows) => {
                         if (err) {
                             console.error(`Error getting count for table ${tableName}:`, err);
                             resolve(0); 
@@ -224,6 +237,7 @@ export async function fetchData(pool, keys, start_time, end_time) {
                 query = `SELECT ${columns.join(', ')}, timestamp FROM ${tableName}`;
                 
                 const allConditions = [...conditions];
+                const queryParams = [...conditionParams];
                 allConditions.push(`id % ${moduloFactor} = 0`);
                 allConditions.push(`(${columns.map(col => `${col} IS NOT NULL`).join(' OR ')})`);
                 
@@ -241,7 +255,7 @@ export async function fetchData(pool, keys, start_time, end_time) {
                 
                 // Execute query using promise-based approach
                 const result = await new Promise((resolve, reject) => {
-                    pool.query(query, (err, rows) => {
+                    pool.query(query, queryParams, (err, rows) => {
                         if (err) {
                             console.error(`Error querying table ${tableName}:`, err);
                             reject(err);

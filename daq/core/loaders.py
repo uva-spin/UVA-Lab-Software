@@ -63,9 +63,14 @@ class MariaDBLoader:
         if table not in TABLE_SCHEMAS:
             logger.error(f"Unknown table: {table}")
             return False
+        allowed_columns = set(TABLE_SCHEMAS[table])
+        invalid_columns = [c for c in columns if c not in allowed_columns]
+        if invalid_columns:
+            logger.error(f"Invalid columns for {table}: {invalid_columns}")
+            return False
         placeholders = ", ".join("?" * len(values))
         cols = ", ".join(f"`{c}`" for c in columns)
-        sql = f"INSERT INTO {table} ({cols}) VALUES ({placeholders})"
+        sql = f"INSERT INTO `{table}` ({cols}) VALUES ({placeholders})"
         conn = None
         try:
             conn = self._get_conn()

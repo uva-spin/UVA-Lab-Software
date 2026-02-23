@@ -2,31 +2,62 @@ import mariadb from 'mariadb/callback.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let config = {};
+dotenv.config();
+let config = null;
 
-// Read config file - expects keys: host, port, user, password, database
-
-const configPath = path.join(__dirname, '../../config.json');
-try {
+function loadLegacyFileConfig() {
+    const configPath = path.join(__dirname, '../../config.json');
     const configData = fs.readFileSync(configPath, 'utf8');
-    config = JSON.parse(configData);
+    const parsed = JSON.parse(configData);
     const required = ['host', 'port', 'user', 'password', 'database'];
-    const missing = required.filter((k) => !(k in config));
+    const missing = required.filter((k) => !(k in parsed));
     if (missing.length > 0) {
-        console.error('config.json missing required keys:', missing.join(', '));
+        throw new Error(`config.json missing required keys: ${missing.join(', ')}`);
+    }
+    return parsed;
+}
+
+function loadEnvConfig() {
+    const envConfig = {
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT ? Number.parseInt(process.env.DB_PORT, 10) : undefined,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+    };
+
+    const required = ['host', 'port', 'user', 'password', 'database'];
+    const missing = required.filter((k) => envConfig[k] === undefined || envConfig[k] === null || envConfig[k] === '');
+    if (missing.length > 0) {
+        throw new Error(`Missing required DB environment variables: ${missing.join(', ')}`);
+    }
+    if (!Number.isInteger(envConfig.port) || envConfig.port <= 0) {
+        throw new Error('DB_PORT must be a positive integer');
+    }
+    return envConfig;
+}
+
+try {
+    if (process.env.USE_LEGACY_DB_CONFIG === 'true') {
+        config = loadLegacyFileConfig();
+        console.warn('Using legacy DB config file via USE_LEGACY_DB_CONFIG=true');
+    } else {
+        config = loadEnvConfig();
     }
 } catch (err) {
-    console.error('Error reading config file\n \
-        Cannot Establish Connection to Database \
-        \n Error:', err);
+    console.error('Database configuration error:', err.message);
 }
 
 function createPool() {
     try {
+        if (!config) {
+            throw new Error('Database configuration not initialized');
+        }
         return mariadb.createPool(config);
     } catch (error) {
         console.error('Failed to create database pool:', error);

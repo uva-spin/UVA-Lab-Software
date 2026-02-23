@@ -9,15 +9,15 @@ import pytz
 
 class MaxiGaugeReader:    
     
-    def __init__(self, baudrate=9600, timeout=1, check_interval=1, connection_pool=None):
+    def __init__(self, baudrate=9600, timeout=1, check_interval=1, connection_pool=None, ip_address="172.29.36.194", tcp_port=8000):
         self.baudrate = baudrate
         self.timeout = timeout
         self.socket = None
         self.running = False
         self.data_queue = [None] * 6  # Initialize with 6 None values
         self.check_interval = check_interval
-        self.MAXIGAUGE_TCP_IP = "172.29.36.194"
-        self.MAXIGAUGE_TCP_PORT = 8000
+        self.MAXIGAUGE_TCP_IP = ip_address
+        self.MAXIGAUGE_TCP_PORT = tcp_port
         self.connected = False
         self.last_connection_attempt = 0
         self.connection_retry_interval = 5  # seconds

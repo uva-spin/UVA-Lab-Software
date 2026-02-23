@@ -6,6 +6,15 @@ import mariadb
 from datetime import datetime
 import pytz
 
+ALLOWED_LAKESHORE_TABLES = {
+    "lakeshore_target_stick",
+    "lakeshore_fridge_temp",
+    "lakeshore_magnet_temp",
+    "Lakeshore_Target_Stick",
+    "Lakeshore_Fridge_Temp",
+    "Lakeshore_Magnet_Temp",
+}
+
 class LakeShoreReader:
 
 
@@ -218,6 +227,9 @@ class LakeShoreReader:
         if not self.connection_pool:
             self.logger.warning("No database connection pool available")
             return False
+        if self.table_name not in ALLOWED_LAKESHORE_TABLES:
+            self.logger.error(f"Invalid LakeShore table name: {self.table_name}")
+            return False
             
         conn = None
         cursor = None
@@ -227,7 +239,7 @@ class LakeShoreReader:
             
             if data and len(data) >= 8:
                 cursor.execute(
-                    f"""INSERT INTO {self.table_name} (timestamp, temp1, temp2, temp3, temp4, 
+                    f"""INSERT INTO `{self.table_name}` (timestamp, temp1, temp2, temp3, temp4, 
                        temp5, temp6, temp7, temp8) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (timestamp, data[0], data[1], data[2], data[3], 
                      data[4], data[5], data[6], data[7])

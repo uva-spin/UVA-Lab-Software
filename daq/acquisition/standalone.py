@@ -24,10 +24,15 @@ from config import (
     IVC_PORT,
     LABJACK_CHECK_INTERVAL,
     LAKESHORE_PORTS,
+    MAXIGAUGE_CHECK_INTERVAL,
+    MAXIGAUGE_IP,
+    MAXIGAUGE_PORT,
     NUM_REG_TO_READ,
     PLC_IP,
     QT_LABELS,
     SLEEP_INTERVAL,
+    TELEDYNE_IP,
+    TELEDYNE_PORT,
     TELEDYNE_CHECK_INTERVAL,
     UNIT_ID,
 )
@@ -158,7 +163,6 @@ async def run_standalone() -> None:
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     parser.add_argument(
         "--terminal-log",
-        "--termil-log",
         dest="terminal_log",
         action="store_true",
         help="Show logs in terminal",
@@ -189,7 +193,11 @@ async def run_standalone() -> None:
     try:
         readers["qt"] = QTReader(plc_ip=PLC_IP, unit_id=UNIT_ID, int_port=INT_PORT, float_port=FLOAT_PORT,
                                  num_reg_to_read=NUM_REG_TO_READ, labels=QT_LABELS)
-        readers["teledyne"] = TeledyneDataReader(TELEDYNE_CHECK_INTERVAL)
+        readers["teledyne"] = TeledyneDataReader(
+            TELEDYNE_CHECK_INTERVAL,
+            ip_address=TELEDYNE_IP,
+            tcp_port=TELEDYNE_PORT,
+        )
         readers["teledyne"].start()
         readers["labjack_1"] = LabJackReader_1(LABJACK_CHECK_INTERVAL)
         readers["labjack_1"].start()
@@ -201,7 +209,11 @@ async def run_standalone() -> None:
         readers["lakeshore_ft"].start()
         readers["lakeshore_mt"] = LakeShoreReader(port=LAKESHORE_PORTS["magnet_temp"])
         readers["lakeshore_mt"].start()
-        readers["maxigauge"] = MaxiGaugeReader()
+        readers["maxigauge"] = MaxiGaugeReader(
+            check_interval=MAXIGAUGE_CHECK_INTERVAL,
+            ip_address=MAXIGAUGE_IP,
+            tcp_port=MAXIGAUGE_PORT,
+        )
         readers["maxigauge"].start()
         readers["ivc"] = IVCReader(port=IVC_PORT)
         readers["ivc"].start()
