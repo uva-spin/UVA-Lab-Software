@@ -13,7 +13,19 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 6000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'react-router': ['react-router-dom'],
+          'plotly': ['plotly.js-basic-dist', 'react-plotly.js'],
+          'mui': ['@mui/material', '@mui/x-date-pickers', '@emotion/react', '@emotion/styled'],
+          'date-utils': ['dayjs', 'moment', 'react-datepicker', 'react-date-picker', 'react-time-picker']
+        }
+      }
+    },
     commonjsOptions: {
       transformMixedEsModules: true
     }

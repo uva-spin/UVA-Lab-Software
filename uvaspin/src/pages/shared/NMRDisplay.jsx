@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import FlexiblePlotlyContainer from '../../containers/FlexiblePlotlyContainer';
 import usePageDataCache from '../../utils/usePageDataCache';
-import { LAB_COLORS } from '../../utils/plotUtils';
+import { LAB_COLORS, PLOT_BASE_STYLE, TRACE_LINE_WIDTH } from '../../utils/plotUtils';
 import '../../assets/css/NMRDisplay.css';
 
 const LAB_LABELS = { lab42: 'Lab 042', lab36: 'Lab 036' };
@@ -26,9 +26,15 @@ export default function NMRDisplay({ labType }) {
   }, [fetchData]);
 
   const plotConfig = {
-    data: nmrData ? [{ x: nmrData.frequency, y: nmrData.amplitude, type: 'scatter', mode: 'lines', name: 'NMR Signal', line: { color: LAB_COLORS[labType], width: 2 } }] : [],
-    layout: { title: `${LAB_LABELS[labType]} NMR Signal - Real Time`, xaxis: { title: 'Frequency (MHz)' }, yaxis: { title: 'Amplitude' }, showlegend: true, margin: { t: 50, r: 50, b: 50, l: 50 } },
-    config: { displayModeBar: true, responsive: true },
+    data: nmrData ? [{ x: nmrData.frequency, y: nmrData.amplitude, type: 'scatter', mode: 'lines', name: 'NMR Signal', line: { color: LAB_COLORS[labType], width: TRACE_LINE_WIDTH } }] : [],
+    layout: {
+      ...PLOT_BASE_STYLE,
+      autosize: true,
+      xaxis: { ...PLOT_BASE_STYLE.xaxis, title: { text: 'Frequency (MHz)', font: { size: 12 } } },
+      yaxis: { ...PLOT_BASE_STYLE.yaxis, title: { text: 'Amplitude', font: { size: 12 } } },
+      legend: { ...PLOT_BASE_STYLE.legend, orientation: 'v', x: 1.02, y: 1, xanchor: 'left' },
+    },
+    config: { displayModeBar: true, responsive: true, displaylogo: false },
   };
 
   return (

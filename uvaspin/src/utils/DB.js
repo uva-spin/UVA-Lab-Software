@@ -8,11 +8,17 @@ const __dirname = path.dirname(__filename);
 
 let config = {};
 
-// Read config file
+// Read config file - expects keys: host, port, user, password, database, connectionLimit
+
 const configPath = path.join(__dirname, '../../config.json');
 try {
     const configData = fs.readFileSync(configPath, 'utf8');
     config = JSON.parse(configData);
+    const required = ['host', 'port', 'user', 'password', 'database'];
+    const missing = required.filter((k) => !(k in config));
+    if (missing.length > 0) {
+        console.error('config.json missing required keys:', missing.join(', '));
+    }
 } catch (err) {
     console.error('Error reading config file\n \
         Cannot Establish Connection to Database \

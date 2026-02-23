@@ -94,7 +94,8 @@ export const generatePlotData = async (selectedParams, isIncremental, dateRange,
         }
 
         let finalData = data;
-        let finalLastTimestamp = data[data.length - 1][0];
+        const lastRow = data[data.length - 1];
+        let finalLastTimestamp = Array.isArray(lastRow) ? lastRow[0] : (lastRow?.timestamp ?? lastRow?.Timestamp);
         
         if (isIncremental) {
             // Merge with cached data for incremental updates

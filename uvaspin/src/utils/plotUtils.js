@@ -7,6 +7,36 @@ const COLOR_PALETTE = [
     '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5'
 ];
 
+/** Shared plot style (font, line width, margins) matching NMR display */
+const PLOT_BASE_STYLE = {
+    margin: { t: 50, r: 50, b: 50, l: 50 },
+    showlegend: true,
+    hovermode: 'closest',
+    plot_bgcolor: 'white',
+    paper_bgcolor: 'white',
+    font: { family: 'Arial, sans-serif', size: 12 },
+    xaxis: {
+        showgrid: true,
+        gridcolor: '#e0e0e0',
+        zeroline: false,
+        tickfont: { size: 11 },
+    },
+    yaxis: {
+        showgrid: true,
+        gridcolor: '#e0e0e0',
+        zeroline: false,
+        tickfont: { size: 11 },
+    },
+    legend: {
+        font: { size: 11 },
+        bgcolor: 'rgba(255,255,255,0.8)',
+        bordercolor: '#e0e0e0',
+        borderwidth: 1,
+    },
+};
+
+const TRACE_LINE_WIDTH = 2;
+
 function getColumnUnits(column) {
     if (column.includes('fridge_vapor_pressure') || column.includes('root_exhausted_pressure')) {
         return ' (torr)';
@@ -71,90 +101,55 @@ function scaleValues(values) {
 
 // Note: Data sampling is now handled in dataProcessor.js before traces are created
 
-// Function to create plot traces from data (data is already sampled in dataProcessor.js)
-function createTracesFromData(data, availableKeys, selectedKeys) {
-    if (!data || data.length === 0) return [];
-    
-    // Data is already sampled in dataProcessor.js, so we work with the provided data directly
-    console.log('Selected keys:', selectedKeys);
-    console.log(`Creating traces from ${data.length} data points (already sampled)`);
-    
-    // Log data timestamp range for verification
-    if (data.length > 0) {
-        console.log('Data timestamp range:', 
-            data[0].timestamp || data[0][0], 
-            'to', 
-            data[data.length - 1].timestamp || data[data.length - 1][0]
-        );
-    }
-    
-    // Detect data format: object format vs array format
-    const isObjectFormat = data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0]);
-    console.log('Data format detected:', isObjectFormat ? 'object' : 'array');
-    
-    let timestamps, valuesByKey;
-    
-    if (isObjectFormat) {
-        // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
-        timestamps = data.map(point => new Date(point.timestamp));
-        valuesByKey = {};
-        selectedKeys.forEach(key => {
-            valuesByKey[key] = data.map(point => point[key]);
-        });
-    } else {
-        // Array format: [["timestamp", val1, val2, ...], ...] or [[val1, val2, ..., "timestamp"], ...]
-        // Check if timestamp is first or last element
-        const firstPoint = data[0];
-        const lastElement = firstPoint[firstPoint.length - 1];
-        const firstElement = firstPoint[0];
-        
-        // Check if last element looks like a timestamp (contains 'T' or is a date string)
-        const isTimestampLast = typeof lastElement === 'string' && (lastElement.includes('T') || lastElement.includes('-'));
-        
-        if (isTimestampLast) {
-            // Timestamp is last: [val1, val2, ..., timestamp]
-            timestamps = data.map(point => new Date(point[point.length - 1]));
-            valuesByKey = {};
-            selectedKeys.forEach((key, index) => {
-                const columnIndex = availableKeys.indexOf(key);
-                valuesByKey[key] = data.map(point => point[columnIndex]);
-            });
-        } else {
-            // Timestamp is first: [timestamp, val1, val2, ...]
-            timestamps = data.map(point => new Date(point[0]));
-            valuesByKey = {};
-            selectedKeys.forEach((key, index) => {
-                const columnIndex = availableKeys.indexOf(key) + 1; // +1 because timestamp is at index 0
-                valuesByKey[key] = data.map(point => point[columnIndex]);
-            });
+// Case-insensitive key lookup (DB may return Timestamp, buffer_pressure, etc. with varying case)
+function getObjVal(obj, key) {
+    if (obj[key] !== undefined) return obj[key];
+    const k = Object.keys(obj).find(kk => kk.toLowerCase() === key.toLowerCase());
+    return k !== undefined ? obj[k] : undefined;
+}
+
+// Build (x, y) arrays for one key from object-format data, excluding null/invalid points
+function pointsForKey(data, key) {
+    const x = [];
+    const y = [];
+    for (const point of data) {
+        const ts = getObjVal(point, 'timestamp');
+        const val = getObjVal(point, key);
+        if (ts != null && val != null && !Number.isNaN(Number(val))) {
+            x.push(new Date(ts));
+            y.push(Number(val));
         }
     }
-    
-    console.log('Timestamps:', timestamps);
-    
-    // Create plot traces for each selected parameter
+    return { x, y };
+}
+
+// Create plot traces from object-format data. Excludes null data points per key.
+function createTracesFromData(data, availableKeys, selectedKeys) {
+    if (!data || data.length === 0) return [];
+
+    const isObjectFormat = typeof data[0] === 'object' && !Array.isArray(data[0]);
+    if (!isObjectFormat) {
+        // Convert array format [timestamp, v1, v2, ...] to object format for unified handling
+        data = data.map(row => {
+            const obj = { timestamp: row[0] };
+            availableKeys.forEach((k, i) => { obj[k] = row[i + 1]; });
+            return obj;
+        });
+    }
+
     return selectedKeys.map((column, index) => {
-        const values = valuesByKey[column] || [];
+        const { x, y } = pointsForKey(data, column);
         const units = getColumnUnits(column);
-        const scaledValues = scaleValues(values);
-        // console.log(`Column ${column} values:`, values);
-        
+        const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
         return {
-            x: timestamps,
-            y: scaledValues,
+            x,
+            y,
             type: 'scatter',
-            mode: 'markers',
+            mode: 'lines',
             name: column + units,
-            marker: { 
-                size: 6,
-                color: COLOR_PALETTE[index % COLOR_PALETTE.length]
-            },
-            hovertemplate: 
-                '<b>%{fullData.name}</b><br>' +
-                'Time: %{x}<br>' +
-                'Value: %{y}<br>' +
-                '<extra></extra>',
-            connectgaps: false
+            line: { color, width: TRACE_LINE_WIDTH },
+            hovertemplate: '<b>%{fullData.name}</b><br>Time: %{x}<br>Value: %{y}<br><extra></extra>',
+            connectgaps: false,
         };
     });
 };
@@ -166,17 +161,21 @@ function extendTracesWithData(plotRef, newData, availableKeys, selectedKeys) {
         return;
     }
     
-    // Extract timestamps and values from object format
-    const newTimestamps = newData.map(point => new Date(point.timestamp));
-    console.log('Extending traces with data from', newTimestamps[0], 'to', newTimestamps[newTimestamps.length - 1]);
-    
-    // Prepare extension data for each trace
-    const extensionData = selectedKeys.map((column, index) => {
-        const newValues = newData.map(point => point[column]);
-        
+    // Prepare extension data for each trace, excluding null values
+    const extensionData = selectedKeys.map((column) => {
+        const x = [];
+        const y = [];
+        for (const point of newData) {
+            const ts = getObjVal(point, 'timestamp');
+            const val = getObjVal(point, column);
+            if (ts != null && val != null && !Number.isNaN(Number(val))) {
+                x.push(new Date(ts));
+                y.push(Number(val));
+            }
+        }
         return {
-            x: [newTimestamps],
-            y: [newValues]
+            x: [x],
+            y: [y]
         };
     });
     
@@ -205,12 +204,14 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
     if (!newData || newData.length === 0) return { data: [], lastTimestamp: null };
     
     const newCachedData = new Map(cachedData);
-    const newLastTimestamp = newData[newData.length - 1].timestamp;
+    const newLastTimestamp = getObjVal(newData[newData.length - 1], 'timestamp');
     
-    // For each selected key, merge new data with cached data
+    // For each selected key, merge new data with cached data (exclude null values)
     selectedKeys.forEach(key => {
         const existingData = newCachedData.get(key) || [];
-        const newValues = newData.map(point => [point.timestamp, point[key]]); // [timestamp, value]
+        const newValues = newData
+            .map(point => [getObjVal(point, 'timestamp'), getObjVal(point, key)])
+            .filter(([ts, val]) => ts != null && val != null && !Number.isNaN(Number(val)));
         
         // Merge and sort by timestamp, removing duplicates
         const mergedData = [...existingData, ...newValues]
@@ -225,8 +226,7 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
         newCachedData.set(key, mergedData);
     });
     
-    // Reconstruct the data array in the original format
-    // Only include timestamps where ALL selected keys have valid data points
+    // Reconstruct as object format for createTracesFromData; include rows with any valid values
     const allTimestamps = Array.from(new Set(
         Array.from(newCachedData.values())
             .flat()
@@ -235,24 +235,19 @@ function mergeDataWithCache(newData, selectedKeys, availableKeys, cachedData) {
     
     const reconstructedData = allTimestamps
         .map(timestamp => {
-            const row = [timestamp];
-            let hasAllValues = true;
-            
+            const row = { timestamp };
+            let hasAny = false;
             selectedKeys.forEach(key => {
                 const keyData = newCachedData.get(key) || [];
                 const point = keyData.find(p => p[0] === timestamp);
-                if (point && point[1] !== null && point[1] !== undefined) {
-                    row.push(point[1]);
-                } else {
-                    hasAllValues = false;
+                if (point && point[1] != null && !Number.isNaN(Number(point[1]))) {
+                    row[key] = Number(point[1]);
+                    hasAny = true;
                 }
             });
-            
-            return hasAllValues ? row : null;
+            return hasAny ? row : null;
         })
-        .filter(row => row !== null); // Remove rows where not all parameters have values
-    
-    console.log(`Data reconstruction: ${allTimestamps.length} total timestamps, ${reconstructedData.length} valid data points (with all parameters)`);
+        .filter(row => row !== null);
     
     return { 
         data: reconstructedData, 
@@ -277,7 +272,7 @@ function getPlotLayout(selectedParameters, data = null, dimensions = null) {
         
         if (isObjectFormat) {
             // Object format: [{timestamp: ..., pt501_ai: ..., pt502_ai: ...}, ...]
-            timestamps = data.map(point => new Date(point.timestamp));
+            timestamps = data.map(point => new Date(getObjVal(point, 'timestamp')));
         } else {
             // Array format: detect if timestamp is first or last
             const firstPoint = data[0];
@@ -318,44 +313,26 @@ function getPlotLayout(selectedParameters, data = null, dimensions = null) {
     }
     
     return {
-        title: {
-            text: selectedParameters.size === 0 
-                ? 'No Data Selected' 
-                : selectedParameters.size === 1 
-                    ? `${Array.from(selectedParameters)[0]} vs. Time`
-                    : 'Multiple Signals vs. Time',
-            font: { size: 18, color: '#333' }
-        },
+        ...PLOT_BASE_STYLE,
         xaxis: {
-            title: 'Time (EST)',
+            ...PLOT_BASE_STYLE.xaxis,
+            title: { text: 'Time (EST)', font: { size: 12 } },
             type: 'date',
-            showgrid: true,
-            gridcolor: '#e0e0e0',
-            zeroline: false,
-            range: xaxisRange
+            range: xaxisRange,
         },
         yaxis: {
-            title: 'Value',
-            showgrid: true,
-            gridcolor: '#e0e0e0',
-            zeroline: false
+            ...PLOT_BASE_STYLE.yaxis,
+            title: { text: 'Value', font: { size: 12 } },
         },
         legend: {
+            ...PLOT_BASE_STYLE.legend,
             orientation: 'v',
             x: 1.02,
             y: 1,
-            bgcolor: 'rgba(255,255,255,0.8)',
-            bordercolor: '#ccc',
-            borderwidth: 1
         },
-        margin: { r: 150, t: 50, b: 50, l: 60 },
+        margin: { ...PLOT_BASE_STYLE.margin, r: 80 },
         width: width,
         height: height,
-        plot_bgcolor: 'white',
-        paper_bgcolor: 'white',
-        font: { family: 'Arial, sans-serif' },
-        hovermode: 'closest',
-        showlegend: true
     };
 };
 
@@ -378,38 +355,28 @@ function getPlotConfig(labType) {
     };
 };
 
-/** Shared layout/config for History, Averaging, NMR pages */
+/** Shared layout/config for History, Averaging, NMR pages - NMR-style look */
 export function getTimeSeriesPlotConfig(title, filenamePrefix = 'plot') {
   return {
     layout: {
-      title: title || 'Plot',
+      ...PLOT_BASE_STYLE,
+      autosize: true,
       xaxis: {
-        title: 'Time (EST)',
+        ...PLOT_BASE_STYLE.xaxis,
+        title: { text: 'Time (EST)', font: { size: 12 } },
         type: 'date',
-        showgrid: true,
-        gridcolor: '#e0e0e0',
-        zeroline: false,
       },
       yaxis: {
-        title: 'Value',
-        showgrid: true,
-        gridcolor: '#e0e0e0',
-        zeroline: false,
+        ...PLOT_BASE_STYLE.yaxis,
+        title: { text: 'Value', font: { size: 12 } },
       },
       legend: {
+        ...PLOT_BASE_STYLE.legend,
         orientation: 'v',
         x: 1.02,
         y: 1,
-        bgcolor: 'rgba(255,255,255,0.8)',
-        bordercolor: '#ccc',
-        borderwidth: 1,
+        xanchor: 'left',
       },
-      showlegend: true,
-      margin: { r: 150, t: 50, b: 50, l: 60 },
-      plot_bgcolor: 'white',
-      paper_bgcolor: 'white',
-      font: { family: 'Arial, sans-serif' },
-      hovermode: 'closest',
     },
     config: {
       displayModeBar: true,
@@ -428,5 +395,6 @@ export function getTimeSeriesPlotConfig(title, filenamePrefix = 'plot') {
 }
 
 export const LAB_COLORS = { lab42: '#667eea', lab36: '#764ba2' };
+export { PLOT_BASE_STYLE, TRACE_LINE_WIDTH };
 
-export { getColumnUnits, shouldComponentUpdate, createTracesFromData, extendTracesWithData, mergeDataWithCache, getPlotLayout, getPlotConfig };
+export { getColumnUnits, getObjVal, shouldComponentUpdate, createTracesFromData, extendTracesWithData, mergeDataWithCache, getPlotLayout, getPlotConfig };

@@ -13,7 +13,7 @@ export const BASE_DATA_STRUCTURE = {
   },
   Pressures: [
     'root_exhaust_pressure', 'buffer_pressure', 'magnet_pressure',
-    'purifier_inlet_pressure', 'fridge_vapor_pressure', 'maxigauge_pressure', 'ivc_pressure',
+    'purifier_inlet_pressure', 'fridge_vapor_pressure', 'maxigauge_seperator_inlet_pressure', 'ivc_pressure',
   ],
   Temperatures: [
     'thermocouple', 'magnet_bottom_temperature', 'magnet_top_temperature',
@@ -25,7 +25,7 @@ export const BASE_DATA_STRUCTURE = {
     'magnet_channel_5', 'magnet_channel_6', 'magnet_channel_7', 'magnet_channel_8',
   ],
   Flows: [
-    'separator_flow', 'magnet_flow', 'main_flow', 'microwave_flow', 'heat_exchanger_flow',
+    'seperator_flow', 'magnet_flow', 'main_flow', 'microwave_flow', 'heat_exchanger_flow',
   ],
   NMR: [
     'run_number', 'measurement_type', 'peak_amp', 'peak_center', 'beam_on', 'rf_level',
@@ -74,4 +74,23 @@ export function processQTParams(qtParams) {
     const match = param.match(/^[^:]+:\s*(.+)$/);
     return match ? match[1].trim() : param;
   });
+}
+
+/** Strip "Category: " prefix from any param (e.g. "Pressures: pt501_ai" -> "pt501_ai") */
+export function processParam(param) {
+  if (typeof param !== 'string') return param;
+  const match = param.match(/^[^:]+:\s*(.+)$/);
+  return match ? match[1].trim() : param;
+}
+
+/** Process all selected params to ensure clean column names for the API */
+export function processAllParams(selectedData) {
+  const raw = [
+    ...selectedData.qt,
+    ...selectedData.pressures,
+    ...selectedData.temperatures,
+    ...selectedData.flows,
+    ...selectedData.nmr,
+  ];
+  return raw.map(processParam).filter(Boolean);
 }

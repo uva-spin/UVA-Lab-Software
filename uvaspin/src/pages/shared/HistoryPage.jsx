@@ -5,7 +5,7 @@ import DataSelectionDropdown from '../../components/DataSelectionDropdown';
 import usePageDataCache from '../../utils/usePageDataCache';
 import { fetchDataFromDB } from '../../utils/Query';
 import { createTracesFromData, getTimeSeriesPlotConfig } from '../../utils/plotUtils';
-import { BASE_DATA_STRUCTURE, getQTOptions, processQTParams } from '../../constants/dataStructure';
+import { BASE_DATA_STRUCTURE, getQTOptions, processAllParams } from '../../constants/dataStructure';
 import '../../assets/css/HistoryPage.css';
 
 const LAB_LABELS = { lab42: 'Lab 042', lab36: 'Lab 036' };
@@ -23,8 +23,7 @@ export default function HistoryPage({ labType }) {
     if (!dateRange.start || !dateRange.end) throw new Error('Please select a date range');
     if (!hasSelectedData()) throw new Error('Please select at least one parameter');
 
-    const processedQT = processQTParams(selectedData.qt);
-    const allParams = [...processedQT, ...selectedData.pressures, ...selectedData.temperatures, ...selectedData.flows, ...selectedData.nmr];
+    const allParams = processAllParams(selectedData);
 
     const result = await fetchDataFromDB(allParams, dateRange.start, dateRange.end);
     if (!result.data?.length) throw new Error('No data found for the selected time range and parameters');
@@ -88,7 +87,7 @@ export default function HistoryPage({ labType }) {
         <div className="info-grid">
           <div className="info-item"><label>Lab:</label><span>{LAB_LABELS[labType]}</span></div>
           <div className="info-item"><label>Data Points:</label><span>{historyData?.length ?? 0}</span></div>
-          <div className="info-item"><label>Time Range:</label><span>{dateRange.start && dateRange.end ? `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}` : 'Not set'}</span></div>
+          <div className="info-item"><label>Time Range:</label><span>{dateRange.start && dateRange.end && !Number.isNaN(dateRange.start.getTime()) && !Number.isNaN(dateRange.end.getTime()) ? `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}` : 'Not set'}</span></div>
           <div className="info-item"><label>Selected Parameters:</label><span>{Object.values(selectedData).reduce((t, c) => t + c.length, 0)}</span></div>
         </div>
       </div>

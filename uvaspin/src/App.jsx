@@ -1,18 +1,20 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-import HomePage from './pages/home/HomePage';
-import Lab42Page from './pages/lab42/Lab42Page';
-import Lab36Page from './pages/lab36/Lab36Page';
-import LabSubpage from './pages/shared/LabSubpage';
 import { DataSelectionProvider } from './utils/useDataSelection';
 import './assets/css/App.css';
+
+const HomePage = lazy(() => import('./pages/home/HomePage'));
+const Lab42Page = lazy(() => import('./pages/lab42/Lab42Page'));
+const Lab36Page = lazy(() => import('./pages/lab36/Lab36Page'));
+const LabSubpage = lazy(() => import('./pages/shared/LabSubpage'));
 
 function App() {
   return (
     <Router>
       <DataSelectionProvider>
         <div className="App">
+          <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>}>
           <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
@@ -22,6 +24,7 @@ function App() {
               <Route path="lab36/*" element={<LabSubpage labType="lab36" />} />
             </Route>
           </Routes>
+          </Suspense>
         </div>
       </DataSelectionProvider>
     </Router>

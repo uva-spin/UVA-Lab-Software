@@ -6,11 +6,13 @@ export function clear_cache() {
     console.log('Cache cleared');
 }
 
-// Convert locale timestamp to database format (yy-mm-dd hh:mm:ss)
-function formatTimestampForDB(localeString) {
-    if (!localeString) return null;
+// Convert timestamp string to database format (yyyy-mm-dd hh:mm:ss)
+// Accepts ISO 8601 (preferred) or locale strings
+function formatTimestampForDB(timestampStr) {
+    if (!timestampStr) return null;
     
-    const date = new Date(localeString);
+    const date = new Date(timestampStr);
+    if (Number.isNaN(date.getTime())) return null;
     const year = date.getFullYear().toString();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
@@ -223,6 +225,7 @@ export async function fetchData(pool, keys, start_time, end_time) {
                 
                 const allConditions = [...conditions];
                 allConditions.push(`id % ${moduloFactor} = 0`);
+                allConditions.push(`(${columns.map(col => `${col} IS NOT NULL`).join(' OR ')})`);
                 
                 if (allConditions.length > 0) {
                     query += ` WHERE ${allConditions.join(' AND ')}`;
@@ -249,12 +252,22 @@ export async function fetchData(pool, keys, start_time, end_time) {
                     });
                 });
 
-                // Add table name to each row for identification
+                // Keep only rows that contain at least one non-null requested value.
+                // This prevents "empty plots with lots of null rows" when tables are sparsely populated.
                 if (result && result.length > 0) {
-                    const enrichedResult = result.map(row => ({
-                        ...row,
-                        _table_source: tableName
-                    }));
+                    const filteredRows = result.filter(row =>
+                        columns.some(col => row[col] !== null && row[col] !== undefined)
+                    );
+
+                    const enrichedResult = filteredRows.map(row => {
+                        const r = { ...row, _table_source: tableName };
+                        if (row.Timestamp !== undefined && r.timestamp === undefined) r.timestamp = row.Timestamp;
+                        return r;
+                    });
+
+                    console.log(
+                        `Table ${tableName}: non-null rows after filtering: ${enrichedResult.length}/${result.length}`
+                    );
                     allResults.push(...enrichedResult);
                 }
                 
@@ -285,8 +298,9 @@ export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = 
     const defaultStartTime = startTime || new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
     const defaultEndTime = endTime || now;
     
-    const startTimeStr = defaultStartTime.toLocaleString();
-    const endTimeStr = defaultEndTime.toLocaleString();
+    // Use ISO 8601 format for reliable parsing on server (avoids locale-dependent "expected pattern" errors)
+    const startTimeStr = defaultStartTime.toISOString();
+    const endTimeStr = defaultEndTime.toISOString();
     
     const params = new URLSearchParams();
     params.append('keys', selectedKeys.join(','));
@@ -301,11 +315,28 @@ export const fetchDataFromDB = async (selectedKeys, startTime = null, endTime = 
             throw new Error('Failed to fetch data from server');
         }
 
-        const result = await response.json();
+
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch {
+            console.error('Response was not valid JSON:', text.slice(0, 200));
+            throw new Error('Server returned invalid response (expected JSON)');
+        }
         console.log('Received data points:', result.data ? result.data.length : 0);
-        
+
+        // Normalize row keys: DB/schema may use "Timestamp" (capital T), but plot code expects "timestamp"
+        const normalizedData = (result.data || []).map(row => {
+            const normalized = { ...row };
+            if (normalized.Timestamp !== undefined && normalized.timestamp === undefined) {
+                normalized.timestamp = normalized.Timestamp;
+            }
+            return normalized;
+        });
+
         return {
-            data: result.data || [],
+            data: normalizedData,
             availableKeys: result.available_keys || [],
             missingKeys: result.missing_keys || []
         };

@@ -14,16 +14,9 @@ from .schema import TABLE_SCHEMAS
 logger = logging.getLogger(__name__)
 
 
-def _normalize_db_config(raw: Dict[str, Any]) -> Dict[str, Any]:
-    """Map config keys to mariadb-compatible names (host, port, user, password, database)."""
-    mapping = {"DATABASE_HOST": "host", "DATABASE_PORT": "port", "DATABASE_USER": "user",
-               "DATABASE_PASSWORD": "password", "DATABASE_NAME": "database"}
-    out = {}
-    for k, v in raw.items():
-        key = mapping.get(k, k)
-        if key in ("host", "port", "user", "password", "database"):
-            out[key] = v
-    return out
+def db_config(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Pass through config keys directly from the config file."""
+    return dict(raw)
 
 
 class MariaDBLoader:
@@ -33,7 +26,7 @@ class MariaDBLoader:
         with open(config_path) as f:
             raw = json.load(f)
         db_raw = raw.get("database", raw)
-        self._config = _normalize_db_config(db_raw)
+        self._config = db_config(db_raw)
         self._pool: Optional[mariadb.ConnectionPool] = None
 
     def connect(self, pool_size: int = 10) -> None:

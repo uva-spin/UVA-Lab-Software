@@ -4,8 +4,8 @@ import DateTimePicker from '../../components/DateTimePicker';
 import DataSelectionDropdown from '../../components/DataSelectionDropdown';
 import usePageDataCache from '../../utils/usePageDataCache';
 import { fetchDataFromDB } from '../../utils/Query';
-import { createTracesFromData, getTimeSeriesPlotConfig } from '../../utils/plotUtils';
-import { BASE_DATA_STRUCTURE, getQTOptions } from '../../constants/dataStructure';
+import { createTracesFromData, getTimeSeriesPlotConfig, getObjVal } from '../../utils/plotUtils';
+import { BASE_DATA_STRUCTURE, getQTOptions, processAllParams } from '../../constants/dataStructure';
 import '../../assets/css/AveragingPage.css';
 
 const LAB_LABELS = { lab42: 'Lab 042', lab36: 'Lab 036' };
@@ -17,12 +17,12 @@ function applyAveraging(rawData, availableKeys, selectedKeys, nPoints, samplingF
 
   const result = [];
   for (let i = nPoints - 1; i < sampled.length; i++) {
-    const avgPoint = { timestamp: sampled[i].timestamp };
+    const avgPoint = { timestamp: getObjVal(sampled[i], 'timestamp') };
     selectedKeys.forEach((key) => {
       if (availableKeys.includes(key)) {
         let sum = 0, count = 0;
         for (let j = i - nPoints + 1; j <= i; j++) {
-          const v = sampled[j][key];
+          const v = getObjVal(sampled[j], key);
           if (v != null && !isNaN(v)) { sum += v; count++; }
         }
         avgPoint[key] = count ? sum / count : null;
@@ -46,7 +46,7 @@ export default function AveragingPage({ labType }) {
 
   const calculateAveraged = async () => {
     if (!hasSelectedData()) throw new Error('Please select at least one parameter');
-    const allParams = [...selectedData.qt, ...selectedData.pressures, ...selectedData.temperatures, ...selectedData.flows, ...selectedData.nmr];
+    const allParams = processAllParams(selectedData);
     const endTime = dateRange.end || new Date();
     const startTime = dateRange.start || new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
 
@@ -130,7 +130,7 @@ export default function AveragingPage({ labType }) {
           <div className="info-item"><label>N Points:</label><span>{nPoints}</span></div>
           <div className="info-item"><label>Sampling Factor:</label><span>{samplingFactor}x</span></div>
           <div className="info-item"><label>Selected Parameters:</label><span>{Object.values(selectedData).reduce((t, c) => t + c.length, 0)}</span></div>
-          <div className="info-item"><label>Time Range:</label><span>{dateRange.start && dateRange.end ? `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}` : 'Not set'}</span></div>
+          <div className="info-item"><label>Time Range:</label><span>{dateRange.start && dateRange.end && !Number.isNaN(dateRange.start.getTime()) && !Number.isNaN(dateRange.end.getTime()) ? `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}` : 'Not set'}</span></div>
         </div>
       </div>
     </div>

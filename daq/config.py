@@ -1,5 +1,8 @@
 # Configuration file for data acquisition system
+import os
 
+# Project root (parent of daq/)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Local data storage
 LOCAL_CSV_DIR = "data_logs"  
@@ -56,8 +59,8 @@ ASYNC_READ_INTERVAL = 1       # Check for new data (async)
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 LOG_FILE = "data_acquisition.log"
 
-# Database
-DATABASE_FILE = "//twist.phys.virginia.edu/www/spin/UVA-Lab-Software/uvaspin/config.json"
+# Database - use shared config.json from uvaspin (host, port, user, password, database, connectionLimit)
+DATABASE_FILE = os.path.join(_PROJECT_ROOT, "uvaspin", "config.json")
 
 # Network paths
 TWIST_PATH = "//twist.phys.virginia.edu/www/spin"
