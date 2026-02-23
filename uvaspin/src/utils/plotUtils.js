@@ -378,4 +378,55 @@ function getPlotConfig(labType) {
     };
 };
 
+/** Shared layout/config for History, Averaging, NMR pages */
+export function getTimeSeriesPlotConfig(title, filenamePrefix = 'plot') {
+  return {
+    layout: {
+      title: title || 'Plot',
+      xaxis: {
+        title: 'Time (EST)',
+        type: 'date',
+        showgrid: true,
+        gridcolor: '#e0e0e0',
+        zeroline: false,
+      },
+      yaxis: {
+        title: 'Value',
+        showgrid: true,
+        gridcolor: '#e0e0e0',
+        zeroline: false,
+      },
+      legend: {
+        orientation: 'v',
+        x: 1.02,
+        y: 1,
+        bgcolor: 'rgba(255,255,255,0.8)',
+        bordercolor: '#ccc',
+        borderwidth: 1,
+      },
+      showlegend: true,
+      margin: { r: 150, t: 50, b: 50, l: 60 },
+      plot_bgcolor: 'white',
+      paper_bgcolor: 'white',
+      font: { family: 'Arial, sans-serif' },
+      hovermode: 'closest',
+    },
+    config: {
+      displayModeBar: true,
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+      toImageButtonOptions: {
+        format: 'png',
+        filename: `${filenamePrefix}_${new Date().toISOString().split('T')[0]}`,
+        height: 600,
+        width: 1000,
+        scale: 2,
+      },
+    },
+  };
+}
+
+export const LAB_COLORS = { lab42: '#667eea', lab36: '#764ba2' };
+
 export { getColumnUnits, shouldComponentUpdate, createTracesFromData, extendTracesWithData, mergeDataWithCache, getPlotLayout, getPlotConfig };

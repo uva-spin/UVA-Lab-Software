@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import PlotGrid from '../../components/PlotGrid';
 import 'react-time-picker/dist/TimePicker.css';
-import '/src/pages/css/LabPage.css';
+import '../../assets/css/LabPage.css';
 
 function Lab42Page() {
     const [numPlots, setNumPlots] = useState(1);

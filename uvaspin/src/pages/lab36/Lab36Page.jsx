@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import PlotGrid from '../../components/PlotGrid';
-import '/src/pages/css/LabPage.css';
+import '../../assets/css/LabPage.css';
 
 function Lab36Page() {
     const [numPlots, setNumPlots] = useState(1);

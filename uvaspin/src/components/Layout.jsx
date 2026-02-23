@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Banner from './Banner';
-import { Lab42Button, Lab36Button, HomeButton, SidePanelButton } from './Buttons';
+import Banner from './ui/Banner';
+import { Lab42Button, Lab36Button, HomeButton, SidePanelButton } from './ui/Buttons';
 import SidePanel from './SidePanel';
 
 function Layout() {

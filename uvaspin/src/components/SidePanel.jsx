@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import './SidePanel.css';
+import '../assets/css/SidePanel.css';
 import DataSelectionSidebar from './DataSelectionSidebar';
 import { useDataSelection } from '../utils/useDataSelection';
 
